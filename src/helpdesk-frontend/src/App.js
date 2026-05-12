@@ -6,6 +6,8 @@ import CreateTicket from './pages/CreateTicket';
 import TicketList from './pages/TicketList';
 import UserManagement from './pages/admin/UserManagement';
 import ServiceCatalogPage from './pages/admin/ServiceCatalog';
+import DamageCatalogPage from './pages/admin/DamageCatalog';
+import Register from './pages/Register';
 
 // Debe estar ANTES de function App()
 function PrivateRoute({ children, adminOnly }) {
@@ -37,6 +39,10 @@ function App() {
         <Route path="/admin/servicios" element={
         <PrivateRoute adminOnly><ServiceCatalogPage /></PrivateRoute>
         } />
+        <Route path="/admin/daños" element={
+        <PrivateRoute adminOnly><DamageCatalogPage /></PrivateRoute>
+        } />
+        <Route path="/register" element={<Register />} />
       </Routes>
     </BrowserRouter>
   );

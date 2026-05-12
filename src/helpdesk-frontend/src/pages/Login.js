@@ -66,6 +66,17 @@ function Login() {
           <button type="submit" style={styles.button} disabled={loading}>
             {loading ? 'Ingresando...' : 'Iniciar Sesión'}
           </button>
+
+            <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '14px', color: '#718096' }}>
+              ¿No tienes cuenta?{' '}
+            <span
+            style={{ color: '#2d6a9f', cursor: 'pointer', fontWeight: '600' }}
+            onClick={() => navigate('/register')}
+            >
+            Regístrate
+  </span>
+</p>
+
         </form>
       </div>
     </div>
