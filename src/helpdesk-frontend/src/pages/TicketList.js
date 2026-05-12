@@ -38,7 +38,7 @@ function TicketList() {
   return (
     <div style={styles.container}>
       <div style={styles.navbar}>
-        <h2 style={styles.logo}>SmartCampus HelpDesk</h2>
+        <h2 style={styles.logo}>HelpDesk</h2>
         <div style={styles.navButtons}>
           <button onClick={() => navigate('/crear-ticket')} style={styles.newBtn}>
             + Nuevo Ticket
