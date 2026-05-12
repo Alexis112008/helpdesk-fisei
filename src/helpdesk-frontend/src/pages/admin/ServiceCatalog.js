@@ -99,7 +99,7 @@ function ServiceCatalogPage() {
   return (
     <div style={styles.container}>
       <div style={styles.navbar}>
-        <h2 style={styles.logo}>SmartCampus HelpDesk</h2>
+        <h2 style={styles.logo}>HelpDesk</h2>
         <div style={styles.navRight}>
           <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
             ← Dashboard

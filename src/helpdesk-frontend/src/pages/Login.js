@@ -33,7 +33,7 @@ function Login() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h2 style={styles.title}>SmartCampus HelpDesk</h2>
+        <h2 style={styles.title}>HelpDesk</h2>
         <p style={styles.subtitle}>Ingresa tus credenciales</p>
 
         {error && <div style={styles.error}>{error}</div>}
