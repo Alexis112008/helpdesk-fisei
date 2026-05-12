@@ -39,6 +39,17 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReact", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddControllers();
@@ -52,6 +63,7 @@ app.MapScalarApiReference(options =>
     options.Title = "HelpDesk FISEI API";
 });
 
+app.UseCors("AllowReact");
 app.UseAuthentication();
 app.UseAuthorization();
 
