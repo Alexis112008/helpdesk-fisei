@@ -1,20 +1,44 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateTicket from './pages/CreateTicket';
 import TicketList from './pages/TicketList';
+import UserManagement from './pages/admin/UserManagement';
+import ServiceCatalogPage from './pages/admin/ServiceCatalog';
+
+// Debe estar ANTES de function App()
+function PrivateRoute({ children, adminOnly }) {
+  const token = localStorage.getItem('token');
+  const role  = localStorage.getItem('role');
+
+  if (!token) return <Navigate to="/" />;
+  if (adminOnly && role !== 'Admin') return <Navigate to="/dashboard" />;
+  return children;
+}
 
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/crear-ticket" element={<CreateTicket />} />
-        <Route path="/tickets" element={<TicketList />} />
+        <Route path="/dashboard" element={
+          <PrivateRoute><Dashboard /></PrivateRoute>
+        } />
+        <Route path="/tickets" element={
+          <PrivateRoute><TicketList /></PrivateRoute>
+        } />
+        <Route path="/crear-ticket" element={
+          <PrivateRoute><CreateTicket /></PrivateRoute>
+        } />
+        <Route path="/admin/usuarios" element={
+        <PrivateRoute adminOnly><UserManagement /></PrivateRoute>
+        } />
+        <Route path="/admin/servicios" element={
+        <PrivateRoute adminOnly><ServiceCatalogPage /></PrivateRoute>
+        } />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }
 
