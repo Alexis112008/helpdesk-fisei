@@ -10,6 +10,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReact", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
@@ -21,6 +32,7 @@ app.MapScalarApiReference(options =>
     options.Title = "HelpDesk FISEI - Microservicio C";
 });
 
+app.UseCors("AllowReact");
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
