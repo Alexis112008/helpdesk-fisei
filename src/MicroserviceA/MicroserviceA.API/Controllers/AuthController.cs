@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MicroserviceA.API.Data;
 using MicroserviceA.API.Models.DTOs;
 using MicroserviceA.API.Services;
+using MicroserviceA.API.Models.Entities;
 
 namespace MicroserviceA.API.Controllers
 {
@@ -49,6 +50,36 @@ namespace MicroserviceA.API.Controllers
                 Role = user.Role.Name,
                 ExpiresAt = DateTime.UtcNow.AddHours(8)
             });
+        }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
+        {
+            // Solo correos institucionales
+            if (!request.Email.EndsWith("@uta.edu.ec"))
+                return BadRequest(new { message = "Solo se permiten correos @uta.edu.ec" });
+
+            // Verificar que no exista
+            bool exists = await _context.Users
+                .AnyAsync(u => u.Email == request.Email);
+
+            if (exists)
+                return BadRequest(new { message = "El correo ya está registrado" });
+
+            var user = new User
+            {
+                FullName = request.FullName,
+                Email = request.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                RoleId = 1, // Rol Usuario por defecto
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Usuario registrado correctamente" });
         }
     }
 }

@@ -54,6 +54,14 @@ function Dashboard() {
             </div>
           )}
 
+          {role === 'Admin' && (
+            <div style={styles.card} onClick={() => navigate('/admin/daños')}>
+            <div style={styles.cardIcon}>🔧</div>
+            <h4 style={styles.cardTitle}>Catálogo Daños</h4>
+            <p style={styles.cardDesc}>Gestionar categorías de incidencias</p>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
