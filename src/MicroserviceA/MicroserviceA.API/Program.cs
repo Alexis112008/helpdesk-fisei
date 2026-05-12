@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using MicroserviceA.API.Data;
 using MicroserviceA.API.Services;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,17 +42,14 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "MicroserviceA API v1");
-    c.RoutePrefix = string.Empty; // Abre swagger en la raíz
+    options.Title = "HelpDesk FISEI API";
 });
 
 app.UseAuthentication();
