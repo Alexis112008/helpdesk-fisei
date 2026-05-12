@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "../styles/login.css";
 
 function LoginPage() {
@@ -9,6 +11,10 @@ function LoginPage() {
     });
 
     const [error, setError] = useState("");
+
+    const navigate = useNavigate();
+
+    const { login } = useAuth();
 
     const handleChange = (e) => {
 
@@ -32,7 +38,34 @@ function LoginPage() {
             return;
         }
 
-        console.log(form);
+        let role = "Usuario";
+
+        if (form.email.includes("admin")) {
+            role = "Administrador";
+        }
+
+        if (form.email.includes("tecnico")) {
+            role = "Tecnico";
+        }
+
+        const userData = {
+            email: form.email,
+            role
+        };
+
+        login(userData);
+
+        if (role === "Administrador") {
+            navigate("/admin");
+        }
+
+        if (role === "Tecnico") {
+            navigate("/technician");
+        }
+
+        if (role === "Usuario") {
+            navigate("/user");
+        }
 
     };
 
@@ -119,7 +152,9 @@ function LoginPage() {
 
                 <div className="login-form-wrapper">
 
-                    <h2>Bienvenido de vuelta</h2>
+                    <h2>
+                        Bienvenido de vuelta
+                    </h2>
 
                     <p className="subtitle">
                         Ingresa con tu correo institucional
@@ -197,7 +232,6 @@ function LoginPage() {
                         ¿No tienes cuenta?
                         <a href="#"> Regístrate</a>
                     </p>
-
 
                 </div>
 
