@@ -14,7 +14,7 @@ function Dashboard() {
   return (
     <div style={styles.container}>
       <div style={styles.navbar}>
-        <h2 style={styles.logo}>SmartCampus HelpDesk</h2>
+        <h2 style={styles.logo}> HelpDesk</h2>
         <div style={styles.userInfo}>
           <span style={styles.userName}>{fullName}</span>
           <span style={styles.userRole}>{role}</span>
@@ -37,6 +37,23 @@ function Dashboard() {
             <h4 style={styles.cardTitle}>Nuevo Ticket</h4>
             <p style={styles.cardDesc}>Registrar un nuevo ticket de soporte</p>
           </div>
+
+          {role === 'Admin' && (
+            <div style={styles.card} onClick={() => navigate('/admin/usuarios')}>
+            <div style={styles.cardIcon}>👥</div>
+            <h4 style={styles.cardTitle}>Usuarios</h4>
+            <p style={styles.cardDesc}>Gestionar usuarios y roles</p>
+            </div>
+          )}
+
+          {role === 'Admin' && (
+            <div style={styles.card} onClick={() => navigate('/admin/servicios')}>
+            <div style={styles.cardIcon}>⚙️</div>
+            <h4 style={styles.cardTitle}>Catálogo</h4>
+            <p style={styles.cardDesc}>Gestionar servicios tecnológicos</p>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
