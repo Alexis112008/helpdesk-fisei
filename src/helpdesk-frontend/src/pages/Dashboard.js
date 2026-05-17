@@ -1,102 +1,57 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import Layout from '../components/Layout';
 
 function Dashboard() {
-  const navigate = useNavigate();
-  const fullName = localStorage.getItem('fullName');
-  const role = localStorage.getItem('role');
-
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/');
-  };
-
   return (
-    <div style={styles.container}>
-      <div style={styles.navbar}>
-        <h2 style={styles.logo}> HelpDesk</h2>
-        <div style={styles.userInfo}>
-          <span style={styles.userName}>{fullName}</span>
-          <span style={styles.userRole}>{role}</span>
-          <button onClick={handleLogout} style={styles.logoutBtn}>Cerrar Sesión</button>
-        </div>
-      </div>
+    <Layout>
+      <main style={s.content}>
+        <div style={s.dashboardGrid}>
+          <div style={s.card}>
+            <h2 style={s.cardTitle}>
+              Bienvenido al Help Desk
+            </h2>
 
-      <div style={styles.content}>
-        <h3 style={styles.welcome}>Bienvenido, {fullName} 👋</h3>
-
-        <div style={styles.cards}>
-          <div style={styles.card} onClick={() => navigate('/tickets')}>
-            <div style={styles.cardIcon}>🎫</div>
-            <h4 style={styles.cardTitle}>Mis Tickets</h4>
-            <p style={styles.cardDesc}>Ver todos los tickets registrados</p>
+            <p style={s.cardText}>
+              Gestiona tickets, usuarios y servicios
+              desde un solo lugar.
+            </p>
           </div>
-
-          <div style={styles.card} onClick={() => navigate('/crear-ticket')}>
-            <div style={styles.cardIcon}>➕</div>
-            <h4 style={styles.cardTitle}>Nuevo Ticket</h4>
-            <p style={styles.cardDesc}>Registrar un nuevo ticket de soporte</p>
-          </div>
-
-          {role === 'Admin' && (
-            <div style={styles.card} onClick={() => navigate('/admin/usuarios')}>
-            <div style={styles.cardIcon}>👥</div>
-            <h4 style={styles.cardTitle}>Usuarios</h4>
-            <p style={styles.cardDesc}>Gestionar usuarios y roles</p>
-            </div>
-          )}
-
-          {role === 'Admin' && (
-            <div style={styles.card} onClick={() => navigate('/admin/servicios')}>
-            <div style={styles.cardIcon}>⚙️</div>
-            <h4 style={styles.cardTitle}>Catálogo</h4>
-            <p style={styles.cardDesc}>Gestionar servicios tecnológicos</p>
-            </div>
-          )}
-
-          {role === 'Admin' && (
-            <div style={styles.card} onClick={() => navigate('/admin/daños')}>
-            <div style={styles.cardIcon}>🔧</div>
-            <h4 style={styles.cardTitle}>Catálogo Daños</h4>
-            <p style={styles.cardDesc}>Gestionar categorías de incidencias</p>
-            </div>
-          )}
-
         </div>
-      </div>
-    </div>
+      </main>
+    </Layout>
   );
 }
 
-const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#f0f2f5' },
-  navbar: {
-    backgroundColor: '#1a237e', padding: '16px 32px',
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+const s = {
+  content: {
+    padding: '32px',
+    flex: 1,
   },
-  logo: { color: 'white', margin: 0 },
-  userInfo: { display: 'flex', alignItems: 'center', gap: '12px' },
-  userName: { color: 'white', fontWeight: '600' },
-  userRole: {
-    backgroundColor: '#3949ab', color: 'white', padding: '4px 10px',
-    borderRadius: '12px', fontSize: '12px',
+
+  dashboardGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
   },
-  logoutBtn: {
-    backgroundColor: '#c62828', color: 'white', border: 'none',
-    padding: '8px 16px', borderRadius: '6px', cursor: 'pointer',
-  },
-  content: { padding: '40px 32px' },
-  welcome: { color: '#1a237e', marginBottom: '32px', fontSize: '22px' },
-  cards: { display: 'flex', gap: '24px', flexWrap: 'wrap' },
+
   card: {
-    backgroundColor: 'white', padding: '32px', borderRadius: '10px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)', cursor: 'pointer',
-    width: '220px', textAlign: 'center',
-    transition: 'transform 0.2s',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    border: '1px solid #eaecf0',
+    padding: 32,
   },
-  cardIcon: { fontSize: '48px', marginBottom: '12px' },
-  cardTitle: { color: '#1a237e', marginBottom: '8px' },
-  cardDesc: { color: '#666', fontSize: '14px' },
+
+  cardTitle: {
+    fontSize: 30,
+    fontWeight: 700,
+    color: '#111827',
+    marginBottom: 10,
+  },
+
+  cardText: {
+    fontSize: 15,
+    color: '#6b7280',
+  },
 };
 
 export default Dashboard;

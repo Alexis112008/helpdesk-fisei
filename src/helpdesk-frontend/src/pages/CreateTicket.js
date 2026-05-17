@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ticketAPI, catalogAPI } from '../services/api';
 
+import Layout from '../components/Layout';
+
 function CreateTicket() {
   const navigate = useNavigate();
+
   const [damages, setDamages] = useState([]);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,18 +19,27 @@ function CreateTicket() {
     priority: 'Media',
     damageCatalogId: '',
     serviceCatalogId: '',
-    userId: 1,
+    userId: parseInt(localStorage.getItem('userId')) || 0,
   });
 
   useEffect(() => {
-    catalogAPI.get('/damagecatalog').then((res) => setDamages(res.data));
+    catalogAPI
+      .get('/damagecatalog')
+      .then((res) => setDamages(res.data));
   }, []);
 
   const handleDamageChange = (e) => {
     const damageId = e.target.value;
-    setForm({ ...form, damageCatalogId: damageId, serviceCatalogId: '' });
+
+    setForm({
+      ...form,
+      damageCatalogId: damageId,
+      serviceCatalogId: '',
+    });
+
     if (damageId) {
-      catalogAPI.get(`/servicecatalog/by-damage/${damageId}`)
+      catalogAPI
+        .get(`/servicecatalog/by-damage/${damageId}`)
         .then((res) => setServices(res.data));
     } else {
       setServices([]);
@@ -36,148 +48,280 @@ function CreateTicket() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setLoading(true);
     setError('');
+
     try {
       await ticketAPI.post('/ticket', form);
+
       setSuccess('¡Ticket creado exitosamente!');
+
       setTimeout(() => navigate('/tickets'), 2000);
     } catch (err) {
-      setError('Error al crear el ticket. Intente de nuevo.');
+      setError(
+        'Error al crear el ticket. Intente de nuevo.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.navbar}>
-        <h2 style={styles.logo}>HelpDesk</h2>
-        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
-          ← Volver
-        </button>
-      </div>
+    <Layout>
+      <main style={s.content}>
+        <div style={s.formCard}>
+          <div style={s.formHeader}>
+            <h1 style={s.formTitle}>
+              Crear Nuevo Ticket
+            </h1>
 
-      <div style={styles.content}>
-        <div style={styles.card}>
-          <h3 style={styles.title}>Crear Nuevo Ticket</h3>
+            <p style={s.formSubtitle}>
+              Completa la información del problema
+            </p>
+          </div>
 
-          {success && <div style={styles.success}>{success}</div>}
-          {error && <div style={styles.error}>{error}</div>}
+          {success && (
+            <div style={s.success}>{success}</div>
+          )}
+
+          {error && <div style={s.error}>{error}</div>}
 
           <form onSubmit={handleSubmit}>
-            <div style={styles.field}>
-              <label style={styles.label}>Título</label>
+            <div style={s.field}>
+              <label style={s.label}>Título</label>
+
               <input
-                style={styles.input}
+                style={s.input}
                 value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    title: e.target.value,
+                  })
+                }
                 placeholder="Describe brevemente el problema"
                 required
               />
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Descripción</label>
+            <div style={s.field}>
+              <label style={s.label}>
+                Descripción
+              </label>
+
               <textarea
-                style={{ ...styles.input, height: '100px', resize: 'vertical' }}
+                style={s.textarea}
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    description: e.target.value,
+                  })
+                }
                 placeholder="Detalla el problema..."
                 required
               />
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Prioridad</label>
-              <select
-                style={styles.input}
-                value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: e.target.value })}
-              >
-                <option>Baja</option>
-                <option>Media</option>
-                <option>Alta</option>
-                <option>Crítica</option>
-              </select>
+            <div style={s.row}>
+              <div style={{ ...s.field, flex: 1 }}>
+                <label style={s.label}>
+                  Prioridad
+                </label>
+
+                <select
+                  style={s.input}
+                  value={form.priority}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      priority: e.target.value,
+                    })
+                  }
+                >
+                  <option>Baja</option>
+                  <option>Media</option>
+                  <option>Alta</option>
+                  <option>Crítica</option>
+                </select>
+              </div>
+
+              <div style={{ ...s.field, flex: 1 }}>
+                <label style={s.label}>
+                  Categoría de Daño
+                </label>
+
+                <select
+                  style={s.input}
+                  value={form.damageCatalogId}
+                  onChange={handleDamageChange}
+                  required
+                >
+                  <option value="">
+                    -- Selecciona --
+                  </option>
+
+                  {damages.map((d) => (
+                    <option
+                      key={d.id}
+                      value={d.id}
+                    >
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Categoría de Daño</label>
-              <select
-                style={styles.input}
-                value={form.damageCatalogId}
-                onChange={handleDamageChange}
-                required
-              >
-                <option value="">-- Selecciona --</option>
-                {damages.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
+            <div style={s.field}>
+              <label style={s.label}>Servicio</label>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Servicio</label>
               <select
-                style={styles.input}
+                style={s.input}
                 value={form.serviceCatalogId}
-                onChange={(e) => setForm({ ...form, serviceCatalogId: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    serviceCatalogId: e.target.value,
+                  })
+                }
                 required
                 disabled={!form.damageCatalogId}
               >
-                <option value="">-- Selecciona --</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                <option value="">
+                  -- Selecciona --
+                </option>
+
+                {services.map((sItem) => (
+                  <option
+                    key={sItem.id}
+                    value={sItem.id}
+                  >
+                    {sItem.name}
+                  </option>
                 ))}
               </select>
             </div>
 
-            <button type="submit" style={styles.button} disabled={loading}>
-              {loading ? 'Creando...' : 'Crear Ticket'}
+            <button
+              type="submit"
+              style={s.submitBtn}
+              disabled={loading}
+            >
+              {loading
+                ? 'Creando...'
+                : 'Crear Ticket'}
             </button>
           </form>
         </div>
-      </div>
-    </div>
+      </main>
+    </Layout>
   );
 }
 
-const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#f0f2f5' },
-  navbar: {
-    backgroundColor: '#1a237e', padding: '16px 32px',
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+const s = {
+  content: {
+    padding: '32px',
+    flex: 1,
   },
-  logo: { color: 'white', margin: 0 },
-  backBtn: {
-    backgroundColor: 'transparent', color: 'white', border: '1px solid white',
-    padding: '8px 16px', borderRadius: '6px', cursor: 'pointer',
+
+  formCard: {
+    width: '100%',
+    maxWidth: 850,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    border: '1px solid #eaecf0',
+    padding: 32,
+    boxSizing: 'border-box',
   },
-  content: { padding: '40px 32px', display: 'flex', justifyContent: 'center' },
-  card: {
-    backgroundColor: 'white', padding: '40px', borderRadius: '10px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)', width: '100%', maxWidth: '560px',
+
+  formHeader: {
+    marginBottom: 28,
   },
-  title: { color: '#1a237e', marginBottom: '24px' },
+
+  formTitle: {
+    fontSize: 28,
+    fontWeight: 700,
+    color: '#111827',
+    marginBottom: 8,
+  },
+
+  formSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+
   success: {
-    backgroundColor: '#e8f5e9', color: '#2e7d32', padding: '10px',
-    borderRadius: '5px', marginBottom: '16px', textAlign: 'center',
+    backgroundColor: '#ecfdf3',
+    color: '#027a48',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 20,
+    fontSize: 14,
   },
+
   error: {
-    backgroundColor: '#ffebee', color: '#c62828', padding: '10px',
-    borderRadius: '5px', marginBottom: '16px', textAlign: 'center',
+    backgroundColor: '#fef3f2',
+    color: '#b42318',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 20,
+    fontSize: 14,
   },
-  field: { marginBottom: '16px' },
-  label: { display: 'block', marginBottom: '6px', color: '#333', fontWeight: '500' },
+
+  row: {
+    display: 'flex',
+    gap: 20,
+  },
+
+  field: {
+    marginBottom: 20,
+  },
+
+  label: {
+    display: 'block',
+    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#374151',
+  },
+
   input: {
-    width: '100%', padding: '10px', borderRadius: '6px',
-    border: '1px solid #ddd', fontSize: '14px', boxSizing: 'border-box',
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: 10,
+    border: '1px solid #d0d5dd',
+    fontSize: 14,
+    boxSizing: 'border-box',
+    outline: 'none',
+    backgroundColor: '#fff',
   },
-  button: {
-    width: '100%', padding: '12px', backgroundColor: '#1a237e',
-    color: 'white', border: 'none', borderRadius: '6px',
-    fontSize: '16px', cursor: 'pointer', marginTop: '8px',
+
+  textarea: {
+    width: '100%',
+    minHeight: 120,
+    padding: '12px 14px',
+    borderRadius: 10,
+    border: '1px solid #d0d5dd',
+    fontSize: 14,
+    boxSizing: 'border-box',
+    resize: 'vertical',
+    outline: 'none',
+    fontFamily: 'inherit',
+  },
+
+  submitBtn: {
+    width: '100%',
+    padding: '14px',
+    border: 'none',
+    borderRadius: 10,
+    backgroundColor: '#4361ee',
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: 'pointer',
+    marginTop: 10,
   },
 };
 

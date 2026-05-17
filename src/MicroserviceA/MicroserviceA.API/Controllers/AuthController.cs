@@ -44,6 +44,7 @@ namespace MicroserviceA.API.Controllers
 
             return Ok(new LoginResponseDto
             {
+                UserId = user.Id,
                 Token = token,
                 FullName = user.FullName,
                 Email = user.Email,
