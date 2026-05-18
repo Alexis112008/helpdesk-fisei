@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using MicroserviceB.API.Data;
+using MicroserviceB.API.Services;
+using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,3 +37,9 @@ app.UseCors("AllowReact");
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
+
+builder.Services.AddScoped<ITicketAssignmentService, TicketAssignmentService>();
+builder.Services.AddHttpClient("AuthClient", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7179"); // URL de MicroserviceA
+});
