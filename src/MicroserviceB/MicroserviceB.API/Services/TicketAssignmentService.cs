@@ -51,5 +51,27 @@ namespace MicroserviceB.API.Services
 
             return selected.Id;
         }
+
+        public async Task ReassignForLevelAsync(int ticketId, int newLevel)
+        {
+            var ticket = await _context.Tickets.FindAsync(ticketId);
+            if (ticket == null) return;
+
+            // Buscar técnico del nuevo nivel
+            var authClient = _httpClientFactory.CreateClient("AuthClient");
+            var response = await authClient.GetAsync($"/api/technicians/byservice/{ticket.ServiceCatalogId}/level/{newLevel}");
+
+            if (!response.IsSuccessStatusCode) return;
+
+            var technician = await response.Content.ReadFromJsonAsync<TechnicianDto>();
+            if (technician == null) return;
+
+            ticket.AssignedTechnicianId = technician.Id;
+            ticket.CurrentLevel = newLevel;
+
+            await _context.SaveChangesAsync();
+        }
+
+
     }
 }

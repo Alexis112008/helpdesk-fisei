@@ -43,3 +43,5 @@ builder.Services.AddHttpClient("AuthClient", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7179"); // URL de MicroserviceA
 });
+
+builder.Services.AddScoped<IEscalationService, EscalationService>();

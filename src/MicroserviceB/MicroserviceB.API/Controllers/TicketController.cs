@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MicroserviceB.API.Data;
 using MicroserviceB.API.Models.DTOs;
 using MicroserviceB.API.Models.Entities;
+using MicroserviceB.API.Services;
 
 namespace MicroserviceB.API.Controllers
 {
@@ -11,10 +12,16 @@ namespace MicroserviceB.API.Controllers
     public class TicketController : ControllerBase
     {
         private readonly AppDbContext _context;
-
-        public TicketController(AppDbContext context)
+        private readonly ITicketAssignmentService _assignmentService;
+        private readonly IEscalationService _escalationService;
+        public TicketController(
+        AppDbContext context,
+        ITicketAssignmentService assignmentService,
+        IEscalationService escalationService)  
         {
             _context = context;
+            _assignmentService = assignmentService;
+            _escalationService = escalationService;  
         }
 
         // Nombre del nivel según número
@@ -157,6 +164,20 @@ namespace MicroserviceB.API.Controllers
                 currentLevel = ticket.CurrentLevel,
                 levelName = GetLevelName(ticket.CurrentLevel)
             });
+        }
+
+        [HttpPost("{id}/escalate")]
+        public async Task<IActionResult> EscalateTicket(int id)
+        {
+            try
+            {
+                await _escalationService.ManualEscalateAsync(id);
+                return Ok(new { message = "Ticket escalado correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
     }
 }
