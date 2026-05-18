@@ -23,7 +23,8 @@ namespace MicroserviceB.API.Services
 
         public async Task<int> AssignTechnicianAsync(Ticket ticket)
         {
-            // 1. Llamar a MicroserviceA para obtener técnicos que pueden atender este servicio
+            Console.WriteLine($"Asignando ticket {ticket.Id} para servicio {ticket.ServiceCatalogId}");
+
             var authClient = _httpClientFactory.CreateClient("AuthClient");
             var response = await authClient.GetAsync($"/api/technicians/byservice/{ticket.ServiceCatalogId}");
 
@@ -35,7 +36,6 @@ namespace MicroserviceB.API.Services
             if (technicians == null || technicians.Count == 0)
                 throw new Exception("No hay técnicos disponibles para este servicio");
 
-            // 2. Seleccionar el técnico con menos tickets activos
             var selected = technicians
                 .OrderBy(t => t.CurrentTicketCount)
                 .FirstOrDefault();
@@ -43,15 +43,14 @@ namespace MicroserviceB.API.Services
             if (selected == null)
                 throw new Exception("No se pudo asignar un técnico");
 
-            // 3. Guardar la asignación
+            // Asignar
             ticket.AssignedTechnicianId = selected.Id;
             ticket.CurrentLevel = selected.Level;
 
-            // Podrías guardar en una tabla AssignmentHistory si quieres historial
+            await _context.SaveChangesAsync();
 
             return selected.Id;
         }
-
         public async Task ReassignForLevelAsync(int ticketId, int newLevel)
         {
             var ticket = await _context.Tickets.FindAsync(ticketId);

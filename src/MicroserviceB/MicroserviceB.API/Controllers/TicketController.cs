@@ -113,6 +113,16 @@ namespace MicroserviceB.API.Controllers
 
             _context.Tickets.Add(ticket);
             await _context.SaveChangesAsync();
+            try
+            {
+                var assignedTechId = await _assignmentService.AssignTechnicianAsync(ticket);
+                Console.WriteLine($"Ticket {ticket.Id} asignado a técnico {assignedTechId}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error en asignación: {ex.Message}");
+                return StatusCode(500, new { message = $"Error en asignación: {ex.Message}" });
+            }
 
             return CreatedAtAction(nameof(GetById), new { id = ticket.Id },
                 new { message = "Ticket creado", ticketNumber, id = ticket.Id });
