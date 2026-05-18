@@ -14,5 +14,9 @@ namespace MicroserviceB.API.Models.Entities
         public int UserId { get; set; }
         public int DamageCatalogId { get; set; }
         public int ServiceCatalogId { get; set; }
+        public int? AssignedTechnicianId { get; set; }
+
+        public DateTime? LastEscalationCheck { get; set; }
+
     }
 }
