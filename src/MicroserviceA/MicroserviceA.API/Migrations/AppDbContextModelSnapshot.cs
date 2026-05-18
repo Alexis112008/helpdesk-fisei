@@ -36,7 +36,7 @@ namespace MicroserviceA.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
 
                     b.HasData(
                         new
@@ -104,7 +104,7 @@ namespace MicroserviceA.API.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("MicroserviceA.API.Models.Entities.User", b =>
