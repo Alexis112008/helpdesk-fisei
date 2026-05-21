@@ -242,7 +242,18 @@ export function NotificationProvider({ children }) {
           });
         };
 
-        handlers['ticket-action-added'] = () => { /* sin toast */ };
+        handlers['ticket-action-added'] = (payload) => {
+          // Avisar discretamente que hay un nuevo comentario en un ticket.
+          // El backend ya excluye al actor, así que si llega es porque
+          // alguien distinto comentó en un ticket que nos involucra.
+          if (!payload?.ticketNumber) return;
+          const who = payload.fromUser === 'solicitante' ? 'El solicitante' : 'El técnico';
+          showToast({
+            type: 'info',
+            title: 'Nuevo comentario',
+            message: `${who} comentó en el ticket ${payload.ticketNumber}.`,
+          });
+        };
 
         // Pool de tickets — solo técnicos
         handlers['ticket-available'] = (payload) => {

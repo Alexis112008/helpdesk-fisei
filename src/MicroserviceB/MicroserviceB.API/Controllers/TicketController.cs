@@ -345,7 +345,18 @@ namespace MicroserviceB.API.Controllers
             });
         }
 
-        /// <summary>HU5 — T5.3: Registrar acción/comentario sobre un ticket.</summary>
+        /// <summary>
+        /// HU5 — T5.3: Registrar comentario/acción sobre un ticket.
+        ///
+        /// Pueden comentar:
+        ///   - El solicitante (dueño del ticket) — para responder al técnico
+        ///   - El técnico asignado — para preguntar/informar al solicitante
+        ///   - Admin
+        ///
+        /// Los usuarios regulares (no técnicos) SOLO pueden enviar acciones de tipo
+        /// "Comment". No pueden cambiar estados ni hacer otras acciones administrativas
+        /// para mantener la lógica de control del flujo en el técnico (RN-007, RN-008).
+        /// </summary>
         [Authorize]
         [HttpPost("{id}/actions")]
         public async Task<IActionResult> AddAction(int id, [FromBody] CreateTicketActionDto dto)
@@ -353,25 +364,51 @@ namespace MicroserviceB.API.Controllers
             var ticket = await _context.Tickets.FindAsync(id);
             if (ticket == null) return NotFound(new { message = "Ticket no encontrado" });
 
-            var (userId, fullName, _) = GetCurrentUser();
+            var (userId, fullName, role) = GetCurrentUser();
+            var isOwner = ticket.UserId == userId;
+            var isAssignedTech = ticket.AssignedTechnicianId == userId;
+            var isAdmin = role == "Admin";
+
+            if (!isOwner && !isAssignedTech && !isAdmin)
+                return Forbid();
+
+            // El solicitante solo puede registrar comentarios, no cambios de estado.
+            var requestedType = string.IsNullOrWhiteSpace(dto.ActionType) ? "Comment" : dto.ActionType;
+            if (isOwner && !isAssignedTech && !isAdmin && requestedType != "Comment")
+                return UnprocessableEntity(new { message = "Como solicitante solo puedes registrar comentarios." });
+
+            if (string.IsNullOrWhiteSpace(dto.Description))
+                return BadRequest(new { message = "La descripción del comentario es obligatoria." });
+
+            // No permitir comentar tickets cerrados
+            if (ticket.Status == "Cerrado")
+                return UnprocessableEntity(new { message = "No se puede comentar un ticket cerrado." });
 
             var action = await _actionService.RegisterActionAsync(
                 ticketId: id,
                 userId: userId,
                 userFullName: fullName,
-                actionType: string.IsNullOrWhiteSpace(dto.ActionType) ? "Comment" : dto.ActionType,
+                actionType: requestedType,
                 description: dto.Description);
 
+            // Notificar al solicitante y al técnico asignado (excluyendo al actor)
+            // para que vean el comentario en tiempo real.
             await _realtime.NotifyTicketUpdatedAsync(
                 ticketId: ticket.Id,
                 userId: ticket.UserId,
                 technicianId: ticket.AssignedTechnicianId,
                 level: ticket.CurrentLevel,
                 eventType: "ticket-action-added",
-                payload: new { ticketId = ticket.Id, action },
+                payload: new
+                {
+                    ticketId = ticket.Id,
+                    ticketNumber = ticket.TicketNumber,
+                    action,
+                    fromUser = isOwner ? "solicitante" : "tecnico"
+                },
                 actorUserId: userId);
 
-            return Ok(new { message = "Acción registrada", actionId = action.Id });
+            return Ok(new { message = "Comentario registrado", actionId = action.Id });
         }
 
         /// <summary>

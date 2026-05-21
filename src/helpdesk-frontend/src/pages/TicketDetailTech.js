@@ -193,20 +193,39 @@ function TicketDetailTech() {
               <div style={st.empty}>Sin acciones registradas todavía.</div>
             ) : (
               <ul style={st.timeline}>
-                {detail.actions.map((a) => (
-                  <li key={a.id} style={st.tline}>
-                    <div style={st.tlineDot} />
-                    <div style={st.tlineBody}>
-                      <div style={st.tlineHead}>
-                        <b>{a.userFullName}</b> · <span style={st.atype}>{a.actionType}</span>
+                {detail.actions.map((a) => {
+                  // Determinar si el autor es el solicitante (no es técnico/admin)
+                  // El backend no nos dice el rol del actor, pero usamos heurística:
+                  // si el userId del action es igual al userId del ticket → solicitante.
+                  const isFromRequester = a.userId === detail.ticket.userId;
+                  const isSystem = a.userId === 0;
+                  return (
+                    <li key={a.id} style={st.tline}>
+                      <div style={{
+                        ...st.tlineDot,
+                        background: isFromRequester ? '#fbbf24'
+                                  : isSystem ? '#9ca3af'
+                                  : '#4361ee',
+                      }} />
+                      <div style={{
+                        ...st.tlineBody,
+                        background: isFromRequester ? '#fffbeb' : '#fff',
+                        border: isFromRequester ? '1px solid #fcd34d' : '1px solid #e5e7eb',
+                      }}>
+                        <div style={st.tlineHead}>
+                          <b>{a.userFullName}</b>
+                          {isFromRequester && <span style={st.requesterTag}> SOLICITANTE</span>}
+                          {' · '}
+                          <span style={st.atype}>{a.actionType}</span>
+                        </div>
+                        <div style={st.tlineDesc}>{a.description}</div>
+                        <div style={st.tlineDate}>
+                          {new Date(a.createdAt).toLocaleString('es-EC')}
+                        </div>
                       </div>
-                      <div style={st.tlineDesc}>{a.description}</div>
-                      <div style={st.tlineDate}>
-                        {new Date(a.createdAt).toLocaleString('es-EC')}
-                      </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -246,13 +265,25 @@ function TicketDetailTech() {
 
             <div style={st.divider} />
 
-            <button
-              style={{ ...st.btnWarning, opacity: canEscalate ? 1 : 0.5 }}
-              onClick={() => setEscalateOpen(true)}
-              disabled={!canEscalate}
-            >
-              ⚠ Escalar Ticket
-            </button>
+            {/* RN-007: El escalamiento solo procede de N1 hasta N4.
+                En N4 no hay siguiente nivel: el botón se oculta. */}
+            {t.currentLevel < 4 && (
+              <button
+                style={{ ...st.btnWarning, opacity: canEscalate ? 1 : 0.5 }}
+                onClick={() => setEscalateOpen(true)}
+                disabled={!canEscalate}
+                title={canEscalate ? '' : 'No se puede escalar en este estado'}
+              >
+                ⚠ Escalar Ticket
+              </button>
+            )}
+
+            {t.currentLevel === 4 && (
+              <div style={st.maxLevelNotice}>
+                ⛔ Este ticket está en <b>Nivel 4 (Proveedor Externo)</b>, el nivel
+                máximo de escalamiento. La solución debe registrarse aquí.
+              </div>
+            )}
 
             <button
               style={{ ...st.btnDanger, opacity: canClose ? 1 : 0.5 }}
@@ -366,11 +397,20 @@ const st = {
     width: 10, height: 10, borderRadius: '50%',
     background: '#4361ee', marginTop: 6, flexShrink: 0,
   },
-  tlineBody: { flex: 1 },
+  tlineBody: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: 8,
+  },
   tlineHead: { fontSize: 13, color: '#111' },
   atype: {
     background: '#eef2ff', color: '#3730a3', fontSize: 11, fontWeight: 600,
     padding: '2px 8px', borderRadius: 10, marginLeft: 4,
+  },
+  requesterTag: {
+    background: '#fbbf24', color: '#78350f', fontSize: 10, fontWeight: 700,
+    padding: '2px 6px', borderRadius: 6, marginLeft: 6,
+    letterSpacing: 0.5,
   },
   tlineDesc: { fontSize: 13, color: '#4b5563', marginTop: 4 },
   tlineDate: { fontSize: 11, color: '#9ca3af', marginTop: 4 },
@@ -387,6 +427,15 @@ const st = {
   modalTitle: { fontSize: 20, fontWeight: 700, margin: '0 0 8px 0' },
   modalText: { fontSize: 14, color: '#4b5563', marginBottom: 14 },
   modalActions: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 },
+  maxLevelNotice: {
+    background: '#fef3c7',
+    border: '1px solid #fcd34d',
+    color: '#92400e',
+    padding: '12px 14px',
+    borderRadius: 10,
+    fontSize: 13,
+    lineHeight: 1.5,
+  },
 };
 
 export default TicketDetailTech;

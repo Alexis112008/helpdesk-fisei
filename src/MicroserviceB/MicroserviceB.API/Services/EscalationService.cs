@@ -128,20 +128,18 @@ namespace MicroserviceB.API.Services
         {
             var fromLevel = ticket.CurrentLevel;
             var toLevel = fromLevel + 1; // PROGRESIVO, sin saltos
+            var previousTech = ticket.AssignedTechnicianId; // para notificar al pool anterior
 
+            // Al escalar, el ticket vuelve al pool del nuevo nivel:
+            //   - Sube de nivel (N+1)
+            //   - Se desasigna del técnico actual (cualquier técnico del nuevo nivel
+            //     que atienda el servicio podrá aceptarlo desde su bandeja de "Disponibles")
+            //   - Estado vuelve a "Abierto" (mismo estado inicial que un ticket nuevo)
             ticket.CurrentLevel = toLevel;
-            ticket.Status = "Escalado";
+            ticket.Status = "Abierto";
+            ticket.AssignedTechnicianId = null;
             ticket.LastEscalationCheck = DateTime.UtcNow;
             ticket.UpdatedAt = DateTime.UtcNow;
-
-            try
-            {
-                await _assignmentService.ReassignForLevelAsync(ticket.Id, toLevel);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "No se pudo reasignar técnico para nivel {Level}", toLevel);
-            }
 
             await _context.SaveChangesAsync();
 
@@ -161,7 +159,7 @@ namespace MicroserviceB.API.Services
                 UserEmail = user?.Email ?? "",
                 UserFullName = user?.FullName ?? "",
                 Title = ticket.Title,
-                AssignedTechnicianId = ticket.AssignedTechnicianId,
+                AssignedTechnicianId = null,
                 CurrentLevel = ticket.CurrentLevel,
                 FromLevel = fromLevel,
                 ToLevel = toLevel,
@@ -169,19 +167,47 @@ namespace MicroserviceB.API.Services
                 EscalatedByName = actor
             });
 
-            await _realtime.NotifyTicketUpdatedAsync(
-                ticketId: ticket.Id,
-                userId: ticket.UserId,
-                technicianId: ticket.AssignedTechnicianId,
-                level: ticket.CurrentLevel,
-                eventType: "ticket-escalated",
-                payload: new
+            // Notificar al solicitante (le interesa saber que su ticket subió de nivel)
+            await _realtime.NotifyToUserAsync(
+                ticket.UserId,
+                "ticket-escalated",
+                new
                 {
                     ticketId = ticket.Id,
                     ticketNumber = ticket.TicketNumber,
                     fromLevel,
                     toLevel,
                     reason
+                });
+
+            // Notificar al técnico que tenía el ticket: para que desaparezca de "Mis tickets"
+            if (previousTech.HasValue)
+            {
+                await _realtime.NotifyToTechnicianAsync(
+                    previousTech.Value,
+                    "ticket-escalated",
+                    new
+                    {
+                        ticketId = ticket.Id,
+                        ticketNumber = ticket.TicketNumber,
+                        fromLevel,
+                        toLevel,
+                        reason
+                    });
+            }
+
+            // Notificar al pool del NUEVO nivel: el ticket está disponible para aceptar.
+            // Todos los técnicos del nivel toLevel verán el ticket en su bandeja de
+            // "Disponibles" (igual que cuando se crea un ticket nuevo).
+            await _realtime.NotifyToLevelAsync(
+                toLevel,
+                "ticket-available",
+                new
+                {
+                    ticketId = ticket.Id,
+                    ticketNumber = ticket.TicketNumber,
+                    title = ticket.Title,
+                    level = toLevel
                 });
         }
 

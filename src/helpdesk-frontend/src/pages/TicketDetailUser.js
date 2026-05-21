@@ -26,6 +26,13 @@ function TicketDetailUser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Comentario del solicitante
+  const [comment, setComment] = useState('');
+  const [sending, setSending] = useState(false);
+  const [commentError, setCommentError] = useState('');
+
+  const myUserId = parseInt(localStorage.getItem('userId') || '0');
+
   const load = useCallback(async () => {
     try {
       const res = await ticketAPI.get(`/ticket/${id}/detail`);
@@ -53,6 +60,29 @@ function TicketDetailUser() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Enviar comentario del solicitante
+  const sendComment = async () => {
+    const text = comment.trim();
+    if (!text) {
+      setCommentError('Escribe un mensaje antes de enviar.');
+      return;
+    }
+    setSending(true);
+    setCommentError('');
+    try {
+      await ticketAPI.post(`/ticket/${id}/actions`, {
+        actionType: 'Comment',
+        description: text,
+      });
+      setComment('');
+      await load();
+    } catch (err) {
+      setCommentError(err.response?.data?.message || 'No se pudo enviar tu comentario.');
+    } finally {
+      setSending(false);
+    }
+  };
 
   // Actualización en tiempo real
   useEffect(() => {
@@ -193,39 +223,96 @@ function TicketDetailUser() {
           </div>
         </div>
 
-        {/* Timeline / Historial */}
+        {/* Conversación con el técnico — estilo chat */}
         <div style={s.card}>
-          <h3 style={s.cardTitle}>📋 Historial de seguimiento</h3>
+          <h3 style={s.cardTitle}>💬 Conversación y seguimiento</h3>
           {actions.length === 0 ? (
             <p style={s.muted}>Aún no hay actualizaciones registradas.</p>
           ) : (
             <ul style={s.timeline}>
-              {actions.map((a, idx) => (
-                <li key={a.id} style={s.timelineItem}>
-                  <div style={s.timelineDot}>{actionIcon(a.actionType)}</div>
-                  {idx < actions.length - 1 && <div style={s.timelineLine} />}
-                  <div style={s.timelineBody}>
-                    <div style={s.timelineHeader}>
-                      <span style={s.timelineType}>{actionLabel(a.actionType)}</span>
-                      <span style={s.timelineDate}>
-                        {new Date(a.createdAt).toLocaleString('es-EC')}
-                      </span>
+              {actions.map((a, idx) => {
+                const isMine = a.userId === myUserId;
+                const isSystem = a.userId === 0 || a.actionType === 'Created';
+                return (
+                  <li key={a.id} style={s.timelineItem}>
+                    <div style={{
+                      ...s.timelineDot,
+                      background: isMine ? '#dbeafe'
+                                 : isSystem ? '#f3f4f6'
+                                 : '#e0f2fe',
+                    }}>
+                      {actionIcon(a.actionType)}
                     </div>
-                    <p style={s.timelineDesc}>{a.description}</p>
-                    {(a.fromValue || a.toValue) && (
-                      <p style={s.timelineChange}>
-                        <span style={s.fromVal}>{a.fromValue || '—'}</span>
-                        {' → '}
-                        <span style={s.toVal}>{a.toValue || '—'}</span>
-                      </p>
-                    )}
-                    {a.userFullName && (
-                      <p style={s.timelineUser}>Por: <b>{a.userFullName}</b></p>
-                    )}
-                  </div>
-                </li>
-              ))}
+                    {idx < actions.length - 1 && <div style={s.timelineLine} />}
+                    <div style={{
+                      ...s.timelineBody,
+                      background: isMine ? '#eff6ff' : '#fff',
+                      border: isMine ? '1px solid #bfdbfe' : '1px solid #e5e7eb',
+                      borderRadius: 10,
+                      padding: '10px 14px',
+                    }}>
+                      <div style={s.timelineHeader}>
+                        <span style={s.timelineType}>
+                          {actionLabel(a.actionType)}
+                          {isMine && <span style={s.youTag}> (tú)</span>}
+                        </span>
+                        <span style={s.timelineDate}>
+                          {new Date(a.createdAt).toLocaleString('es-EC')}
+                        </span>
+                      </div>
+                      <p style={s.timelineDesc}>{a.description}</p>
+                      {(a.fromValue || a.toValue) && (
+                        <p style={s.timelineChange}>
+                          <span style={s.fromVal}>{a.fromValue || '—'}</span>
+                          {' → '}
+                          <span style={s.toVal}>{a.toValue || '—'}</span>
+                        </p>
+                      )}
+                      {a.userFullName && !isSystem && (
+                        <p style={s.timelineUser}>
+                          {isMine ? 'Tú' : <>Por: <b>{a.userFullName}</b></>}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
+          )}
+
+          {/* Formulario para que el usuario responda al técnico.
+              Solo disponible si el ticket no está cerrado. */}
+          {ticket.status !== 'Cerrado' ? (
+            <div style={s.replyBox}>
+              <label style={s.replyLabel}>
+                Tu mensaje al técnico:
+              </label>
+              <textarea
+                style={s.replyTextarea}
+                placeholder="Escribe aquí cualquier información adicional o respuesta para el técnico que atiende tu caso..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={3}
+                disabled={sending}
+              />
+              {commentError && <p style={s.replyError}>{commentError}</p>}
+              <div style={s.replyActions}>
+                <span style={s.replyHint}>
+                  El técnico recibirá una notificación cuando envíes el mensaje.
+                </span>
+                <button
+                  style={{ ...s.replyBtn, opacity: sending ? 0.6 : 1 }}
+                  onClick={sendComment}
+                  disabled={sending}
+                >
+                  {sending ? 'Enviando…' : '📤 Enviar mensaje'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={s.closedNotice}>
+              🔒 Este ticket está cerrado. Si tu problema persiste, crea uno nuevo.
+            </div>
           )}
         </div>
       </div>
@@ -302,6 +389,67 @@ const s = {
   fromVal: { textDecoration: 'line-through' },
   toVal: { fontWeight: 700, color: '#111827' },
   timelineUser: { fontSize: 11, color: '#6b7280', margin: '4px 0 0' },
+  youTag: { color: '#4361ee', fontWeight: 700, fontSize: 11 },
+
+  replyBox: {
+    marginTop: 20,
+    padding: 16,
+    background: '#f9fafb',
+    border: '1px dashed #d1d5db',
+    borderRadius: 12,
+  },
+  replyLabel: {
+    display: 'block',
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  replyTextarea: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: 12,
+    fontSize: 14,
+    border: '1px solid #d1d5db',
+    borderRadius: 10,
+    resize: 'vertical',
+    outline: 'none',
+    fontFamily: 'inherit',
+  },
+  replyError: {
+    margin: '8px 0 0',
+    color: '#b42318',
+    fontSize: 12,
+  },
+  replyActions: {
+    marginTop: 12,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  replyHint: { fontSize: 12, color: '#9ca3af' },
+  replyBtn: {
+    background: '#4361ee',
+    color: '#fff',
+    border: 'none',
+    padding: '10px 18px',
+    borderRadius: 10,
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  closedNotice: {
+    marginTop: 20,
+    padding: 14,
+    background: '#f3f4f6',
+    border: '1px solid #e5e7eb',
+    borderRadius: 10,
+    color: '#6b7280',
+    fontSize: 13,
+    textAlign: 'center',
+  },
 };
 
 export default TicketDetailUser;

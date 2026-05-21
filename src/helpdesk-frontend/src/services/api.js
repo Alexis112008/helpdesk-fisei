@@ -1,15 +1,15 @@
 import axios from 'axios';
 
 const authAPI = axios.create({
-  baseURL: 'https://localhost:7179/api',
+  baseURL: 'http://localhost:5110/api',
 });
 
 const ticketAPI = axios.create({
-  baseURL: 'https://localhost:7258/api',
+  baseURL: 'http://localhost:5122/api',
 });
 
 const catalogAPI = axios.create({
-  baseURL: 'https://localhost:7252/api',
+  baseURL: 'http://localhost:5038/api',
 });
 
 // Agregar token a los TRES servicios
