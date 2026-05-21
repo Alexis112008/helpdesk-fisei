@@ -15,10 +15,10 @@ function TicketList() {
   useEffect(() => {
     const userId = localStorage.getItem('userId');
 
-    const url =
-      role === 'Admin'
-        ? '/ticket'
-        : `/ticket/user/${userId}`;
+    // "Mis Tickets" siempre filtra por el usuario autenticado,
+    // incluso si es Admin. Los admins ven todos los tickets desde
+    // otras pantallas (Dashboard / reportes), no aquí.
+    const url = `/ticket/user/${userId}`;
 
     ticketAPI
       .get(url)
@@ -55,14 +55,10 @@ function TicketList() {
       <main style={s.content}>
         <div style={s.header}>
           <div>
-            <h1 style={s.title}>
-              {role === 'Admin'
-                ? 'Todos los Tickets'
-                : 'Mis Tickets'}
-            </h1>
+            <h1 style={s.title}>Mis Tickets</h1>
 
             <p style={s.subtitle}>
-              Gestión y seguimiento de incidencias
+              Tickets que has creado y su estado actual
             </p>
           </div>
 
@@ -100,6 +96,7 @@ function TicketList() {
                     <th style={s.th}>Estado</th>
                     <th style={s.th}>Nivel</th>
                     <th style={s.th}>Fecha</th>
+                    <th style={s.th}>Acciones</th>
                   </tr>
                 </thead>
 
@@ -154,6 +151,17 @@ function TicketList() {
                         ).toLocaleDateString(
                           'es-EC'
                         )}
+                      </td>
+
+                      <td style={s.td}>
+                        <button
+                          style={s.viewBtn}
+                          onClick={() =>
+                            navigate(`/tickets/${t.id}`)
+                          }
+                        >
+                          Ver detalle
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -265,6 +273,17 @@ const s = {
   stateText: {
     color: '#6b7280',
     fontSize: 15,
+  },
+
+  viewBtn: {
+    background: '#4361ee',
+    color: '#fff',
+    border: 'none',
+    padding: '6px 14px',
+    borderRadius: 8,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
   },
 };
 

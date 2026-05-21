@@ -29,7 +29,8 @@ namespace MicroserviceB.API.Services
             _logger.LogInformation("Servicio de escalamiento automático iniciado");
 
             // Leer intervalo desde configuración (default: 15 minutos)
-            var intervalMinutes = _configuration.GetValue<int>("EscalationSettings:CheckIntervalMinutes", 15);
+            // HU7 — T7.3: revisión cada 30 minutos por default
+            var intervalMinutes = _configuration.GetValue<int>("EscalationSettings:CheckIntervalMinutes", 30);
             _logger.LogInformation($"Intervalo configurado: {intervalMinutes} minutos");
 
             while (!stoppingToken.IsCancellationRequested)

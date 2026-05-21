@@ -40,9 +40,12 @@ namespace MicroserviceA.API.Controllers
             return Ok(users);
         }
 
-        // GET: api/user/5 — obtener un usuario por id
+        // GET: api/user/5 — obtener un usuario por id (usado también
+        // por MicroserviceB para lookup de email/nombre al notificar)
+        // [AllowAnonymous] permite que otros microservicios consulten datos
+        // básicos del usuario sin JWT (comunicación interna).
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var user = await _context.Users

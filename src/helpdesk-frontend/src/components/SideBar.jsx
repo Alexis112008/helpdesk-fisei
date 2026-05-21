@@ -17,8 +17,20 @@ function Sidebar() {
         .toUpperCase()
     : 'US';
 
+  const TECH_ROLES = ['TecnicoN1', 'TecnicoN2', 'DITIC', 'Proveedor'];
+  const isTechnician = TECH_ROLES.includes(role);
+
   const navItems = [
     { label: 'Dashboard', icon: '▦', path: '/dashboard' },
+
+    // HU5 — Panel del técnico
+    {
+      label: 'Bandeja de Entrada',
+      icon: '📥',
+      path: '/tecnico/panel',
+      techOnly: true,
+    },
+
     {
       label: 'Usuarios',
       icon: '👤',
@@ -38,20 +50,38 @@ function Sidebar() {
       adminOnly: true,
     },
     {
+      label: 'Asignaciones de Técnicos',
+      icon: '🔧',
+      path: '/admin/asignaciones',
+      adminOnly: true,
+    },
+    {
       label: 'Mis Tickets',
       icon: '🎫',
       path: '/tickets',
+      hideForTech: true,
     },
     {
       label: 'Nuevo Ticket',
       icon: '➕',
       path: '/crear-ticket',
+      hideForTech: true,
+    },
+
+    // HU8 — Base de conocimiento (todos)
+    {
+      label: 'Base de Conocimiento',
+      icon: '📚',
+      path: '/conocimiento',
     },
   ];
 
-  const visibleNav = navItems.filter(
-    (item) => !item.adminOnly || role === 'Admin'
-  );
+  const visibleNav = navItems.filter((item) => {
+    if (item.adminOnly && role !== 'Admin') return false;
+    if (item.techOnly && !isTechnician) return false;
+    if (item.hideForTech && isTechnician) return false;
+    return true;
+  });
 
   return (
     <aside style={s.sidebar}>

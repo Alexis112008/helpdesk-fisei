@@ -9,6 +9,7 @@ namespace MicroserviceB.API.Data
             : base(options) { }
 
         public DbSet<Ticket> Tickets { get; set; }
+        public DbSet<TicketAction> TicketActions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -18,6 +19,12 @@ namespace MicroserviceB.API.Data
             modelBuilder.Entity<Ticket>()
                 .HasIndex(t => t.TicketNumber)
                 .IsUnique();
+
+            modelBuilder.Entity<TicketAction>()
+                .ToTable("TicketActions");
+
+            modelBuilder.Entity<TicketAction>()
+                .HasIndex(a => a.TicketId);
         }
     }
 }
