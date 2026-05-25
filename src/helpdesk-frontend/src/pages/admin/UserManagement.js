@@ -11,8 +11,19 @@ function UserManagement() {
   const [editUser, setEditUser] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  const [filters, setFilters] = useState({
+    search: '',
+    roleId: '',
+    isActive: ''
+  });
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    pageSize: 10
+  });
 
-  //  Filtros 
+  // Filtros locales
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -32,28 +43,51 @@ function UserManagement() {
   useEffect(() => {
     loadUsers();
     loadRoles();
-  }, []);
+  }, [filters, pagination.page]);
 
-  const loadUsers = () => {
+  const loadUsers = async () => {
     setLoading(true);
-    authAPI.get('/user')
-      .then((res) => setUsers(res.data))
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+    try {
+      const params = new URLSearchParams();
+      params.append('page', pagination.page);
+      params.append('pageSize', pagination.pageSize);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.roleId) params.append('roleId', filters.roleId);
+      if (filters.isActive !== '') params.append('isActive', filters.isActive);
+      
+      const response = await authAPI.get(`/user/list?${params}`);
+      setUsers(response.data.users);
+      setPagination(prev => ({ ...prev, total: response.data.total }));
+    } catch (err) {
+      console.error(err);
+      setError('Error al cargar usuarios');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadRoles = () => {
     authAPI.get('/user/roles').then((res) => setRoles(res.data));
   };
 
-  // Filtrado reactivo 
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    loadUsers();
+  };
+
+  const handleResetFilters = () => {
+    setFilters({ search: '', roleId: '', isActive: '' });
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  // Filtrado reactivo local
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
       const matchSearch =
         search === '' ||
         u.fullName.toLowerCase().includes(search.toLowerCase()) ||
         u.email.toLowerCase().includes(search.toLowerCase());
-      const matchRole = filterRole === '' || u.role === filterRole;
+      const matchRole = filterRole === '' || u.roleName === filterRole;
       const matchStatus =
         filterStatus === '' ||
         (filterStatus === 'activo' && u.isActive) ||
@@ -70,7 +104,6 @@ function UserManagement() {
 
   const hasFilters = search !== '' || filterRole !== '' || filterStatus !== '';
 
-  // Formulario
   const openCreate = () => {
     setEditUser(null);
     setForm({ 
@@ -84,8 +117,6 @@ function UserManagement() {
       roleId: '', 
       isActive: true 
     });
-    setError('');
-    setSuccess('');
     setShowForm(true);
   };
 
@@ -99,7 +130,7 @@ function UserManagement() {
       cedula: user.cedula || '',
       department: user.department || '',
       specialty: user.specialty || '',
-      roleId: roles.find((r) => r.name === user.role)?.id || '',
+      roleId: roles.find((r) => r.name === user.roleName)?.id || '',
       isActive: user.isActive,
     });
     setError('');
@@ -113,7 +144,6 @@ function UserManagement() {
     setSuccess('');
     try {
       if (editUser) {
-        // PUT: actualizar todos los campos
         await authAPI.put(`/user/${editUser.id}`, {
           fullName: form.fullName,
           email: form.email,
@@ -126,7 +156,6 @@ function UserManagement() {
         });
         setSuccess('Usuario actualizado correctamente');
       } else {
-        // POST: crear nuevo usuario
         if (!form.email.endsWith('@uta.edu.ec')) {
           setError('El correo debe ser @uta.edu.ec');
           return;
@@ -177,7 +206,6 @@ function UserManagement() {
   return (
     <Layout>
       <main style={s.content}>
-        {/* ── Encabezado ── */}
         <div style={s.header}>
           <div>
             <h1 style={s.title}>Gestión de Usuarios</h1>
@@ -191,14 +219,59 @@ function UserManagement() {
         {success && <div style={s.success}>{success}</div>}
         {error && <div style={s.error}>{error}</div>}
 
-        {/* Formulario crear / editar */}
+        <div style={s.filterCard}>
+          <div style={s.filterGrid}>
+            <div style={s.filterField}>
+              <label style={s.label}>Buscar</label>
+              <input
+                style={s.input}
+                type="text"
+                placeholder="Nombre o email..."
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              />
+            </div>
+            <div style={s.filterField}>
+              <label style={s.label}>Rol</label>
+              <select
+                style={s.input}
+                value={filters.roleId}
+                onChange={(e) => setFilters({ ...filters, roleId: e.target.value })}
+              >
+                <option value="">Todos</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+            <div style={s.filterField}>
+              <label style={s.label}>Estado</label>
+              <select
+                style={s.input}
+                value={filters.isActive}
+                onChange={(e) => setFilters({ ...filters, isActive: e.target.value })}
+              >
+                <option value="">Todos</option>
+                <option value="true">Activos</option>
+                <option value="false">Inactivos</option>
+              </select>
+            </div>
+            <div style={s.filterButtons}>
+              <button style={s.searchBtn} onClick={handleSearch}>
+                <Search size={16} /> Buscar
+              </button>
+              <button style={s.resetBtn} onClick={handleResetFilters}>
+                Limpiar
+              </button>
+            </div>
+          </div>
+        </div>
+
         {showForm && (
           <div style={s.formCard}>
             <h4 style={s.formTitle}>{editUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h4>
             <form onSubmit={handleSubmit}>
               <div style={s.formGrid}>
-
-                {/* Nombre completo */}
                 <div style={s.field}>
                   <label style={s.label}>Nombre completo *</label>
                   <input
@@ -210,7 +283,6 @@ function UserManagement() {
                   />
                 </div>
 
-                {/* Correo — ahora editable en ambos modos */}
                 <div style={s.field}>
                   <label style={s.label}>Correo institucional *</label>
                   <input
@@ -223,7 +295,6 @@ function UserManagement() {
                   />
                 </div>
 
-                {/* Contraseña — solo al crear */}
                 {!editUser && (
                   <div style={s.field}>
                     <label style={s.label}>Contraseña *</label>
@@ -239,7 +310,6 @@ function UserManagement() {
                   </div>
                 )}
 
-                {/* Teléfono */}
                 <div style={s.field}>
                   <label style={s.label}>Teléfono</label>
                   <input
@@ -250,7 +320,6 @@ function UserManagement() {
                   />
                 </div>
 
-                {/* Cédula */}
                 <div style={s.field}>
                   <label style={s.label}>Cédula</label>
                   <input
@@ -262,7 +331,6 @@ function UserManagement() {
                   />
                 </div>
 
-                {/* Departamento / Facultad */}
                 <div style={s.field}>
                   <label style={s.label}>Departamento / Facultad</label>
                   <input
@@ -273,7 +341,6 @@ function UserManagement() {
                   />
                 </div>
 
-                {/* Especialidad */}
                 <div style={s.field}>
                   <label style={s.label}>Especialidad</label>
                   <input
@@ -284,7 +351,6 @@ function UserManagement() {
                   />
                 </div>
 
-                {/* Rol */}
                 <div style={s.field}>
                   <label style={s.label}>Rol *</label>
                   <select
@@ -300,7 +366,6 @@ function UserManagement() {
                   </select>
                 </div>
 
-                {/* Estado activo/inactivo — solo al editar */}
                 {editUser && (
                   <div style={s.field}>
                     <label style={s.label}>Estado</label>
@@ -340,7 +405,6 @@ function UserManagement() {
           </div>
         )}
 
-        {/* ── Barra de filtros ── */}
         <div style={s.filtersBar}>
           <div style={s.searchWrapper}>
             <Search size={15} color="#9ca3af" style={s.searchIcon} />
@@ -384,7 +448,6 @@ function UserManagement() {
           </span>
         </div>
 
-        {/* Tabla */}
         {loading ? (
           <div style={s.stateContainer}>
             <p style={s.stateText}>Cargando usuarios...</p>
@@ -417,8 +480,8 @@ function UserManagement() {
                       <td style={s.td}>{u.email}</td>
                       <td style={s.td}>{u.phone || '—'}</td>
                       <td style={s.td}>
-                        <span style={{ ...s.badge, backgroundColor: getRoleBadgeColor(u.role) }}>
-                          {u.role}
+                        <span style={{ ...s.badge, backgroundColor: getRoleBadgeColor(u.roleName) }}>
+                          {u.roleName}
                         </span>
                       </td>
                       <td style={s.td}>
@@ -444,6 +507,28 @@ function UserManagement() {
                 </tbody>
               </table>
             </div>
+            
+            {pagination.total > pagination.pageSize && (
+              <div style={s.pagination}>
+                <button 
+                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                  disabled={pagination.page === 1}
+                  style={{ ...s.pageBtn, opacity: pagination.page === 1 ? 0.5 : 1 }}
+                >
+                  Anterior
+                </button>
+                <span style={s.pageInfo}>
+                  Página {pagination.page} de {Math.ceil(pagination.total / pagination.pageSize)}
+                </span>
+                <button 
+                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                  disabled={pagination.page >= Math.ceil(pagination.total / pagination.pageSize)}
+                  style={{ ...s.pageBtn, opacity: pagination.page >= Math.ceil(pagination.total / pagination.pageSize) ? 0.5 : 1 }}
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -459,14 +544,18 @@ const s = {
   actionBtn: { display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#4361ee', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14 },
   success: { backgroundColor: '#ecfdf3', color: '#027a48', padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 14 },
   error: { backgroundColor: '#fef3f2', color: '#b42318', padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 14 },
+  filterCard: { backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', padding: '20px 24px', marginBottom: 24 },
+  filterGrid: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
+  filterField: { flex: 1, minWidth: '150px' },
+  filterButtons: { display: 'flex', gap: 8 },
+  searchBtn: { display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#4361ee', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 500, fontSize: 13 },
+  resetBtn: { backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #d0d5dd', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 500, fontSize: 13 },
   formCard: { backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', padding: 32, marginBottom: 24 },
   formTitle: { fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 24 },
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 },
   field: { marginBottom: 20 },
   label: { display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: '#374151' },
   input: { width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, boxSizing: 'border-box', outline: 'none', backgroundColor: '#fff' },
-  inputDisabled: { backgroundColor: '#f9fafb', color: '#9ca3af', cursor: 'not-allowed' },
-  hint: { fontSize: 12, color: '#9ca3af', marginTop: 4, display: 'block' },
   toggleRow: { display: 'flex', gap: 8 },
   toggleBtn: { flex: 1, padding: '10px 0', borderRadius: 8, border: '2px solid transparent', cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all 0.15s' },
   toggleActive: { backgroundColor: '#4361ee', color: '#fff', borderColor: '#4361ee' },
@@ -474,7 +563,6 @@ const s = {
   formButtons: { display: 'flex', gap: 12, marginTop: 12 },
   saveBtn: { padding: '12px 24px', backgroundColor: '#4361ee', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600 },
   cancelBtn: { padding: '12px 24px', backgroundColor: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600 },
-  // Filtros
   filtersBar: { display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' },
   searchWrapper: { position: 'relative', flex: '1 1 220px', minWidth: 180 },
   searchIcon: { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
@@ -482,7 +570,6 @@ const s = {
   filterSelect: { padding: '10px 14px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, backgroundColor: '#fff', cursor: 'pointer', outline: 'none' },
   clearBtn: { display: 'flex', alignItems: 'center', gap: 4, padding: '10px 14px', borderRadius: 10, border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', color: '#374151', cursor: 'pointer', fontSize: 13, fontWeight: 500 },
   resultCount: { fontSize: 13, color: '#6b7280', marginLeft: 'auto' },
-  // Tabla
   tableCard: { width: '100%', backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', overflow: 'hidden' },
   tableWrapper: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse' },
@@ -495,6 +582,9 @@ const s = {
   iconBtn: { width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', border: 'none', borderRadius: 8, cursor: 'pointer' },
   stateContainer: { padding: '60px 20px', textAlign: 'center' },
   stateText: { color: '#6b7280', fontSize: 15 },
+  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, padding: '20px', borderTop: '1px solid #eaecf0' },
+  pageBtn: { padding: '8px 16px', backgroundColor: '#f3f4f6', border: '1px solid #d0d5dd', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
+  pageInfo: { fontSize: 13, color: '#344054' }
 };
 
 export default UserManagement;

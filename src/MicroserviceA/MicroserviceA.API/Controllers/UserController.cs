@@ -19,7 +19,56 @@ namespace MicroserviceA.API.Controllers
             _context = context;
         }
 
-        // GET: api/user — listar todos los usuarios
+        // 👇 1. PRIMERO: Endpoint específico (list)
+        [HttpGet("list")]
+        [AllowAnonymous] // O quita [Authorize] si quieres que sea público
+        public async Task<IActionResult> GetFilteredUsers(
+            [FromQuery] string? search = null,
+            [FromQuery] int? roleId = null,
+            [FromQuery] bool? isActive = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var query = _context.Users
+                .Include(u => u.Role)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(u => u.FullName.Contains(search) ||
+                                          u.Email.Contains(search));
+            }
+
+            if (roleId.HasValue)
+            {
+                query = query.Where(u => u.RoleId == roleId.Value);
+            }
+
+            if (isActive.HasValue)
+            {
+                query = query.Where(u => u.IsActive == isActive.Value);
+            }
+
+            var total = await query.CountAsync();
+            var users = await query
+                .OrderBy(u => u.FullName)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(u => new UserListDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    Email = u.Email,
+                    RoleName = u.Role.Name,
+                    IsActive = u.IsActive,
+                    CreatedAt = u.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(new { total, page, pageSize, users });
+        }
+
+        // 👇 2. SEGUNDO: GET api/user (todos)
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
@@ -44,10 +93,6 @@ namespace MicroserviceA.API.Controllers
             return Ok(users);
         }
 
-        // GET: api/user/5 — obtener un usuario por id (usado también
-        // por MicroserviceB para lookup de email/nombre al notificar)
-        // [AllowAnonymous] permite que otros microservicios consulten datos
-        // básicos del usuario sin JWT (comunicación interna).
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
@@ -74,23 +119,18 @@ namespace MicroserviceA.API.Controllers
             });
         }
 
-        // POST: api/user — crear usuario nuevo
+        // POST: api/user
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateUserDto dto)
         {
-            // Verificar que el correo sea institucional
             if (!dto.Email.EndsWith("@uta.edu.ec"))
                 return BadRequest(new { message = "Solo se permiten correos @uta.edu.ec" });
 
-            // Verificar que el correo no exista ya
-            bool emailExists = await _context.Users
-                .AnyAsync(u => u.Email == dto.Email);
-
+            bool emailExists = await _context.Users.AnyAsync(u => u.Email == dto.Email);
             if (emailExists)
                 return BadRequest(new { message = "El correo ya está registrado" });
 
-            // Verificar que el rol existe
             var role = await _context.Roles.FindAsync(dto.RoleId);
             if (role == null)
                 return BadRequest(new { message = "Rol no válido" });
@@ -116,17 +156,15 @@ namespace MicroserviceA.API.Controllers
                 new { message = "Usuario creado correctamente", userId = user.Id });
         }
 
-        // PUT: api/user/5 — editar usuario
+        // PUT: api/user/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateUserDto dto)
         {
             var user = await _context.Users.FindAsync(id);
-
             if (user == null)
                 return NotFound(new { message = "Usuario no encontrado" });
 
-            // Verificar que el rol existe
             var role = await _context.Roles.FindAsync(dto.RoleId);
             if (role == null)
                 return BadRequest(new { message = "Rol no válido" });
@@ -154,28 +192,24 @@ namespace MicroserviceA.API.Controllers
             user.RoleId = dto.RoleId;
 
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Usuario actualizado correctamente" });
         }
 
-        // DELETE: api/user/5 — desactivar usuario (nunca borrar)
+        // DELETE: api/user/5
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Deactivate(int id)
         {
             var user = await _context.Users.FindAsync(id);
-
             if (user == null)
                 return NotFound(new { message = "Usuario no encontrado" });
 
-            // No borramos, solo desactivamos
             user.IsActive = false;
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Usuario desactivado correctamente" });
         }
 
-        // GET: api/user/roles — listar todos los roles
+        // GET: api/user/roles
         [HttpGet("roles")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetRoles()
@@ -183,7 +217,6 @@ namespace MicroserviceA.API.Controllers
             var roles = await _context.Roles
                 .Select(r => new { r.Id, r.Name })
                 .ToListAsync();
-
             return Ok(roles);
         }
     }

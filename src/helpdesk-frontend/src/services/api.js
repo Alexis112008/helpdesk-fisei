@@ -23,4 +23,10 @@ authAPI.interceptors.request.use(addToken);
 ticketAPI.interceptors.request.use(addToken);
 catalogAPI.interceptors.request.use(addToken);
 
+export const userAPI = {
+  getList: (params) => authAPI.get('/users/list', { params }),
+  update: (id, data) => authAPI.put(`/users/${id}`, data),
+  delete: (id) => authAPI.delete(`/users/${id}`)
+};
+
 export { authAPI, ticketAPI, catalogAPI };
