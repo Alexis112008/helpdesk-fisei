@@ -30,6 +30,7 @@ namespace MicroserviceC.API.Controllers
                     Description = s.Description,
                     Category = s.Category,
                     AttentionLevel = s.AttentionLevel,
+                    EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
                     IsActive = s.IsActive,
                     DamageCatalogId = s.DamageCatalogId,
                     DamageName = s.DamageCatalog.Name
@@ -52,6 +53,7 @@ namespace MicroserviceC.API.Controllers
                     Description = s.Description,
                     Category = s.Category,
                     AttentionLevel = s.AttentionLevel,
+                    EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
                     IsActive = s.IsActive,
                     DamageCatalogId = s.DamageCatalogId,
                     DamageName = s.DamageCatalog.Name
@@ -82,6 +84,7 @@ namespace MicroserviceC.API.Controllers
                 Description = s.Description,
                 Category = s.Category,
                 AttentionLevel = s.AttentionLevel,
+                EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
                 IsActive = s.IsActive,
                 DamageCatalogId = s.DamageCatalogId,
                 DamageName = s.DamageCatalog?.Name ?? string.Empty
@@ -101,6 +104,7 @@ namespace MicroserviceC.API.Controllers
                 Description = dto.Description,
                 Category = dto.Category,
                 AttentionLevel = dto.AttentionLevel,
+                EstimatedTimeHours = dto.EstimatedTimeHours,
                 DamageCatalogId = dto.DamageCatalogId,
                 IsActive = true
             };
@@ -122,6 +126,7 @@ namespace MicroserviceC.API.Controllers
             item.Description = dto.Description;
             item.Category = dto.Category;
             item.AttentionLevel = dto.AttentionLevel;
+            item.EstimatedTimeHours = dto.EstimatedTimeHours;
             item.DamageCatalogId = dto.DamageCatalogId;
 
             await _context.SaveChangesAsync();

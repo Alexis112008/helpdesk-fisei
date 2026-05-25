@@ -65,6 +65,9 @@ namespace MicroserviceB.API.Controllers
             UpdatedAt = t.UpdatedAt,
             UserId = t.UserId,
             DamageCatalogId = t.DamageCatalogId,
+            Location = t.Location,
+            AssetCode = t.AssetCode,
+            AssignedTechnicianId = t.AssignedTechnicianId,
             ServiceCatalogId = t.ServiceCatalogId
         };
 
@@ -565,6 +568,8 @@ namespace MicroserviceB.API.Controllers
             // Cualquier técnico N1 del servicio podrá aceptarlo desde su bandeja.
             var ticket = new Ticket
             {
+                Location = dto.Location,
+                AssetCode = dto.AssetCode,
                 TicketNumber = ticketNumber,
                 Title = dto.Title,
                 Description = dto.Description,

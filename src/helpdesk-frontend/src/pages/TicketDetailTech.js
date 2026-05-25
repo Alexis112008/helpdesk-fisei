@@ -27,6 +27,10 @@ function TicketDetailTech() {
   const [escalateReason, setEscalateReason] = useState('');
   const [closeFormOpen, setCloseFormOpen] = useState(false);
 
+  // ← CAMBIO 1: agregar estados para nombres de servicio y daño
+  const [serviceName, setServiceName] = useState('');
+  const [damageName, setDamageName] = useState('');
+
   const fullName = localStorage.getItem('fullName');
 
   const load = useCallback(() => {
@@ -36,6 +40,17 @@ function TicketDetailTech() {
       .then((res) => {
         setDetail(res.data);
         setNewStatus(res.data.ticket.status);
+        
+        // ← CAMBIO 2: cargar nombres de servicio y daño
+        // Resolver nombres de servicio y daño
+        if (res.data.ticket.serviceCatalogId) {
+          catalogAPI.get(`/servicecatalog/${res.data.ticket.serviceCatalogId}`)
+            .then((r) => setServiceName(r.data.name)).catch(() => {});
+        }
+        if (res.data.ticket.damageCatalogId) {
+          catalogAPI.get(`/damagecatalog/${res.data.ticket.damageCatalogId}`)
+            .then((r) => setDamageName(r.data.name)).catch(() => {});
+        }
       })
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));
@@ -177,14 +192,21 @@ function TicketDetailTech() {
       <div style={st.grid}>
         {/* Columna izquierda — info y historial */}
         <div style={st.col}>
+          {/* ← CAMBIO 3: reemplazar sección "Información" completa */}
           <div style={st.card}>
-            <h3 style={st.cardTitle}>Información</h3>
+            <h3 style={st.cardTitle}>Información del Ticket</h3>
+            <div style={st.row}><span style={st.lbl}>N° Ticket</span><span style={{fontWeight:700, color:'#4361ee'}}>{t.ticketNumber}</span></div>
             <div style={st.row}><span style={st.lbl}>Solicitante (ID)</span><span>{t.userId}</span></div>
             <div style={st.row}><span style={st.lbl}>Prioridad</span><span>{t.priority}</span></div>
-            <div style={st.row}><span style={st.lbl}>Servicio</span><span>{t.serviceCatalogId}</span></div>
-            <div style={st.row}><span style={st.lbl}>Daño</span><span>{t.damageCatalogId}</span></div>
-            <div style={st.row}><span style={st.lbl}>Creado</span><span>{new Date(t.createdAt).toLocaleString('es-EC')}</span></div>
-            <div style={st.row}><span style={st.lbl}>Actualizado</span><span>{new Date(t.updatedAt).toLocaleString('es-EC')}</span></div>
+            <div style={st.row}><span style={st.lbl}>Estado actual</span><span style={{fontWeight:600}}>{t.status}</span></div>
+            <div style={st.row}><span style={st.lbl}>Nivel actual</span><span>{t.levelName}</span></div>
+            <div style={st.row}><span style={st.lbl}>Servicio</span><span>{serviceName || t.serviceCatalogId}</span></div>
+            <div style={st.row}><span style={st.lbl}>Tipo de daño</span><span>{damageName || t.damageCatalogId}</span></div>
+            <div style={st.row}><span style={st.lbl}>Ubicación</span><span>{t.location || '—'}</span></div>
+            <div style={st.row}><span style={st.lbl}>Equipo/Activo</span><span>{t.assetCode || '—'}</span></div>
+            <div style={st.row}><span style={st.lbl}>Técnico asignado</span><span>{t.assignedTechnicianId ? `ID: ${t.assignedTechnicianId}` : 'Sin asignar'}</span></div>
+            <div style={st.row}><span style={st.lbl}>Fecha creación</span><span>{new Date(t.createdAt).toLocaleString('es-EC')}</span></div>
+            <div style={st.row}><span style={st.lbl}>Última actualización</span><span>{new Date(t.updatedAt).toLocaleString('es-EC')}</span></div>
           </div>
 
           <div style={st.card}>

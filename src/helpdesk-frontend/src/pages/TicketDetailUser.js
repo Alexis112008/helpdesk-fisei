@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom'; // ← AÑADIR useLocation
 import Layout from '../components/Layout';
 import { ticketAPI, catalogAPI } from '../services/api';
 import { getConnection } from '../services/realtime';
@@ -18,6 +18,10 @@ import { getConnection } from '../services/realtime';
 function TicketDetailUser() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); // ← NUEVO: para obtener el estado de navegación
+
+  // ← NUEVO: detectar de dónde viene (default '/tickets')
+  const from = location.state?.from || '/tickets';
 
   const [ticket, setTicket] = useState(null);
   const [actions, setActions] = useState([]);
@@ -122,7 +126,8 @@ function TicketDetailUser() {
     return (
       <Layout>
         <div style={s.page}>
-          <button style={s.backBtn} onClick={() => navigate('/tickets')}>← Volver</button>
+          {/* ← CAMBIADO: botón volver con navegación dinámica */}
+          <button style={s.backBtn} onClick={() => navigate(from)}>← Volver</button>
           <div style={s.errorBox}>{error || 'Ticket no encontrado'}</div>
         </div>
       </Layout>
@@ -178,8 +183,9 @@ function TicketDetailUser() {
   return (
     <Layout>
       <div style={s.page}>
-        <button style={s.backBtn} onClick={() => navigate('/tickets')}>
-          ← Volver a Mis Tickets
+        {/* ← CAMBIADO: botón volver con navegación dinámica */}
+        <button style={s.backBtn} onClick={() => navigate(from)}>
+          ← Volver
         </button>
 
         {/* Encabezado */}
@@ -208,11 +214,35 @@ function TicketDetailUser() {
             <h3 style={s.cardTitle}>Información del ticket</h3>
             <table style={s.kv}>
               <tbody>
-                <tr><td style={s.kvKey}>Servicio:</td><td>{serviceName || '—'}</td></tr>
-                <tr><td style={s.kvKey}>Tipo de daño:</td><td>{damageName || '—'}</td></tr>
-                <tr><td style={s.kvKey}>Nivel actual:</td><td><b>{ticket.levelName}</b></td></tr>
-                <tr><td style={s.kvKey}>Creado:</td><td>{new Date(ticket.createdAt).toLocaleString('es-EC')}</td></tr>
-                <tr><td style={s.kvKey}>Última actualización:</td><td>{new Date(ticket.updatedAt).toLocaleString('es-EC')}</td></tr>
+                <tr>
+                  <td style={s.kvKey}>Servicio:</td>
+                  <td style={s.kvValue}>{serviceName || '—'}</td>
+                 </tr>
+                <tr>
+                  <td style={s.kvKey}>Tipo de daño:</td>
+                  <td style={s.kvValue}>{damageName || '—'}</td>
+                 </tr>
+                {/* ← NUEVAS FILAS: Ubicación y Equipo/Activo */}
+                <tr>
+                  <td style={s.kvKey}>Ubicación:</td>
+                  <td style={s.kvValue}>{ticket.location || '—'}</td>
+                 </tr>
+                <tr>
+                  <td style={s.kvKey}>Equipo/Activo:</td>
+                  <td style={s.kvValue}>{ticket.assetCode || '—'}</td>
+                 </tr>
+                <tr>
+                  <td style={s.kvKey}>Nivel actual:</td>
+                  <td style={s.kvValue}><b>{ticket.levelName}</b></td>
+                 </tr>
+                <tr>
+                  <td style={s.kvKey}>Creado:</td>
+                  <td style={s.kvValue}>{new Date(ticket.createdAt).toLocaleString('es-EC')}</td>
+                 </tr>
+                <tr>
+                  <td style={s.kvKey}>Última actualización:</td>
+                  <td style={s.kvValue}>{new Date(ticket.updatedAt).toLocaleString('es-EC')}</td>
+                 </tr>
               </tbody>
             </table>
           </div>
@@ -360,6 +390,7 @@ const s = {
   },
   kv: { width: '100%', fontSize: 14, color: '#374151', borderCollapse: 'collapse' },
   kvKey: { color: '#6b7280', padding: '4px 0', width: 160, verticalAlign: 'top' },
+  kvValue: { color: '#374151', padding: '4px 0' },
   description: { fontSize: 14, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 },
   muted: { color: '#9ca3af', fontStyle: 'italic' },
   errorBox: {

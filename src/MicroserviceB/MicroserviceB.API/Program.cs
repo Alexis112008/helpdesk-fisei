@@ -61,7 +61,9 @@ if (rabbitEnabled)
             HostName = rabbitHost,
             Port = rabbitPort,
             UserName = rabbitUser,
-            Password = rabbitPass
+            Password = rabbitPass,
+            AutomaticRecoveryEnabled = true,       
+            NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
         };
         rabbitConnection = factory.CreateConnection("helpdesk-ms-b");
         Console.WriteLine("[Startup] Conectado a RabbitMQ en {0}:{1}", rabbitHost, rabbitPort);

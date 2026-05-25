@@ -139,6 +139,8 @@ namespace MicroserviceB.API.Services
 
         private async Task SendAsync(string to, string subject, string htmlBody)
         {
+            _logger.LogInformation("[EmailService] Intentando enviar correo a {To} — {Subject}", to, subject);
+
             if (!_settings.Enabled)
             {
                 _logger.LogInformation(

@@ -9,6 +9,7 @@ import ServiceCatalogPage from './pages/admin/ServiceCatalog';
 import DamageCatalogPage from './pages/admin/DamageCatalog';
 import TechnicianAssignments from './pages/admin/TechnicianAssignments';
 import Register from './pages/Register';
+import AdminTickets from './pages/admin/AdminTickets';
 
 // ----- Sprint 2 -----
 import TechnicianPanel from './pages/TechnicianPanel';
@@ -75,6 +76,9 @@ function App() {
           } />
           <Route path="/admin/asignaciones" element={
             <PrivateRoute adminOnly><TechnicianAssignments /></PrivateRoute>
+          } />
+          <Route path="/admin/tickets" element={
+          <PrivateRoute adminOnly><AdminTickets /></PrivateRoute>
           } />
         </Routes>
       </NotificationProvider>

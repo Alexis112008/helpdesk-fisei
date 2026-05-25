@@ -55,6 +55,13 @@ function Sidebar() {
       path: '/admin/asignaciones',
       adminOnly: true,
     },
+    // ← NUEVO ITEM: Seguimiento de Tickets
+    {
+      label: 'Seguimiento de Tickets',
+      icon: '📋',
+      path: '/admin/tickets',
+      adminOnly: true,
+    },
     {
       label: 'Mis Tickets',
       icon: '🎫',

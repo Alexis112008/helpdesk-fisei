@@ -23,69 +23,76 @@ namespace MicroserviceB.API.Services
 
         public async Task<int> AssignTechnicianAsync(Ticket ticket)
         {
-            Console.WriteLine($"Asignando ticket {ticket.Id} para servicio {ticket.ServiceCatalogId}");
-
-            // Los tickets nuevos siempre empiezan en N1: usamos el endpoint de nivel específico
             var authClient = _httpClientFactory.CreateClient("AuthClient");
+
+            // Obtener TODOS los técnicos N1 del servicio
             var response = await authClient.GetAsync(
                 $"/api/technicians/byservice/{ticket.ServiceCatalogId}/level/1");
 
             if (!response.IsSuccessStatusCode)
-            {
-                // Fallback: intentar con el endpoint general y filtrar N1 manualmente
-                var fallbackResponse = await authClient.GetAsync(
-                    $"/api/technicians/byservice/{ticket.ServiceCatalogId}");
+                throw new Exception($"No hay técnicos N1 disponibles para el servicio {ticket.ServiceCatalogId}.");
 
-                if (!fallbackResponse.IsSuccessStatusCode)
-                    throw new Exception("No se pudo obtener la lista de técnicos");
+            var technicians = await response.Content.ReadFromJsonAsync<List<TechnicianDto>>();
 
-                var allTechnicians = await fallbackResponse.Content.ReadFromJsonAsync<List<TechnicianDto>>();
-                var n1Technicians = allTechnicians?.Where(t => t.Level == 1).ToList();
+            if (technicians == null || technicians.Count == 0)
+                throw new Exception($"No hay técnicos N1 disponibles para el servicio {ticket.ServiceCatalogId}.");
 
-                if (n1Technicians == null || n1Technicians.Count == 0)
-                    throw new Exception($"No hay técnicos N1 disponibles para el servicio {ticket.ServiceCatalogId}. " +
-                        "Asegúrese de que existan técnicos con rol TecnicoN1 asignados a este servicio.");
+            // Contar tickets activos de cada técnico en la BD local
+            // "activos" = no están Cerrados ni Resueltos
+            var techIds = technicians.Select(t => t.Id).ToList();
 
-                var selectedFromFallback = n1Technicians.OrderBy(t => t.CurrentTicketCount).First();
-                ticket.AssignedTechnicianId = selectedFromFallback.Id;
-                ticket.CurrentLevel = 1; // Siempre nivel 1 al crear
-                await _context.SaveChangesAsync();
-                Console.WriteLine($"Ticket {ticket.Id} asignado (fallback) al técnico {selectedFromFallback.Id} (N1)");
-                return selectedFromFallback.Id;
-            }
+            var ticketCounts = await _context.Tickets
+                .Where(t => techIds.Contains(t.AssignedTechnicianId ?? 0)
+                         && t.Status != "Cerrado"
+                         && t.Status != "Resuelto")
+                .GroupBy(t => t.AssignedTechnicianId)
+                .Select(g => new { TechnicianId = g.Key, Count = g.Count() })
+                .ToListAsync();
 
-            var technician = await response.Content.ReadFromJsonAsync<TechnicianDto>();
+            // Elegir el técnico con menos tickets activos
+            var selected = technicians
+                .OrderBy(t => ticketCounts
+                    .FirstOrDefault(tc => tc.TechnicianId == t.Id)?.Count ?? 0)
+                .First();
 
-            if (technician == null)
-                throw new Exception($"No hay técnicos N1 disponibles para el servicio {ticket.ServiceCatalogId}. " +
-                    "Asegúrese de que existan técnicos con rol TecnicoN1 asignados a este servicio.");
-
-            // Asignar siempre a nivel 1
-            ticket.AssignedTechnicianId = technician.Id;
+            ticket.AssignedTechnicianId = selected.Id;
             ticket.CurrentLevel = 1;
-
             await _context.SaveChangesAsync();
-            Console.WriteLine($"Ticket {ticket.Id} asignado al técnico {technician.Id} (N1)");
 
-            return technician.Id;
+            Console.WriteLine($"Ticket {ticket.Id} asignado al técnico {selected.Id} (N1, menor carga)");
+            return selected.Id;
         }
         public async Task ReassignForLevelAsync(int ticketId, int newLevel)
         {
             var ticket = await _context.Tickets.FindAsync(ticketId);
             if (ticket == null) return;
 
-            // Buscar técnico del nuevo nivel
             var authClient = _httpClientFactory.CreateClient("AuthClient");
-            var response = await authClient.GetAsync($"/api/technicians/byservice/{ticket.ServiceCatalogId}/level/{newLevel}");
+            var response = await authClient.GetAsync(
+                $"/api/technicians/byservice/{ticket.ServiceCatalogId}/level/{newLevel}");
 
             if (!response.IsSuccessStatusCode) return;
 
-            var technician = await response.Content.ReadFromJsonAsync<TechnicianDto>();
-            if (technician == null) return;
+            var technicians = await response.Content.ReadFromJsonAsync<List<TechnicianDto>>();
+            if (technicians == null || technicians.Count == 0) return;
 
-            ticket.AssignedTechnicianId = technician.Id;
+            var techIds = technicians.Select(t => t.Id).ToList();
+
+            var ticketCounts = await _context.Tickets
+                .Where(t => techIds.Contains(t.AssignedTechnicianId ?? 0)
+                         && t.Status != "Cerrado"
+                         && t.Status != "Resuelto")
+                .GroupBy(t => t.AssignedTechnicianId)
+                .Select(g => new { TechnicianId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var selected = technicians
+                .OrderBy(t => ticketCounts
+                    .FirstOrDefault(tc => tc.TechnicianId == t.Id)?.Count ?? 0)
+                .First();
+
+            ticket.AssignedTechnicianId = selected.Id;
             ticket.CurrentLevel = newLevel;
-
             await _context.SaveChangesAsync();
         }
 

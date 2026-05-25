@@ -10,11 +10,12 @@ function DamageCatalogPage() {
   const [editItem, setEditItem] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [search, setSearch] = useState(''); // ← NUEVO: estado para búsqueda
 
   const [form, setForm] = useState({
     name: '',
     description: '',
-    attentionLevel: 1,
+    code: '',  // ← CAMBIADO: attentionLevel: 1 por code: ''
   });
 
   useEffect(() => {
@@ -29,6 +30,13 @@ function DamageCatalogPage() {
       .finally(() => setLoading(false));
   };
 
+  // ← NUEVO: filtrado de categorías por búsqueda
+  const filteredDamages = damages.filter((d) =>
+    search === '' ||
+    d.name.toLowerCase().includes(search.toLowerCase()) ||
+    d.code?.toLowerCase().includes(search.toLowerCase())
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -38,15 +46,17 @@ function DamageCatalogPage() {
     try {
       if (editItem) {
         await catalogAPI.put(`/damagecatalog/${editItem.id}`, {
-          ...form,
-          attentionLevel: parseInt(form.attentionLevel),
+          code: form.code,      // ← NUEVO: solo estos campos
+          name: form.name,
+          description: form.description,
         });
 
         setSuccess('Categoría actualizada correctamente');
       } else {
         await catalogAPI.post('/damagecatalog', {
-          ...form,
-          attentionLevel: parseInt(form.attentionLevel),
+          code: form.code,      // ← NUEVO: solo estos campos
+          name: form.name,
+          description: form.description,
         });
 
         setSuccess('Categoría creada correctamente');
@@ -58,7 +68,7 @@ function DamageCatalogPage() {
       setForm({
         name: '',
         description: '',
-        attentionLevel: 1,
+        code: '',  // ← CAMBIADO
       });
 
       loadDamages();
@@ -73,7 +83,7 @@ function DamageCatalogPage() {
     setForm({
       name: item.name,
       description: item.description,
-      attentionLevel: item.attentionLevel,
+      code: item.code,  // ← CAMBIADO: attentionLevel por code
     });
 
     setShowForm(true);
@@ -91,28 +101,6 @@ function DamageCatalogPage() {
     } catch {
       setError('Error al desactivar');
     }
-  };
-
-  const getLevelName = (level) => {
-    const names = {
-      1: 'N1 - Técnico Básico',
-      2: 'N2 - Técnico Profesional',
-      3: 'N3 - DITIC',
-      4: 'N4 - Proveedor',
-    };
-
-    return names[level] || 'N1';
-  };
-
-  const getLevelColor = (level) => {
-    const colors = {
-      1: '#1565c0',
-      2: '#00695c',
-      3: '#6a1b9a',
-      4: '#c62828',
-    };
-
-    return colors[level] || '#1565c0';
   };
 
   return (
@@ -138,7 +126,7 @@ function DamageCatalogPage() {
               setForm({
                 name: '',
                 description: '',
-                attentionLevel: 1,
+                code: '',  // ← CAMBIADO
               });
             }}
           >
@@ -183,37 +171,25 @@ function DamageCatalogPage() {
                   />
                 </div>
 
+                {/* ← CAMBIADO: campo Código reemplaza a Nivel de atención */}
                 <div style={styles.field}>
                   <label style={styles.label}>
-                    Nivel de atención
+                    Código *
                   </label>
 
-                  <select
+                  <input
                     style={styles.input}
-                    value={form.attentionLevel}
+                    value={form.code}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        attentionLevel: e.target.value,
+                        code: e.target.value.toUpperCase(),
                       })
                     }
-                  >
-                    <option value={1}>
-                      N1 — Técnico Básico
-                    </option>
-
-                    <option value={2}>
-                      N2 — Técnico Profesional
-                    </option>
-
-                    <option value={3}>
-                      N3 — DITIC
-                    </option>
-
-                    <option value={4}>
-                      N4 — Proveedor Externo
-                    </option>
-                  </select>
+                    placeholder="Ej: HW, SW, RED, CUEN"
+                    maxLength={10}
+                    required
+                  />
                 </div>
 
                 <div
@@ -265,6 +241,19 @@ function DamageCatalogPage() {
           </div>
         )}
 
+        {/* ← NUEVO: Barra de búsqueda */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+          <input
+            style={{ ...styles.input, maxWidth: 300 }}
+            placeholder="Buscar por nombre o código..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <span style={{ fontSize: 13, color: '#6b7280', alignSelf: 'center' }}>
+            {filteredDamages.length} de {damages.length} categorías
+          </span>
+        </div>
+
         {loading ? (
           <div style={styles.stateContainer}>
             <p style={styles.stateText}>
@@ -285,16 +274,18 @@ function DamageCatalogPage() {
                       Descripción
                     </th>
 
-                    <th style={styles.th}>Nivel</th>
+                    {/* ← CAMBIADO: "Código" reemplaza a "Nivel" */}
+                    <th style={styles.th}>Código</th>
 
                     <th style={styles.th}>
                       Acciones
                     </th>
-                  </tr>
+                   </tr>
                 </thead>
 
                 <tbody>
-                  {damages.map((d) => (
+                  {/* ← CAMBIADO: damages.map por filteredDamages.map */}
+                  {filteredDamages.map((d) => (
                     <tr key={d.id} style={styles.tr}>
                       <td style={styles.td}>
                         <strong>{d.name}</strong>
@@ -304,20 +295,9 @@ function DamageCatalogPage() {
                         {d.description}
                       </td>
 
+                      {/* ← CAMBIADO: muestra código en lugar del nivel */}
                       <td style={styles.td}>
-                        <span
-                          style={{
-                            ...styles.badge,
-                            backgroundColor:
-                              getLevelColor(
-                                d.attentionLevel
-                              ),
-                          }}
-                        >
-                          {getLevelName(
-                            d.attentionLevel
-                          )}
-                        </span>
+                        <strong>{d.code}</strong>
                       </td>
 
                       <td style={styles.td}>
@@ -513,15 +493,6 @@ const styles = {
     padding: '18px 20px',
     fontSize: 14,
     color: '#344054',
-  },
-
-  badge: {
-    color: '#fff',
-    padding: '6px 12px',
-    borderRadius: 20,
-    fontSize: 12,
-    fontWeight: 600,
-    display: 'inline-block',
   },
 
   editBtn: {

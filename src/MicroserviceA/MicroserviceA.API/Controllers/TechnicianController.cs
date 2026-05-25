@@ -59,9 +59,9 @@ namespace MicroserviceA.API.Controllers
         /// HU7 — Reasignación al escalar: técnico del servicio y nivel solicitado.
         /// </summary>
         [HttpGet("byservice/{serviceCatalogId}/level/{level}")]
-        public async Task<IActionResult> GetTechnicianByServiceAndLevel(int serviceCatalogId, int level)
+        public async Task<IActionResult> GetTechniciansByServiceAndLevel(int serviceCatalogId, int level)
         {
-            var technician = await _context.TechnicianServices
+            var technicians = await _context.TechnicianServices
                 .Where(ts => ts.ServiceCatalogId == serviceCatalogId
                           && ts.Level == level
                           && ts.IsActive)
@@ -72,15 +72,14 @@ namespace MicroserviceA.API.Controllers
                     {
                         Id = u.Id,
                         FullName = u.FullName,
-                        Level = ts.Level,
-                        CurrentTicketCount = 0
+                        Level = ts.Level
                     })
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
-            if (technician == null)
+            if (!technicians.Any())
                 return NotFound(new { message = $"No hay técnicos activos para el servicio {serviceCatalogId} en nivel N{level}" });
 
-            return Ok(technician);
+            return Ok(technicians);
         }
 
         // ============================================================
