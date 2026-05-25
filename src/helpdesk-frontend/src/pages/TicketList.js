@@ -9,16 +9,25 @@ function TicketList() {
 
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState(''); // ← NUEVO
+  const [filterPriority, setFilterPriority] = useState(''); // ← NUEVO
 
   const role = localStorage.getItem('role');
+
+  // ← NUEVO: filtrar tickets
+  const filteredTickets = tickets.filter((t) => {
+    const matchStatus = filterStatus === '' || t.status === filterStatus;
+    const matchPriority = filterPriority === '' || t.priority === filterPriority;
+    return matchStatus && matchPriority;
+  });
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
 
-    const url =
-      role === 'Admin'
-        ? '/ticket'
-        : `/ticket/user/${userId}`;
+    // "Mis Tickets" siempre filtra por el usuario autenticado,
+    // incluso si es Admin. Los admins ven todos los tickets desde
+    // otras pantallas (Dashboard / reportes), no aquí.
+    const url = `/ticket/user/${userId}`;
 
     ticketAPI
       .get(url)
@@ -34,6 +43,7 @@ function TicketList() {
       Escalado: '#6a1b9a',
       Resuelto: '#2e7d32',
       Cerrado: '#424242',
+      Vencido: '#b71c1c', // ← NUEVO
     };
 
     return colors[status] || '#333';
@@ -55,14 +65,10 @@ function TicketList() {
       <main style={s.content}>
         <div style={s.header}>
           <div>
-            <h1 style={s.title}>
-              {role === 'Admin'
-                ? 'Todos los Tickets'
-                : 'Mis Tickets'}
-            </h1>
+            <h1 style={s.title}>Mis Tickets</h1>
 
             <p style={s.subtitle}>
-              Gestión y seguimiento de incidencias
+              Tickets que has creado y su estado actual
             </p>
           </div>
 
@@ -76,16 +82,53 @@ function TicketList() {
           </button>
         </div>
 
+        {/* ← NUEVO: barra de filtros */}
+        {!loading && tickets.length > 0 && (
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <select
+              style={s.filterSelect}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="">Todos los estados</option>
+              <option value="Abierto">Abierto</option>
+              <option value="En Proceso">En Proceso</option>
+              <option value="Escalado">Escalado</option>
+              <option value="Resuelto">Resuelto</option>
+              <option value="Cerrado">Cerrado</option>
+              <option value="Vencido">Vencido</option>
+            </select>
+
+            <select
+              style={s.filterSelect}
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+            >
+              <option value="">Todas las prioridades</option>
+              <option value="Baja">Baja</option>
+              <option value="Media">Media</option>
+              <option value="Alta">Alta</option>
+              <option value="Crítica">Crítica</option>
+            </select>
+
+            <span style={{ fontSize: 13, color: '#6b7280', alignSelf: 'center' }}>
+              {filteredTickets.length} de {tickets.length} tickets
+            </span>
+          </div>
+        )}
+
         {loading ? (
           <div style={s.stateContainer}>
             <p style={s.stateText}>
               Cargando tickets...
             </p>
           </div>
-        ) : tickets.length === 0 ? (
+        ) : filteredTickets.length === 0 ? (
           <div style={s.stateContainer}>
             <p style={s.stateText}>
-              No hay tickets registrados aún.
+              {tickets.length === 0 
+                ? 'No hay tickets registrados aún.' 
+                : 'No hay tickets que coincidan con los filtros seleccionados.'}
             </p>
           </div>
         ) : (
@@ -100,11 +143,13 @@ function TicketList() {
                     <th style={s.th}>Estado</th>
                     <th style={s.th}>Nivel</th>
                     <th style={s.th}>Fecha</th>
+                    <th style={s.th}>Acciones</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {tickets.map((t) => (
+                  {/* ← CAMBIADO: filteredTickets.map en lugar de tickets.map */}
+                  {filteredTickets.map((t) => (
                     <tr key={t.id} style={s.tr}>
                       <td style={s.td}>
                         <span style={s.ticketNumber}>
@@ -155,10 +200,21 @@ function TicketList() {
                           'es-EC'
                         )}
                       </td>
+
+                      <td style={s.td}>
+                        <button
+                          style={s.viewBtn}
+                          onClick={() =>
+                            navigate(`/tickets/${t.id}`)
+                          }
+                        >
+                          Ver detalle
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+               </table>
             </div>
           </div>
         )}
@@ -201,6 +257,17 @@ const s = {
     fontSize: 14,
     fontWeight: 600,
     cursor: 'pointer',
+  },
+
+  // ← NUEVO: estilo para los filtros
+  filterSelect: {
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: '1px solid #d0d5dd',
+    fontSize: 14,
+    backgroundColor: '#fff',
+    cursor: 'pointer',
+    outline: 'none',
   },
 
   tableCard: {
@@ -265,6 +332,17 @@ const s = {
   stateText: {
     color: '#6b7280',
     fontSize: 15,
+  },
+
+  viewBtn: {
+    background: '#4361ee',
+    color: '#fff',
+    border: 'none',
+    padding: '6px 14px',
+    borderRadius: 8,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
   },
 };
 

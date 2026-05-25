@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import NotificationBell from './NotificationBell';
+import { disconnect } from '../services/realtime';
 
 function Topbar({ buttonText, buttonAction }) {
   const navigate = useNavigate();
@@ -16,8 +18,20 @@ function Topbar({ buttonText, buttonAction }) {
         .toUpperCase()
     : 'US';
 
-  const handleLogout = () => {
-    localStorage.clear();
+  const handleLogout = async () => {
+    // Desconectar SignalR antes de limpiar localStorage para que el cliente
+    // salga de los grupos correctamente y no reciba eventos de la sesión
+    // anterior al volver a entrar.
+    try { await disconnect(); } catch {}
+
+    // Limpiar solo las claves de la sesión actual. El historial de
+    // notificaciones se guarda por usuario (key helpdesk_notifications_v1_<id>)
+    // y se conserva para cuando ese usuario vuelva a entrar.
+    localStorage.removeItem('token');
+    localStorage.removeItem('fullName');
+    localStorage.removeItem('role');
+    localStorage.removeItem('userId');
+
     navigate('/');
   };
 
@@ -35,7 +49,7 @@ function Topbar({ buttonText, buttonAction }) {
           </button>
         )}
 
-        <div style={s.notifBtn}>🔔</div>
+        <NotificationBell />
 
         <div style={s.userPill}>
           <div style={s.avatarSm}>{initials}</div>
@@ -94,14 +108,7 @@ const s = {
   },
 
   notifBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    border: '1px solid #eaecf0',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
+    // sustituido por el componente NotificationBell
   },
     userPill: {
     display: 'flex',

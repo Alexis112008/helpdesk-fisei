@@ -5,6 +5,8 @@ namespace MicroserviceB.API.Models.DTOs
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Priority { get; set; } = "Media";
+        public string Location { get; set; } = string.Empty;  
+        public string AssetCode { get; set; } = string.Empty;
         public int UserId { get; set; }
         public int DamageCatalogId { get; set; }
         public int ServiceCatalogId { get; set; }
@@ -25,6 +27,9 @@ namespace MicroserviceB.API.Models.DTOs
         public int UserId { get; set; }
         public int DamageCatalogId { get; set; }
         public int ServiceCatalogId { get; set; }
+        public string Location { get; set; } = string.Empty;
+        public string AssetCode { get; set; } = string.Empty;
+        public int? AssignedTechnicianId { get; set; }  
     }
 
     public class UpdateTicketStatusDto
@@ -36,4 +41,5 @@ namespace MicroserviceB.API.Models.DTOs
     {
         public string Reason { get; set; } = string.Empty;
     }
+
 }

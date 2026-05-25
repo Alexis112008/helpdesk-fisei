@@ -11,26 +11,23 @@ import Layout from '../../components/Layout';
 function ServiceCatalogPage() {
   const [services, setServices] = useState([]);
   const [damages, setDamages] = useState([]);
-  const [loading, setLoading] =
-    useState(true);
-
-  const [showForm, setShowForm] =
-    useState(false);
-
-  const [editItem, setEditItem] =
-    useState(null);
-
-  const [error, setError] =
-    useState('');
-
-  const [success, setSuccess] =
-    useState('');
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  
+  // ← NUEVO: estados para filtros
+  const [search, setSearch] = useState('');
+  const [filterLevel, setFilterLevel] = useState('');
+  const [filterDamage, setFilterDamage] = useState('');
 
   const [form, setForm] = useState({
     name: '',
     description: '',
     category: '',
     attentionLevel: 1,
+    estimatedTimeHours: 24,
     damageCatalogId: '',
   });
 
@@ -42,24 +39,26 @@ function ServiceCatalogPage() {
   const loadServices = () => {
     catalogAPI
       .get('/servicecatalog')
-      .then((res) =>
-        setServices(res.data)
-      )
-      .catch((err) =>
-        console.error(err)
-      )
-      .finally(() =>
-        setLoading(false)
-      );
+      .then((res) => setServices(res.data))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   };
 
   const loadDamages = () => {
     catalogAPI
       .get('/damagecatalog')
-      .then((res) =>
-        setDamages(res.data)
-      );
+      .then((res) => setDamages(res.data));
   };
+
+  // ← NUEVO: filtrado de servicios
+  const filteredServices = services.filter((sv) => {
+    const matchSearch = search === '' ||
+      sv.name.toLowerCase().includes(search.toLowerCase()) ||
+      sv.category.toLowerCase().includes(search.toLowerCase());
+    const matchLevel = filterLevel === '' || sv.attentionLevel === parseInt(filterLevel);
+    const matchDamage = filterDamage === '' || sv.damageCatalogId === parseInt(filterDamage);
+    return matchSearch && matchLevel && matchDamage;
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,35 +72,25 @@ function ServiceCatalogPage() {
           `/servicecatalog/${editItem.id}`,
           {
             ...form,
-            attentionLevel: parseInt(
-              form.attentionLevel
-            ),
-            damageCatalogId: parseInt(
-              form.damageCatalogId
-            ),
+            attentionLevel: parseInt(form.attentionLevel),
+            estimatedTimeHours: parseInt(form.estimatedTimeHours),
+            damageCatalogId: parseInt(form.damageCatalogId),
           }
         );
 
-        setSuccess(
-          'Servicio actualizado correctamente'
-        );
+        setSuccess('Servicio actualizado correctamente');
       } else {
         await catalogAPI.post(
           '/servicecatalog',
           {
             ...form,
-            attentionLevel: parseInt(
-              form.attentionLevel
-            ),
-            damageCatalogId: parseInt(
-              form.damageCatalogId
-            ),
+            attentionLevel: parseInt(form.attentionLevel),
+            estimatedTimeHours: parseInt(form.estimatedTimeHours),
+            damageCatalogId: parseInt(form.damageCatalogId),
           }
         );
 
-        setSuccess(
-          'Servicio creado correctamente'
-        );
+        setSuccess('Servicio creado correctamente');
       }
 
       setShowForm(false);
@@ -112,14 +101,13 @@ function ServiceCatalogPage() {
         description: '',
         category: '',
         attentionLevel: 1,
+        estimatedTimeHours: 24,
         damageCatalogId: '',
       });
 
       loadServices();
     } catch {
-      setError(
-        'Error al guardar el servicio'
-      );
+      setError('Error al guardar el servicio');
     }
   };
 
@@ -130,37 +118,25 @@ function ServiceCatalogPage() {
       name: item.name,
       description: item.description,
       category: item.category,
-      attentionLevel:
-        item.attentionLevel,
-      damageCatalogId:
-        item.damageCatalogId,
+      attentionLevel: item.attentionLevel,
+      estimatedTimeHours: item.estimatedTimeHours,
+      damageCatalogId: item.damageCatalogId,
     });
 
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (
-      !window.confirm(
-        '¿Desactivar este servicio?'
-      )
-    )
-      return;
+    if (!window.confirm('¿Desactivar este servicio?')) return;
 
     try {
-      await catalogAPI.delete(
-        `/servicecatalog/${id}`
-      );
+      await catalogAPI.delete(`/servicecatalog/${id}`);
 
-      setSuccess(
-        'Servicio desactivado'
-      );
+      setSuccess('Servicio desactivado');
 
       loadServices();
     } catch {
-      setError(
-        'Error al desactivar servicio'
-      );
+      setError('Error al desactivar servicio');
     }
   };
 
@@ -183,9 +159,7 @@ function ServiceCatalogPage() {
       4: '#c62828',
     };
 
-    return (
-      colors[level] || '#1565c0'
-    );
+    return colors[level] || '#1565c0';
   };
 
   return (
@@ -214,6 +188,7 @@ function ServiceCatalogPage() {
                 description: '',
                 category: '',
                 attentionLevel: 1,
+                estimatedTimeHours: 24,
                 damageCatalogId: '',
               });
             }}
@@ -243,9 +218,7 @@ function ServiceCatalogPage() {
                 : 'Nuevo Servicio'}
             </h4>
 
-            <form
-              onSubmit={handleSubmit}
-            >
+            <form onSubmit={handleSubmit}>
               <div style={s.formGrid}>
                 <div style={s.field}>
                   <label style={s.label}>
@@ -258,8 +231,7 @@ function ServiceCatalogPage() {
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        name:
-                          e.target.value,
+                        name: e.target.value,
                       })
                     }
                     placeholder="Nombre del servicio"
@@ -278,8 +250,7 @@ function ServiceCatalogPage() {
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        category:
-                          e.target.value,
+                        category: e.target.value,
                       })
                     }
                     placeholder="Hardware, Software, Redes..."
@@ -294,14 +265,11 @@ function ServiceCatalogPage() {
 
                   <input
                     style={s.input}
-                    value={
-                      form.description
-                    }
+                    value={form.description}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        description:
-                          e.target.value,
+                        description: e.target.value,
                       })
                     }
                     placeholder="Descripción del servicio"
@@ -315,25 +283,20 @@ function ServiceCatalogPage() {
 
                   <select
                     style={s.input}
-                    value={
-                      form.attentionLevel
-                    }
+                    value={form.attentionLevel}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        attentionLevel:
-                          e.target.value,
+                        attentionLevel: e.target.value,
                       })
                     }
                   >
                     <option value={1}>
-                      N1 — Técnico
-                      Básico
+                      N1 — Técnico Básico
                     </option>
 
                     <option value={2}>
-                      N2 — Técnico
-                      Profesional
+                      N2 — Técnico Profesional
                     </option>
 
                     <option value={3}>
@@ -341,10 +304,30 @@ function ServiceCatalogPage() {
                     </option>
 
                     <option value={4}>
-                      N4 — Proveedor
-                      Externo
+                      N4 — Proveedor Externo
                     </option>
                   </select>
+                </div>
+
+                <div style={s.field}>
+                  <label style={s.label}>
+                    Tiempo estimado (horas)
+                  </label>
+
+                  <input
+                    style={s.input}
+                    type="number"
+                    min={1}
+                    max={720}
+                    value={form.estimatedTimeHours}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        estimatedTimeHours: e.target.value,
+                      })
+                    }
+                    required
+                  />
                 </div>
 
                 <div style={s.field}>
@@ -354,14 +337,11 @@ function ServiceCatalogPage() {
 
                   <select
                     style={s.input}
-                    value={
-                      form.damageCatalogId
-                    }
+                    value={form.damageCatalogId}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        damageCatalogId:
-                          e.target.value,
+                        damageCatalogId: e.target.value,
                       })
                     }
                     required
@@ -371,10 +351,7 @@ function ServiceCatalogPage() {
                     </option>
 
                     {damages.map((d) => (
-                      <option
-                        key={d.id}
-                        value={d.id}
-                      >
+                      <option key={d.id} value={d.id}>
                         {d.name}
                       </option>
                     ))}
@@ -383,10 +360,7 @@ function ServiceCatalogPage() {
               </div>
 
               <div style={s.formButtons}>
-                <button
-                  type="submit"
-                  style={s.saveBtn}
-                >
+                <button type="submit" style={s.saveBtn}>
                   {editItem
                     ? 'Guardar Cambios'
                     : 'Crear Servicio'}
@@ -407,19 +381,49 @@ function ServiceCatalogPage() {
           </div>
         )}
 
-        {loading ? (
-          <div
-            style={s.stateContainer}
+        {/* ← NUEVO: Barra de filtros */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <input
+            style={{ ...s.input, maxWidth: 250 }}
+            placeholder="Buscar servicio..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            style={s.input}
+            value={filterLevel}
+            onChange={(e) => setFilterLevel(e.target.value)}
           >
+            <option value="">Todos los niveles</option>
+            <option value="1">N1</option>
+            <option value="2">N2</option>
+            <option value="3">N3</option>
+            <option value="4">N4</option>
+          </select>
+          <select
+            style={s.input}
+            value={filterDamage}
+            onChange={(e) => setFilterDamage(e.target.value)}
+          >
+            <option value="">Todos los tipos de daño</option>
+            {damages.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: 13, color: '#6b7280', alignSelf: 'center' }}>
+            {filteredServices.length} de {services.length} servicios
+          </span>
+        </div>
+
+        {loading ? (
+          <div style={s.stateContainer}>
             <p style={s.stateText}>
               Cargando servicios...
             </p>
           </div>
         ) : (
           <div style={s.tableCard}>
-            <div
-              style={s.tableWrapper}
-            >
+            <div style={s.tableWrapper}>
               <table style={s.table}>
                 <thead>
                   <tr style={s.thead}>
@@ -440,6 +444,10 @@ function ServiceCatalogPage() {
                     </th>
 
                     <th style={s.th}>
+                      Tiempo Est.
+                    </th>
+
+                    <th style={s.th}>
                       Tipo de Daño
                     </th>
 
@@ -450,11 +458,9 @@ function ServiceCatalogPage() {
                 </thead>
 
                 <tbody>
-                  {services.map((sItem) => (
-                    <tr
-                      key={sItem.id}
-                      style={s.tr}
-                    >
+                  {/* ← CAMBIADO: services.map por filteredServices.map */}
+                  {filteredServices.map((sItem) => (
+                    <tr key={sItem.id} style={s.tr}>
                       <td style={s.td}>
                         {sItem.name}
                       </td>
@@ -464,76 +470,51 @@ function ServiceCatalogPage() {
                       </td>
 
                       <td style={s.td}>
-                        {
-                          sItem.description
-                        }
+                        {sItem.description}
                       </td>
 
                       <td style={s.td}>
                         <span
                           style={{
                             ...s.badge,
-                            backgroundColor:
-                              getLevelColor(
-                                sItem.attentionLevel
-                              ),
+                            backgroundColor: getLevelColor(sItem.attentionLevel),
                           }}
                         >
-                          {getLevelName(
-                            sItem.attentionLevel
-                          )}
+                          {getLevelName(sItem.attentionLevel)}
                         </span>
                       </td>
 
                       <td style={s.td}>
-                        {
-                          sItem.damageName
-                        }
+                        {sItem.estimatedTimeHours}h
                       </td>
 
                       <td style={s.td}>
-                        <div
-                          style={s.actions}
-                        >
+                        {sItem.damageName}
+                      </td>
+
+                      <td style={s.td}>
+                        <div style={s.actions}>
                           <button
-                            onClick={() =>
-                              handleEdit(
-                                sItem
-                              )
-                            }
-                            style={
-                              s.iconBtn
-                            }
+                            onClick={() => handleEdit(sItem)}
+                            style={s.iconBtn}
                             title="Editar"
                           >
-                            <Pencil
-                              size={15}
-                              color="#4361ee"
-                            />
+                            <Pencil size={15} color="#4361ee" />
                           </button>
 
                           <button
-                            onClick={() =>
-                              handleDelete(
-                                sItem.id
-                              )
-                            }
-                            style={
-                              s.iconBtn
-                            }
+                            onClick={() => handleDelete(sItem.id)}
+                            style={s.iconBtn}
                             title="Desactivar"
                           >
-                            <Trash2
-                              size={15}
-                              color="#dc2626"
-                            />
+                            <Trash2 size={15} color="#dc2626" />
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                       </td>
+                     </tr>
                   ))}
                 </tbody>
-              </table>
+               </table>
             </div>
           </div>
         )}
@@ -550,8 +531,7 @@ const s = {
 
   header: {
     display: 'flex',
-    justifyContent:
-      'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '24px',
   },
@@ -617,8 +597,7 @@ const s = {
 
   formGrid: {
     display: 'grid',
-    gridTemplateColumns:
-      '1fr 1fr',
+    gridTemplateColumns: '1fr 1fr',
     gap: 20,
   },
 
@@ -638,8 +617,7 @@ const s = {
     width: '100%',
     padding: '12px 14px',
     borderRadius: 10,
-    border:
-      '1px solid #d0d5dd',
+    border: '1px solid #d0d5dd',
     fontSize: 14,
     boxSizing: 'border-box',
     outline: 'none',
@@ -699,13 +677,11 @@ const s = {
     fontSize: 13,
     fontWeight: 700,
     color: '#667085',
-    borderBottom:
-      '1px solid #eaecf0',
+    borderBottom: '1px solid #eaecf0',
   },
 
   tr: {
-    borderBottom:
-      '1px solid #f1f3f5',
+    borderBottom: '1px solid #f1f3f5',
   },
 
   td: {
@@ -734,10 +710,8 @@ const s = {
     height: 32,
     display: 'flex',
     alignItems: 'center',
-    justifyContent:
-      'center',
-    backgroundColor:
-      'transparent',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
     border: 'none',
     borderRadius: 8,
     cursor: 'pointer',

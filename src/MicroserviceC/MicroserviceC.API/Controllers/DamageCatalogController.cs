@@ -11,11 +11,7 @@ namespace MicroserviceC.API.Controllers
     public class DamageCatalogController : ControllerBase
     {
         private readonly AppDbContext _context;
-
-        public DamageCatalogController(AppDbContext context)
-        {
-            _context = context;
-        }
+        public DamageCatalogController(AppDbContext context) => _context = context;
 
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -25,13 +21,12 @@ namespace MicroserviceC.API.Controllers
                 .Select(d => new DamageCatalogDto
                 {
                     Id = d.Id,
+                    Code = d.Code,
                     Name = d.Name,
                     Description = d.Description,
-                    AttentionLevel = d.AttentionLevel,
                     IsActive = d.IsActive
                 })
                 .ToListAsync();
-
             return Ok(items);
         }
 
@@ -41,13 +36,12 @@ namespace MicroserviceC.API.Controllers
             var item = await _context.DamageCatalogs.FindAsync(id);
             if (item == null)
                 return NotFound(new { message = "Categoría no encontrada" });
-
             return Ok(new DamageCatalogDto
             {
                 Id = item.Id,
+                Code = item.Code,
                 Name = item.Name,
                 Description = item.Description,
-                AttentionLevel = item.AttentionLevel,
                 IsActive = item.IsActive
             });
         }
@@ -55,17 +49,21 @@ namespace MicroserviceC.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateDamageDto dto)
         {
+            // Verificar código único
+            bool codeExists = await _context.DamageCatalogs
+                .AnyAsync(d => d.Code == dto.Code.ToUpper());
+            if (codeExists)
+                return BadRequest(new { message = "Ya existe una categoría con ese código" });
+
             var item = new DamageCatalog
             {
+                Code = dto.Code.ToUpper().Trim(),
                 Name = dto.Name,
                 Description = dto.Description,
-                AttentionLevel = dto.AttentionLevel,
                 IsActive = true
             };
-
             _context.DamageCatalogs.Add(item);
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Categoría creada", id = item.Id });
         }
 
@@ -76,10 +74,9 @@ namespace MicroserviceC.API.Controllers
             if (item == null)
                 return NotFound(new { message = "Categoría no encontrada" });
 
+            item.Code = dto.Code.ToUpper().Trim();
             item.Name = dto.Name;
             item.Description = dto.Description;
-            item.AttentionLevel = dto.AttentionLevel;
-
             await _context.SaveChangesAsync();
             return Ok(new { message = "Categoría actualizada" });
         }
@@ -90,7 +87,6 @@ namespace MicroserviceC.API.Controllers
             var item = await _context.DamageCatalogs.FindAsync(id);
             if (item == null)
                 return NotFound(new { message = "Categoría no encontrada" });
-
             item.IsActive = false;
             await _context.SaveChangesAsync();
             return Ok(new { message = "Categoría desactivada" });

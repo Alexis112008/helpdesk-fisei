@@ -30,6 +30,7 @@ namespace MicroserviceC.API.Controllers
                     Description = s.Description,
                     Category = s.Category,
                     AttentionLevel = s.AttentionLevel,
+                    EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
                     IsActive = s.IsActive,
                     DamageCatalogId = s.DamageCatalogId,
                     DamageName = s.DamageCatalog.Name
@@ -52,6 +53,7 @@ namespace MicroserviceC.API.Controllers
                     Description = s.Description,
                     Category = s.Category,
                     AttentionLevel = s.AttentionLevel,
+                    EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
                     IsActive = s.IsActive,
                     DamageCatalogId = s.DamageCatalogId,
                     DamageName = s.DamageCatalog.Name
@@ -59,6 +61,34 @@ namespace MicroserviceC.API.Controllers
                 .ToListAsync();
 
             return Ok(items);
+        }
+
+        /// <summary>
+        /// GET /api/servicecatalog/{id} — obtener un servicio por su id.
+        /// Usado por el frontend para resolver nombres en el detalle de ticket.
+        /// </summary>
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var s = await _context.ServiceCatalogs
+                .Include(x => x.DamageCatalog)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (s == null)
+                return NotFound(new { message = "Servicio no encontrado" });
+
+            return Ok(new ServiceCatalogDto
+            {
+                Id = s.Id,
+                Name = s.Name,
+                Description = s.Description,
+                Category = s.Category,
+                AttentionLevel = s.AttentionLevel,
+                EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
+                IsActive = s.IsActive,
+                DamageCatalogId = s.DamageCatalogId,
+                DamageName = s.DamageCatalog?.Name ?? string.Empty
+            });
         }
 
         [HttpPost]
@@ -74,6 +104,7 @@ namespace MicroserviceC.API.Controllers
                 Description = dto.Description,
                 Category = dto.Category,
                 AttentionLevel = dto.AttentionLevel,
+                EstimatedTimeHours = dto.EstimatedTimeHours,
                 DamageCatalogId = dto.DamageCatalogId,
                 IsActive = true
             };
@@ -95,6 +126,7 @@ namespace MicroserviceC.API.Controllers
             item.Description = dto.Description;
             item.Category = dto.Category;
             item.AttentionLevel = dto.AttentionLevel;
+            item.EstimatedTimeHours = dto.EstimatedTimeHours;
             item.DamageCatalogId = dto.DamageCatalogId;
 
             await _context.SaveChangesAsync();

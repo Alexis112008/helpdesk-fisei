@@ -80,6 +80,10 @@ namespace MicroserviceA.API.Controllers
                     Id = u.Id,
                     FullName = u.FullName,
                     Email = u.Email,
+                    Phone = u.Phone,
+                    Cedula = u.Cedula,
+                    Department = u.Department,
+                    Specialty = u.Specialty,
                     Role = u.Role.Name,
                     IsActive = u.IsActive,
                     CreatedAt = u.CreatedAt
@@ -89,9 +93,8 @@ namespace MicroserviceA.API.Controllers
             return Ok(users);
         }
 
-        // 👇 3. TERCERO: GET api/user/{id} (debe ir después de los específicos)
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var user = await _context.Users
@@ -106,6 +109,10 @@ namespace MicroserviceA.API.Controllers
                 Id = user.Id,
                 FullName = user.FullName,
                 Email = user.Email,
+                Phone = user.Phone,
+                Cedula = user.Cedula,
+                Department = user.Department,
+                Specialty = user.Specialty,
                 Role = user.Role.Name,
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt
@@ -133,6 +140,10 @@ namespace MicroserviceA.API.Controllers
                 FullName = dto.FullName,
                 Email = dto.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Phone = dto.Phone,
+                Cedula = dto.Cedula,
+                Department = dto.Department,
+                Specialty = dto.Specialty,
                 RoleId = dto.RoleId,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -158,7 +169,25 @@ namespace MicroserviceA.API.Controllers
             if (role == null)
                 return BadRequest(new { message = "Rol no válido" });
 
+            // Verificar que el nuevo email no exista en otro usuario
+            if (user.Email != dto.Email)
+            {
+                bool emailExists = await _context.Users
+                    .AnyAsync(u => u.Email == dto.Email && u.Id != id);
+                if (emailExists)
+                    return BadRequest(new { message = "El correo ya está registrado por otro usuario" });
+
+                if (!dto.Email.EndsWith("@uta.edu.ec"))
+                    return BadRequest(new { message = "Solo se permiten correos @uta.edu.ec" });
+
+                user.Email = dto.Email;
+            }
+
             user.FullName = dto.FullName;
+            user.Phone = dto.Phone;
+            user.Cedula = dto.Cedula;
+            user.Department = dto.Department;
+            user.Specialty = dto.Specialty;
             user.IsActive = dto.IsActive;
             user.RoleId = dto.RoleId;
 

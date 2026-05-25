@@ -1,10 +1,14 @@
-﻿using System.Threading.Tasks;
-
-namespace MicroserviceB.API.Services
+﻿namespace MicroserviceB.API.Services
 {
     public interface IEscalationService
     {
-        Task CheckAndEscalateTicketsAsync();  // Para el background service
-        Task ManualEscalateAsync(int ticketId);  // Para escalamiento manual
+        /// <summary>HU7 — T7.3: Job de revisión periódica.</summary>
+        Task CheckAndEscalateTicketsAsync();
+
+        /// <summary>HU7 — T7.2: Escalamiento manual sin motivo (compat).</summary>
+        Task ManualEscalateAsync(int ticketId);
+
+        /// <summary>HU7 — T7.2: Escalamiento manual con motivo y actor.</summary>
+        Task ManualEscalateAsync(int ticketId, string reason, string actorFullName);
     }
 }
