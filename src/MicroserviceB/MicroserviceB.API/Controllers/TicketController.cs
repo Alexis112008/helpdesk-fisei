@@ -145,8 +145,23 @@ namespace MicroserviceB.API.Controllers
             if (level == null)
                 return Forbid();
 
+            // "Mis tickets" del técnico incluye:
+            //   1) Tickets actualmente asignados a él (gestión activa).
+            //   2) Tickets donde él aparece como autor de al menos una acción
+            //      de escalado ("Escalation"). Esto cubre el caso en que el
+            //      técnico escaló y quiere seguir el caso. Incluimos también
+            //      los Cerrados para que pueda ver el desenlace en su bandeja.
+            //      El frontend distingue "propios" (gestionables) vs "de
+            //      seguimiento" (solo lectura) comparando assignedTechnicianId.
+            var escalatedTicketIds = _context.TicketActions
+                .Where(a => a.UserId == userId && a.ActionType == "Escalation")
+                .Select(a => a.TicketId);
+
             var query = _context.Tickets
-                .Where(t => t.AssignedTechnicianId == userId);
+                .Where(t =>
+                    t.AssignedTechnicianId == userId
+                    || escalatedTicketIds.Contains(t.Id)
+                );
 
             if (!string.IsNullOrWhiteSpace(status))
                 query = query.Where(t => t.Status == status);
@@ -179,11 +194,16 @@ namespace MicroserviceB.API.Controllers
             //    para no bloquear al técnico.
             var serviceIds = await GetMyServiceIdsAsync(httpFactory, userId);
 
+            // Un ticket está "disponible" para el pool del nivel cuando:
+            //   - No tiene técnico asignado
+            //   - Su nivel actual coincide con el del técnico
+            //   - Su estado es "Abierto" (recién creado por el solicitante)
+            //     o "Escalado" (vino de un nivel inferior por escalamiento)
             var query = _context.Tickets
                 .Where(t =>
                     t.AssignedTechnicianId == null
                     && t.CurrentLevel == level
-                    && t.Status == "Abierto");
+                    && (t.Status == "Abierto" || t.Status == "Escalado"));
 
             if (serviceIds != null && serviceIds.Count > 0)
                 query = query.Where(t => serviceIds.Contains(t.ServiceCatalogId));
@@ -231,11 +251,16 @@ namespace MicroserviceB.API.Controllers
                     message = $"El ticket está en N{ticket.CurrentLevel} y tú eres N{level}."
                 });
 
-            if (ticket.Status != "Abierto")
+            if (ticket.Status != "Abierto" && ticket.Status != "Escalado")
                 return UnprocessableEntity(new
                 {
-                    message = $"Solo se pueden aceptar tickets en estado 'Abierto' (actual: {ticket.Status})."
+                    message = $"Solo se pueden aceptar tickets en estado 'Abierto' o 'Escalado' (actual: {ticket.Status})."
                 });
+
+            // Guardamos el estado previo (puede ser "Abierto" si es la primera
+            // toma de un ticket recién creado, o "Escalado" si viene de un
+            // nivel inferior por escalamiento manual o automático).
+            var previousStatus = ticket.Status;
 
             // Asignar y pasar a "En Proceso"
             ticket.AssignedTechnicianId = userId;
@@ -247,7 +272,7 @@ namespace MicroserviceB.API.Controllers
                 ticketId: ticket.Id, userId: userId, userFullName: fullName,
                 actionType: "Accepted",
                 description: $"Ticket aceptado por {fullName}.",
-                fromValue: "Abierto", toValue: "En Proceso");
+                fromValue: previousStatus, toValue: "En Proceso");
 
             // Notificar al solicitante (le interesa saber que su ticket fue tomado)
             await _realtime.NotifyToUserAsync(
@@ -257,7 +282,7 @@ namespace MicroserviceB.API.Controllers
                 {
                     ticketId = ticket.Id,
                     ticketNumber = ticket.TicketNumber,
-                    fromStatus = "Abierto",
+                    fromStatus = previousStatus,
                     toStatus = "En Proceso",
                     changedBy = fullName
                 });
@@ -662,8 +687,8 @@ namespace MicroserviceB.API.Controllers
         {
             try
             {
-                var (_, fullName, _) = GetCurrentUser();
-                await _escalationService.ManualEscalateAsync(id, dto.Reason, fullName);
+                var (userId, fullName, _) = GetCurrentUser();
+                await _escalationService.ManualEscalateAsync(id, dto.Reason, fullName, userId);
                 return Ok(new { message = "Ticket escalado correctamente" });
             }
             catch (ArgumentException ex)

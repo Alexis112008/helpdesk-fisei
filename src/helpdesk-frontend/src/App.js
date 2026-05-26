@@ -16,6 +16,7 @@ import TechnicianPanel from './pages/TechnicianPanel';
 import TicketDetailTech from './pages/TicketDetailTech';
 import TicketDetailUser from './pages/TicketDetailUser';
 import KnowledgeSearch from './pages/KnowledgeSearch';
+import Notifications from './pages/Notifications';
 import { NotificationProvider } from './components/NotificationProvider';
 
 const TECH_ROLES = ['TecnicoN1', 'TecnicoN2', 'DITIC', 'Proveedor'];
@@ -63,6 +64,11 @@ function App() {
           {/* HU8 - Base de conocimiento (accesible a todos los autenticados) */}
           <Route path="/conocimiento" element={
             <PrivateRoute><KnowledgeSearch /></PrivateRoute>
+          } />
+
+          {/* Página de notificaciones (accesible a todos los autenticados) */}
+          <Route path="/notificaciones" element={
+            <PrivateRoute><Notifications /></PrivateRoute>
           } />
 
           <Route path="/admin/usuarios" element={

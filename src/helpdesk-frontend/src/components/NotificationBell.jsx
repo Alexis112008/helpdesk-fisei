@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Check, Trash2, X } from 'lucide-react';
 import { useNotifications } from './NotificationProvider';
 
@@ -12,6 +13,7 @@ import { useNotifications } from './NotificationProvider';
  * - El historial se persiste en localStorage (máx. 50 entradas).
  */
 function NotificationBell() {
+  const navigate = useNavigate();
   const { notifications, unreadCount, markAllRead, markOneRead, clearAll } =
     useNotifications();
 
@@ -165,6 +167,17 @@ function NotificationBell() {
               })
             )}
           </div>
+
+          {/* Footer: enlace a la página completa */}
+          <button
+            style={s.viewAllBtn}
+            onClick={() => {
+              setOpen(false);
+              navigate('/notificaciones');
+            }}
+          >
+            Ver todas las notificaciones →
+          </button>
         </div>
       )}
     </div>
@@ -341,6 +354,18 @@ const s = {
   itemTime: {
     fontSize: 11,
     color: '#9ca3af',
+  },
+  viewAllBtn: {
+    background: '#f9fafb',
+    border: 'none',
+    borderTop: '1px solid #f3f4f6',
+    color: '#4361ee',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+    padding: '12px 18px',
+    textAlign: 'center',
+    width: '100%',
   },
 };
 

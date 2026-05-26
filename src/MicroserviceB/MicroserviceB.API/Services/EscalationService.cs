@@ -110,7 +110,10 @@ namespace MicroserviceB.API.Services
         public Task ManualEscalateAsync(int ticketId)
             => ManualEscalateAsync(ticketId, "Escalamiento manual sin motivo registrado.", "Técnico");
 
-        public async Task ManualEscalateAsync(int ticketId, string reason, string actorFullName)
+        public Task ManualEscalateAsync(int ticketId, string reason, string actorFullName)
+            => ManualEscalateAsync(ticketId, reason, actorFullName, 0);
+
+        public async Task ManualEscalateAsync(int ticketId, string reason, string actorFullName, int actorUserId)
         {
             var ticket = await _context.Tickets.FindAsync(ticketId)
                 ?? throw new InvalidOperationException("Ticket no encontrado");
@@ -121,10 +124,10 @@ namespace MicroserviceB.API.Services
             if (string.IsNullOrWhiteSpace(reason))
                 throw new ArgumentException("Debe indicar un motivo para escalar.", nameof(reason));
 
-            await EscalateInternalAsync(ticket, reason, actorFullName);
+            await EscalateInternalAsync(ticket, reason, actorFullName, actorUserId);
         }
 
-        private async Task EscalateInternalAsync(Ticket ticket, string reason, string actor)
+        private async Task EscalateInternalAsync(Ticket ticket, string reason, string actor, int actorUserId = 0)
         {
             var fromLevel = ticket.CurrentLevel;
             var toLevel = fromLevel + 1; // PROGRESIVO, sin saltos
@@ -134,17 +137,28 @@ namespace MicroserviceB.API.Services
             //   - Sube de nivel (N+1)
             //   - Se desasigna del técnico actual (cualquier técnico del nuevo nivel
             //     que atienda el servicio podrá aceptarlo desde su bandeja de "Disponibles")
-            //   - Estado vuelve a "Abierto" (mismo estado inicial que un ticket nuevo)
+            //   - Estado pasa a "Escalado". Esto permite que los técnicos
+            //     anteriores lo vean en "Mis tickets" filtrando por ese estado.
+            //     El pool del siguiente nivel acepta tickets en "Abierto"
+            //     (recién creados) o "Escalado" (provenientes de un nivel inferior).
             ticket.CurrentLevel = toLevel;
-            ticket.Status = "Abierto";
+            ticket.Status = "Escalado";
             ticket.AssignedTechnicianId = null;
             ticket.LastEscalationCheck = DateTime.UtcNow;
             ticket.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
+            // El userId que guardamos identifica QUIÉN escaló. Si por algún flujo
+            // antiguo no se pasa (p. ej. job automático), `previousTech` queda como
+            // fallback razonable: el técnico que tenía el ticket asignado en ese
+            // momento. Si tampoco hay, queda 0 (escalación del sistema).
+            var actionUserId = actorUserId != 0
+                ? actorUserId
+                : (previousTech ?? 0);
+
             await _actionService.RegisterActionAsync(
-                ticketId: ticket.Id, userId: 0, userFullName: actor,
+                ticketId: ticket.Id, userId: actionUserId, userFullName: actor,
                 actionType: "Escalation",
                 description: $"Escalado de N{fromLevel} a N{toLevel}. Motivo: {reason}",
                 fromValue: $"N{fromLevel}",

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom'; // ← AÑADIR useLocation
 import Layout from '../components/Layout';
 import { ticketAPI, catalogAPI } from '../services/api';
-import { getConnection } from '../services/realtime';
+import { getConnection, joinUserGroup } from '../services/realtime';
 
 /**
  * Detalle de ticket — VISTA USUARIO SOLICITANTE.
@@ -89,28 +89,45 @@ function TicketDetailUser() {
   };
 
   // Actualización en tiempo real
+  // - Mismo patrón que en la vista del técnico: registramos un handler local
+  //   que filtra por el ticket actual antes de recargar, y guardamos la
+  //   referencia para poder hacer .off() limpio al desmontar.
   useEffect(() => {
     let conn;
+    const refresh = (payload) => {
+      // Si el evento no trae ticketId, recargamos por seguridad.
+      if (!payload || String(payload.ticketId) === String(id)) {
+        load();
+      }
+    };
     (async () => {
       try {
         conn = await getConnection();
-        conn.on('ticket-updated', load);
-        conn.on('ticket-resolved', load);
-        conn.on('ticket-closed', load);
-        conn.on('ticket-escalated', load);
-        conn.on('ticket-action-added', load);
+        // Defensivo: re-unirse al grupo del usuario. Si ya está unido, no hace nada.
+        // Esto cubre el caso de que la conexión haya sido reciclada (logout/login
+        // o reconexión automática) después de que el NotificationProvider hiciera
+        // su join inicial.
+        const myId = localStorage.getItem('userId');
+        if (myId) {
+          try { await joinUserGroup(myId); } catch {}
+        }
+        conn.on('ticket-updated', refresh);
+        conn.on('ticket-resolved', refresh);
+        conn.on('ticket-closed', refresh);
+        conn.on('ticket-escalated', refresh);
+        conn.on('ticket-action-added', refresh);
       } catch { /* silencioso */ }
     })();
     return () => {
       if (conn) {
-        conn.off('ticket-updated', load);
-        conn.off('ticket-resolved', load);
-        conn.off('ticket-closed', load);
-        conn.off('ticket-escalated', load);
-        conn.off('ticket-action-added', load);
+        conn.off('ticket-updated', refresh);
+        conn.off('ticket-resolved', refresh);
+        conn.off('ticket-closed', refresh);
+        conn.off('ticket-escalated', refresh);
+        conn.off('ticket-action-added', refresh);
       }
     };
-  }, [load]);
+  }, [id, load]);
 
   if (loading) {
     return (
@@ -222,15 +239,20 @@ function TicketDetailUser() {
                   <td style={s.kvKey}>Tipo de daño:</td>
                   <td style={s.kvValue}>{damageName || '—'}</td>
                  </tr>
-                {/* ← NUEVAS FILAS: Ubicación y Equipo/Activo */}
-                <tr>
-                  <td style={s.kvKey}>Ubicación:</td>
-                  <td style={s.kvValue}>{ticket.location || '—'}</td>
-                 </tr>
-                <tr>
-                  <td style={s.kvKey}>Equipo/Activo:</td>
-                  <td style={s.kvValue}>{ticket.assetCode || '—'}</td>
-                 </tr>
+                {/* Ubicación: solo si el ticket trae un valor */}
+                {ticket.location && (
+                  <tr>
+                    <td style={s.kvKey}>Ubicación:</td>
+                    <td style={s.kvValue}>{ticket.location}</td>
+                  </tr>
+                )}
+                {/* Equipo / Activo: solo si el ticket trae un valor */}
+                {ticket.assetCode && (
+                  <tr>
+                    <td style={s.kvKey}>Equipo/Activo:</td>
+                    <td style={s.kvValue}>{ticket.assetCode}</td>
+                  </tr>
+                )}
                 <tr>
                   <td style={s.kvKey}>Nivel actual:</td>
                   <td style={s.kvValue}><b>{ticket.levelName}</b></td>

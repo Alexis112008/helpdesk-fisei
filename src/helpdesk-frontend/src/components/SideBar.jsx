@@ -81,6 +81,13 @@ function Sidebar() {
       icon: '📚',
       path: '/conocimiento',
     },
+
+    // Notificaciones (todos)
+    {
+      label: 'Notificaciones',
+      icon: '🔔',
+      path: '/notificaciones',
+    },
   ];
 
   const visibleNav = navItems.filter((item) => {

@@ -85,6 +85,9 @@ export function NotificationProvider({ children }) {
         message: t.message || '',
         createdAt: new Date().toISOString(),
         read: false,
+        // ticketId opcional: si la notificación está asociada a un ticket,
+        // la página de notificaciones mostrará un botón "Ver Ticket".
+        ticketId: t.ticketId || null,
       },
       ...prev,
     ]);
@@ -181,14 +184,9 @@ export function NotificationProvider({ children }) {
         }
 
         // Listeners de eventos — guardamos referencia para poder limpiarlos
-        handlers['ticket-created'] = (payload) => {
-          if (!payload?.ticketNumber) return;
-          showToast({
-            type: 'info',
-            title: 'Nuevo ticket',
-            message: `Ticket ${payload.ticketNumber} creado.`,
-          });
-        };
+        // Nota: el evento 'ticket-created' NO se maneja aquí porque la página
+        // CreateTicket.js ya muestra su propio toast al confirmar el POST.
+        // Mantenerlo aquí provocaba notificaciones duplicadas.
 
         handlers['ticket-updated'] = (payload) => {
           const ticketNumber = payload?.ticketNumber;
@@ -199,6 +197,7 @@ export function NotificationProvider({ children }) {
             type: 'info',
             title: 'Ticket actualizado',
             message: `${ticketNumber}: ${fromStatus} → ${toStatus}`,
+            ticketId: payload?.ticketId,
           });
         };
 
@@ -211,6 +210,7 @@ export function NotificationProvider({ children }) {
             type: 'warning',
             title: 'Ticket escalado',
             message: `${tn} escalado de N${from} a N${to}`,
+            ticketId: payload?.ticketId,
           });
         };
 
@@ -220,6 +220,7 @@ export function NotificationProvider({ children }) {
             type: 'success',
             title: 'Ticket resuelto',
             message: `${payload.ticketNumber} fue resuelto.`,
+            ticketId: payload?.ticketId,
           });
         };
 
@@ -229,6 +230,7 @@ export function NotificationProvider({ children }) {
             type: 'success',
             title: 'Ticket cerrado',
             message: `${payload.ticketNumber} fue cerrado.`,
+            ticketId: payload?.ticketId,
           });
         };
 
@@ -239,6 +241,7 @@ export function NotificationProvider({ children }) {
             title: 'Ticket vencido',
             message: `${payload.ticketNumber} superó su SLA.`,
             duration: 8000,
+            ticketId: payload?.ticketId,
           });
         };
 
@@ -252,6 +255,7 @@ export function NotificationProvider({ children }) {
             type: 'info',
             title: 'Nuevo comentario',
             message: `${who} comentó en el ticket ${payload.ticketNumber}.`,
+            ticketId: payload?.ticketId,
           });
         };
 
@@ -263,6 +267,7 @@ export function NotificationProvider({ children }) {
             type: 'info',
             title: 'Nuevo ticket disponible',
             message: `${payload.ticketNumber} entró al pool de N${payload.level}.`,
+            ticketId: payload?.ticketId,
           });
         };
 

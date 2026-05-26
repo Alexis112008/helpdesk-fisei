@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ticketAPI, catalogAPI } from '../services/api';
 import Layout from '../components/Layout';
+import { useNotifications } from '../components/NotificationProvider';
 
 function CreateTicket() {
   const navigate = useNavigate();
+  const { showToast } = useNotifications();
 
   const [damages, setDamages] = useState([]);
   const [services, setServices] = useState([]);
@@ -58,8 +60,15 @@ function CreateTicket() {
         serviceCatalogId: parseInt(form.serviceCatalogId),
         userId: form.userId,
       };
-      await ticketAPI.post('/ticket', payload);
-      setSuccess('¡Ticket creado exitosamente! Será asignado automáticamente a un técnico.');
+      const res = await ticketAPI.post('/ticket', payload);
+      const created = res.data;
+      const tno = created?.ticketNumber ? ` (${created.ticketNumber})` : '';
+      showToast({
+        type: 'success',
+        title: 'Ticket creado',
+        message: `Tu ticket${tno} fue registrado. Un técnico lo tomará pronto.`,
+      });
+      setSuccess('¡Ticket creado exitosamente! Quedará disponible para que un técnico lo tome.');
       setTimeout(() => navigate('/tickets'), 2500);
     } catch (err) {
       setError(err.response?.data?.message || 'Error al crear el ticket. Intente de nuevo.');
@@ -68,11 +77,6 @@ function CreateTicket() {
     }
   };
 
-  // Servicio seleccionado para mostrar info
-  const selectedService = services.find(
-    (sv) => sv.id === parseInt(form.serviceCatalogId)
-  );
-
   return (
     <Layout>
       <main style={s.content}>
@@ -80,8 +84,9 @@ function CreateTicket() {
           <div style={s.formHeader}>
             <h1 style={s.formTitle}>Crear Nuevo Ticket</h1>
             <p style={s.formSubtitle}>
-              Completa todos los campos para registrar el problema. Un técnico será
-              asignado automáticamente.
+              Completa todos los campos para registrar el problema. Tu ticket entrará
+              en la bandeja de atención y será tomado por un técnico del nivel
+              correspondiente.
             </p>
           </div>
 
@@ -167,14 +172,6 @@ function CreateTicket() {
                     <option key={sv.id} value={sv.id}>{sv.name}</option>
                   ))}
                 </select>
-                {/* Info del nivel de atención del servicio seleccionado */}
-                {selectedService && (
-                  <div style={s.serviceInfo}>
-                    <span style={s.serviceInfoIcon}>ℹ️</span>
-                    Este servicio será atendido por un técnico de{' '}
-                    <strong>Nivel {selectedService.attentionLevel}</strong>.
-                  </div>
-                )}
               </div>
             </div>
 
@@ -209,16 +206,6 @@ function CreateTicket() {
               </div>
             </div>
 
-            {/*Info automática*/}
-            <div style={s.infoBox}>
-              <span style={s.infoIcon}>⚡</span>
-              <div>
-                <strong>Asignación automática:</strong> Al crear el ticket, el sistema lo
-                asignará al técnico disponible con menor carga de trabajo según el servicio
-                y nivel de atención requerido.
-              </div>
-            </div>
-
             <button type="submit" style={s.submitBtn} disabled={loading}>
               {loading ? 'Creando ticket...' : 'Crear Ticket'}
             </button>
@@ -247,8 +234,6 @@ const s = {
   input: { width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, boxSizing: 'border-box', outline: 'none', backgroundColor: '#fff' },
   textarea: { width: '100%', minHeight: 120, padding: '12px 14px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, boxSizing: 'border-box', resize: 'vertical', outline: 'none', fontFamily: 'inherit' },
   hint: { fontSize: 12, color: '#9ca3af', marginTop: 4, display: 'block' },
-  serviceInfo: { marginTop: 8, fontSize: 13, color: '#374151', backgroundColor: '#eff6ff', padding: '8px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 },
-  serviceInfoIcon: { fontSize: 14 },
   // Info box
   infoBox: { display: 'flex', gap: 10, alignItems: 'flex-start', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', marginBottom: 24, fontSize: 13, color: '#166534' },
   infoIcon: { fontSize: 16, marginTop: 1 },

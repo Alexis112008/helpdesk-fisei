@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { ticketAPI, catalogAPI } from '../services/api';
+import { ticketAPI, catalogAPI, authAPI } from '../services/api';
 import { useNotifications } from '../components/NotificationProvider';
 import KnowledgeForm from '../components/KnowledgeForm';
-import { getConnection } from '../services/realtime';
+import { getConnection, roleToLevel } from '../services/realtime';
 
 /**
  * HU5 — T5.6: Detalle del ticket para el técnico.
@@ -30,8 +30,13 @@ function TicketDetailTech() {
   // ← CAMBIO 1: agregar estados para nombres de servicio y daño
   const [serviceName, setServiceName] = useState('');
   const [damageName, setDamageName] = useState('');
+  // Nombre del técnico asignado (resuelto via MicroserviceA)
+  const [assignedTechnicianName, setAssignedTechnicianName] = useState('');
 
   const fullName = localStorage.getItem('fullName');
+  const currentUserId = parseInt(localStorage.getItem('userId') || '0');
+  // Nivel (1..4) del técnico autenticado. Si no es técnico, queda en null.
+  const myLevel = roleToLevel(localStorage.getItem('role'));
 
   const load = useCallback(() => {
     setLoading(true);
@@ -50,6 +55,15 @@ function TicketDetailTech() {
         if (res.data.ticket.damageCatalogId) {
           catalogAPI.get(`/damagecatalog/${res.data.ticket.damageCatalogId}`)
             .then((r) => setDamageName(r.data.name)).catch(() => {});
+        }
+        // Resolver nombre del técnico asignado (si lo hay)
+        const techId = res.data.ticket.assignedTechnicianId;
+        if (techId) {
+          authAPI.get(`/user/${techId}`)
+            .then((r) => setAssignedTechnicianName(r.data.fullName || ''))
+            .catch(() => setAssignedTechnicianName(''));
+        } else {
+          setAssignedTechnicianName('');
         }
       })
       .catch((e) => console.error(e))
@@ -133,7 +147,14 @@ function TicketDetailTech() {
       await ticketAPI.post(`/ticket/${id}/escalate`, { reason: escalateReason.trim() });
       setEscalateOpen(false);
       setEscalateReason('');
-      showToast({ type: 'success', title: 'Escalado', message: 'Ticket escalado al siguiente nivel.' });
+      showToast({
+        type: 'success',
+        title: 'Ticket escalado',
+        message: 'El ticket pasó al siguiente nivel. Lo seguirás viendo en tu bandeja en modo solo lectura.',
+      });
+      // No redirigimos: el ticket sigue siendo "tuyo" para seguimiento.
+      // Al recargar, isMine pasará a false y la vista se vuelve solo-lectura
+      // automáticamente; el técnico puede ver cómo evoluciona el caso.
       load();
     } catch (e) {
       const msg = e?.response?.data?.message || 'Error escalando ticket';
@@ -172,6 +193,14 @@ function TicketDetailTech() {
   }
 
   const t = detail.ticket;
+  const isClosed = t.status === 'Cerrado';
+  // El técnico solo puede gestionar tickets que tiene asignados. Si entra al
+  // detalle de un ticket que no le pertenece (porque ya lo escaló y queda en
+  // el pool de otro nivel, o porque está mirando uno disponible), la vista
+  // pasa a modo solo-lectura.
+  const isMine = t.assignedTechnicianId === currentUserId;
+  // Bloqueamos los controles cuando: el ticket está cerrado, o no es nuestro.
+  const readOnly = isClosed || !isMine;
   const canEscalate = t.currentLevel < 4 && t.status !== 'Cerrado' && t.status !== 'Resuelto';
   const canClose = t.status === 'Resuelto';
 
@@ -202,9 +231,28 @@ function TicketDetailTech() {
             <div style={st.row}><span style={st.lbl}>Nivel actual</span><span>{t.levelName}</span></div>
             <div style={st.row}><span style={st.lbl}>Servicio</span><span>{serviceName || t.serviceCatalogId}</span></div>
             <div style={st.row}><span style={st.lbl}>Tipo de daño</span><span>{damageName || t.damageCatalogId}</span></div>
-            <div style={st.row}><span style={st.lbl}>Ubicación</span><span>{t.location || '—'}</span></div>
-            <div style={st.row}><span style={st.lbl}>Equipo/Activo</span><span>{t.assetCode || '—'}</span></div>
-            <div style={st.row}><span style={st.lbl}>Técnico asignado</span><span>{t.assignedTechnicianId ? `ID: ${t.assignedTechnicianId}` : 'Sin asignar'}</span></div>
+            <div style={st.row}>
+              <span style={st.lbl}>Ubicación</span>
+              <span style={t.location ? {} : st.missingValue}>
+                {t.location || 'No registrada'}
+              </span>
+            </div>
+            <div style={st.row}>
+              <span style={st.lbl}>Equipo/Activo</span>
+              <span style={t.assetCode ? {} : st.missingValue}>
+                {t.assetCode || 'No registrado'}
+              </span>
+            </div>
+            <div style={st.row}>
+              <span style={st.lbl}>Técnico asignado</span>
+              <span>
+                {t.assignedTechnicianId === currentUserId
+                  ? `${fullName} (tú) — ID: ${t.assignedTechnicianId}`
+                  : t.assignedTechnicianId
+                    ? `${assignedTechnicianName || 'Cargando…'} (ID: ${t.assignedTechnicianId})`
+                    : 'Sin asignar'}
+              </span>
+            </div>
             <div style={st.row}><span style={st.lbl}>Fecha creación</span><span>{new Date(t.createdAt).toLocaleString('es-EC')}</span></div>
             <div style={st.row}><span style={st.lbl}>Última actualización</span><span>{new Date(t.updatedAt).toLocaleString('es-EC')}</span></div>
           </div>
@@ -258,63 +306,81 @@ function TicketDetailTech() {
           <div style={st.card}>
             <h3 style={st.cardTitle}>Acciones rápidas</h3>
 
-            <label style={st.lblTop}>Cambiar estado</label>
-            <select
-              style={st.select}
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-            >
-              <option>Abierto</option>
-              <option>En Proceso</option>
-              <option>Escalado</option>
-              <option>Resuelto</option>
-            </select>
-
-            <label style={st.lblTop}>Comentario (opcional)</label>
-            <textarea
-              style={st.textarea}
-              placeholder="Describe lo que hiciste sobre este ticket..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-
-            <button style={st.btnPrimary} onClick={changeStatus}>
-              ↻ Actualizar Estado
-            </button>
-            <button style={st.btnSecondary} onClick={addComment} disabled={!comment.trim()}>
-              + Registrar comentario
-            </button>
-
-            <div style={st.divider} />
-
-            {/* RN-007: El escalamiento solo procede de N1 hasta N4.
-                En N4 no hay siguiente nivel: el botón se oculta. */}
-            {t.currentLevel < 4 && (
-              <button
-                style={{ ...st.btnWarning, opacity: canEscalate ? 1 : 0.5 }}
-                onClick={() => setEscalateOpen(true)}
-                disabled={!canEscalate}
-                title={canEscalate ? '' : 'No se puede escalar en este estado'}
-              >
-                ⚠ Escalar Ticket
-              </button>
-            )}
-
-            {t.currentLevel === 4 && (
-              <div style={st.maxLevelNotice}>
-                ⛔ Este ticket está en <b>Nivel 4 (Proveedor Externo)</b>, el nivel
-                máximo de escalamiento. La solución debe registrarse aquí.
+            {isClosed ? (
+              <div style={st.closedNotice}>
+                🔒 Este ticket está <b>Cerrado</b>. La gestión ha finalizado y solo
+                se permite consultar la información y el historial.
               </div>
-            )}
+            ) : !isMine ? (
+              <div style={st.closedNotice}>
+                👀 Este ticket <b>no está asignado a ti</b>. Lo verás en tu bandeja
+                como referencia hasta que se cierre, pero la gestión activa la
+                lleva el técnico de <b>{t.levelName}</b>. Puedes consultar la
+                información, el historial y los comentarios.
+              </div>
+            ) : (
+              <>
+                <label style={st.lblTop}>Cambiar estado</label>
+                <select
+                  style={st.select}
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                >
+                  <option>En Proceso</option>
+                  {/* En N4 no se puede escalar: ocultamos la opción del select */}
+                  {myLevel !== 4 && <option>Escalado</option>}
+                  <option>Resuelto</option>
+                </select>
 
-            <button
-              style={{ ...st.btnDanger, opacity: canClose ? 1 : 0.5 }}
-              onClick={() => setCloseFormOpen(true)}
-              disabled={!canClose}
-              title={canClose ? '' : 'Primero marca el ticket como Resuelto'}
-            >
-              ✕ Cerrar Ticket
-            </button>
+                <label style={st.lblTop}>Comentario (opcional)</label>
+                <textarea
+                  style={st.textarea}
+                  placeholder="Describe lo que hiciste sobre este ticket..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+
+                <button style={st.btnPrimary} onClick={changeStatus}>
+                  ↻ Actualizar Estado
+                </button>
+                <button style={st.btnSecondary} onClick={addComment} disabled={!comment.trim()}>
+                  + Registrar comentario
+                </button>
+
+                <div style={st.divider} />
+
+                {/* RN-007: El escalamiento solo procede de N1 hasta N4.
+                    En N4 no hay siguiente nivel: el botón se oculta. */}
+                {myLevel !== 4 && (
+                  <button
+                    style={{ ...st.btnWarning, opacity: canEscalate ? 1 : 0.5 }}
+                    onClick={() => setEscalateOpen(true)}
+                    disabled={!canEscalate}
+                    title={canEscalate ? '' : 'No se puede escalar en este estado'}
+                  >
+                    ⚠ Escalar Ticket
+                  </button>
+                )}
+
+                {/* Aviso de nivel máximo: solo lo ven los técnicos N4
+                    cuando el ticket también está en N4. */}
+                {myLevel === 4 && t.currentLevel === 4 && (
+                  <div style={st.maxLevelNotice}>
+                    ⛔ Este ticket está en <b>Nivel 4 (Proveedor Externo)</b>, el nivel
+                    máximo de escalamiento. La solución debe registrarse aquí.
+                  </div>
+                )}
+
+                <button
+                  style={{ ...st.btnDanger, opacity: canClose ? 1 : 0.5 }}
+                  onClick={() => setCloseFormOpen(true)}
+                  disabled={!canClose}
+                  title={canClose ? '' : 'Primero marca el ticket como Resuelto'}
+                >
+                  ✕ Cerrar Ticket
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -348,6 +414,7 @@ function TicketDetailTech() {
         <KnowledgeForm
           ticket={t}
           fullName={fullName}
+          damageName={damageName}
           onClose={() => setCloseFormOpen(false)}
           onSaved={onKnowledgeSaved}
         />
@@ -457,6 +524,19 @@ const st = {
     borderRadius: 10,
     fontSize: 13,
     lineHeight: 1.5,
+  },
+  closedNotice: {
+    background: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    color: '#374151',
+    padding: '14px 16px',
+    borderRadius: 10,
+    fontSize: 13,
+    lineHeight: 1.5,
+  },
+  missingValue: {
+    color: '#9ca3af',
+    fontStyle: 'italic',
   },
 };
 

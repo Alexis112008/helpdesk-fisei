@@ -32,6 +32,7 @@ function TechnicianPanel() {
 
   const role = localStorage.getItem('role');
   const fullName = localStorage.getItem('fullName');
+  const currentUserId = parseInt(localStorage.getItem('userId') || '0');
 
   // ------------------------------------------------------------
   // Cargas
@@ -121,7 +122,7 @@ function TechnicianPanel() {
   const currentList = tab === 'available' ? available : mine;
 
   const filtered = currentList.filter((t) => {
-    if (tab === 'mine' && filterPriority !== 'Todas' && t.priority !== filterPriority) return false;
+    if (filterPriority !== 'Todas' && t.priority !== filterPriority) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       if (
@@ -214,10 +215,10 @@ function TechnicianPanel() {
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
                 <option>Todos</option>
-                <option>Abierto</option>
                 <option>En Proceso</option>
                 <option>Escalado</option>
                 <option>Resuelto</option>
+                <option>Cerrado</option>
                 <option>Vencido</option>
               </select>
               <select
@@ -232,6 +233,19 @@ function TechnicianPanel() {
                 <option>Crítica</option>
               </select>
             </>
+          )}
+          {tab === 'available' && (
+            <select
+              style={s.select}
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+            >
+              <option>Todas</option>
+              <option>Baja</option>
+              <option>Media</option>
+              <option>Alta</option>
+              <option>Crítica</option>
+            </select>
           )}
         </div>
 
@@ -291,6 +305,22 @@ function TechnicianPanel() {
                           onClick={() => handleAccept(t.id, t.ticketNumber)}
                         >
                           {busyAcceptId === t.id ? 'Aceptando…' : '✓ Aceptar'}
+                        </button>
+                      ) : t.status === 'Cerrado' ? (
+                        <button
+                          style={s.viewBtn}
+                          onClick={() => navigate(`/tecnico/ticket/${t.id}`)}
+                          title="Ticket cerrado — solo consulta"
+                        >
+                          👁 Ver
+                        </button>
+                      ) : t.assignedTechnicianId !== currentUserId ? (
+                        <button
+                          style={s.viewBtn}
+                          onClick={() => navigate(`/tecnico/ticket/${t.id}`)}
+                          title="Ticket escalado — seguimiento de solo lectura"
+                        >
+                          👁 Ver
                         </button>
                       ) : (
                         <button
@@ -436,6 +466,16 @@ const s = {
   },
   manageBtn: {
     background: '#4361ee',
+    color: '#fff',
+    border: 'none',
+    padding: '7px 14px',
+    borderRadius: 8,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  viewBtn: {
+    background: '#6b7280',
     color: '#fff',
     border: 'none',
     padding: '7px 14px',
