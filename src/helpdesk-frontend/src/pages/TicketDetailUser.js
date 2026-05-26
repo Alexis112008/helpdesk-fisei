@@ -1,26 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom'; // ← AÑADIR useLocation
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { ticketAPI, catalogAPI } from '../services/api';
 import { getConnection } from '../services/realtime';
 
 /**
  * Detalle de ticket — VISTA USUARIO SOLICITANTE.
- *
- * Permite al usuario que creó el ticket:
- *   - Ver toda la información de su ticket
- *   - Ver el historial completo de acciones (timeline)
- *   - Ver en qué nivel está y quién lo atiende
- *   - Recibir actualizaciones en tiempo real (SignalR)
- *
- * No puede modificar nada — solo leer.
  */
 function TicketDetailUser() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); // ← NUEVO: para obtener el estado de navegación
+  const location = useLocation();
 
-  // ← NUEVO: detectar de dónde viene (default '/tickets')
   const from = location.state?.from || '/tickets';
 
   const [ticket, setTicket] = useState(null);
@@ -29,11 +20,10 @@ function TicketDetailUser() {
   const [damageName, setDamageName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Comentario del solicitante
-  const [comment, setComment] = useState('');
-  const [sending, setSending] = useState(false);
-  const [commentError, setCommentError] = useState('');
+  
+  // NUEVO: Estado para la solución y modal
+  const [solution, setSolution] = useState('');
+  const [showSolutionModal, setShowSolutionModal] = useState(false);
 
   const myUserId = parseInt(localStorage.getItem('userId') || '0');
 
@@ -42,19 +32,27 @@ function TicketDetailUser() {
       const res = await ticketAPI.get(`/ticket/${id}/detail`);
       setTicket(res.data.ticket);
       setActions(res.data.actions || []);
+      
+      // Buscar la solución en el historial de acciones
+      const closureAction = res.data.actions?.find(a => 
+        a.actionType === 'Closure' || a.actionType === 'Resolution'
+      );
+      if (closureAction && closureAction.description) {
+        setSolution(closureAction.description);
+      }
 
-      // Resolver nombres de servicio y daño desde el catálogo
+      // Resolver nombres de servicio y daño
       if (res.data.ticket.serviceCatalogId) {
         try {
           const svc = await catalogAPI.get(`/servicecatalog/${res.data.ticket.serviceCatalogId}`);
           setServiceName(svc.data.name);
-        } catch { /* opcional */ }
+        } catch { }
       }
       if (res.data.ticket.damageCatalogId) {
         try {
           const dmg = await catalogAPI.get(`/damagecatalog/${res.data.ticket.damageCatalogId}`);
           setDamageName(dmg.data.name);
-        } catch { /* opcional */ }
+        } catch { }
       }
     } catch (err) {
       setError(err.response?.data?.message || 'No se pudo cargar el ticket.');
@@ -66,6 +64,10 @@ function TicketDetailUser() {
   useEffect(() => { load(); }, [load]);
 
   // Enviar comentario del solicitante
+  const [comment, setComment] = useState('');
+  const [sending, setSending] = useState(false);
+  const [commentError, setCommentError] = useState('');
+
   const sendComment = async () => {
     const text = comment.trim();
     if (!text) {
@@ -99,7 +101,7 @@ function TicketDetailUser() {
         conn.on('ticket-closed', load);
         conn.on('ticket-escalated', load);
         conn.on('ticket-action-added', load);
-      } catch { /* silencioso */ }
+      } catch { }
     })();
     return () => {
       if (conn) {
@@ -126,7 +128,6 @@ function TicketDetailUser() {
     return (
       <Layout>
         <div style={s.page}>
-          {/* ← CAMBIADO: botón volver con navegación dinámica */}
           <button style={s.backBtn} onClick={() => navigate(from)}>← Volver</button>
           <div style={s.errorBox}>{error || 'Ticket no encontrado'}</div>
         </div>
@@ -150,7 +151,6 @@ function TicketDetailUser() {
     'Crítica': '#b71c1c',
   }[p] || '#333');
 
-  // Mensaje amigable según el estado
   const statusMessage = (st) => ({
     'Abierto': 'Tu ticket está en cola, pendiente de ser tomado por un técnico.',
     'En Proceso': 'Un técnico está trabajando en tu ticket.',
@@ -183,7 +183,6 @@ function TicketDetailUser() {
   return (
     <Layout>
       <div style={s.page}>
-        {/* ← CAMBIADO: botón volver con navegación dinámica */}
         <button style={s.backBtn} onClick={() => navigate(from)}>
           ← Volver
         </button>
@@ -208,6 +207,15 @@ function TicketDetailUser() {
           <p style={s.statusMessage}>{statusMessage(ticket.status)}</p>
         </div>
 
+        {/* NUEVO: Botón "Ver solución" solo si el ticket está cerrado y hay solución */}
+        {(ticket.status === 'Cerrado' || ticket.status === 'Resuelto') && solution && (
+          <div style={s.solutionButtonContainer}>
+            <button style={s.solutionBtn} onClick={() => setShowSolutionModal(true)}>
+              🔍 Ver solución aplicada
+            </button>
+          </div>
+        )}
+
         {/* Información */}
         <div style={s.grid}>
           <div style={s.card}>
@@ -217,32 +225,31 @@ function TicketDetailUser() {
                 <tr>
                   <td style={s.kvKey}>Servicio:</td>
                   <td style={s.kvValue}>{serviceName || '—'}</td>
-                 </tr>
+                </tr>
                 <tr>
                   <td style={s.kvKey}>Tipo de daño:</td>
                   <td style={s.kvValue}>{damageName || '—'}</td>
-                 </tr>
-                {/* ← NUEVAS FILAS: Ubicación y Equipo/Activo */}
+                </tr>
                 <tr>
                   <td style={s.kvKey}>Ubicación:</td>
                   <td style={s.kvValue}>{ticket.location || '—'}</td>
-                 </tr>
+                </tr>
                 <tr>
                   <td style={s.kvKey}>Equipo/Activo:</td>
                   <td style={s.kvValue}>{ticket.assetCode || '—'}</td>
-                 </tr>
+                </tr>
                 <tr>
                   <td style={s.kvKey}>Nivel actual:</td>
                   <td style={s.kvValue}><b>{ticket.levelName}</b></td>
-                 </tr>
+                </tr>
                 <tr>
                   <td style={s.kvKey}>Creado:</td>
                   <td style={s.kvValue}>{new Date(ticket.createdAt).toLocaleString('es-EC')}</td>
-                 </tr>
+                </tr>
                 <tr>
                   <td style={s.kvKey}>Última actualización:</td>
                   <td style={s.kvValue}>{new Date(ticket.updatedAt).toLocaleString('es-EC')}</td>
-                 </tr>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -253,7 +260,7 @@ function TicketDetailUser() {
           </div>
         </div>
 
-        {/* Conversación con el técnico — estilo chat */}
+        {/* Conversación y seguimiento */}
         <div style={s.card}>
           <h3 style={s.cardTitle}>💬 Conversación y seguimiento</h3>
           {actions.length === 0 ? (
@@ -310,8 +317,7 @@ function TicketDetailUser() {
             </ul>
           )}
 
-          {/* Formulario para que el usuario responda al técnico.
-              Solo disponible si el ticket no está cerrado. */}
+          {/* Formulario para responder */}
           {ticket.status !== 'Cerrado' ? (
             <div style={s.replyBox}>
               <label style={s.replyLabel}>
@@ -346,6 +352,27 @@ function TicketDetailUser() {
           )}
         </div>
       </div>
+
+      {/* MODAL PARA MOSTRAR LA SOLUCIÓN */}
+      {showSolutionModal && (
+        <div style={s.modalOverlay} onClick={() => setShowSolutionModal(false)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.modalHeader}>
+              <span style={s.modalIcon}>✅</span>
+              <h3 style={s.modalTitle}>Solución aplicada</h3>
+              <button style={s.modalClose} onClick={() => setShowSolutionModal(false)}>✕</button>
+            </div>
+            <div style={s.modalBody}>
+              <p style={s.solutionText}>{solution}</p>
+            </div>
+            <div style={s.modalFooter}>
+              <button style={s.modalButton} onClick={() => setShowSolutionModal(false)}>
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
@@ -376,6 +403,99 @@ const s = {
     marginTop: 16, padding: 14, background: '#f9fafb', borderRadius: 10,
     fontSize: 14, color: '#374151', borderLeft: '3px solid #4361ee',
   },
+  
+  // NUEVO: Botón para ver solución
+  solutionButtonContainer: {
+    marginBottom: 20,
+  },
+  solutionBtn: {
+    background: '#e8f5e9',
+    border: '1px solid #a5d6a7',
+    borderRadius: 10,
+    padding: '12px 20px',
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#2e7d32',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    width: 'fit-content',
+  },
+  
+  // NUEVO: Estilos del Modal
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modal: {
+    background: '#fff',
+    borderRadius: 16,
+    width: 480,
+    maxWidth: '90%',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '20px 24px',
+    borderBottom: '1px solid #eaecf0',
+    background: '#e8f5e9',
+  },
+  modalIcon: {
+    fontSize: 24,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#2e7d32',
+    margin: 0,
+    flex: 1,
+  },
+  modalClose: {
+    background: 'none',
+    border: 'none',
+    fontSize: 20,
+    cursor: 'pointer',
+    color: '#6b7280',
+    padding: 4,
+  },
+  modalBody: {
+    padding: '24px',
+  },
+  solutionText: {
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 1.6,
+    margin: 0,
+  },
+  modalFooter: {
+    padding: '16px 24px',
+    borderTop: '1px solid #eaecf0',
+    display: 'flex',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    background: '#4361ee',
+    color: '#fff',
+    border: 'none',
+    padding: '10px 24px',
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  
   grid: {
     display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
     marginBottom: 20,

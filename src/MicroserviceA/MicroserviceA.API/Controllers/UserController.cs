@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MicroserviceA.API.Data;
 using MicroserviceA.API.Models.Entities;
 using MicroserviceA.API.Models.DTOs;
+using System.Security.Claims;
 
 namespace MicroserviceA.API.Controllers
 {
@@ -19,9 +20,9 @@ namespace MicroserviceA.API.Controllers
             _context = context;
         }
 
-        // 👇 1. PRIMERO: Endpoint específico (list)
+        // GET: api/user/list
         [HttpGet("list")]
-        [AllowAnonymous] // O quita [Authorize] si quieres que sea público
+        [AllowAnonymous]
         public async Task<IActionResult> GetFilteredUsers(
             [FromQuery] string? search = null,
             [FromQuery] int? roleId = null,
@@ -68,7 +69,7 @@ namespace MicroserviceA.API.Controllers
             return Ok(new { total, page, pageSize, users });
         }
 
-        // 👇 2. SEGUNDO: GET api/user (todos)
+        // GET: api/user
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
@@ -93,6 +94,7 @@ namespace MicroserviceA.API.Controllers
             return Ok(users);
         }
 
+        // GET: api/user/5
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
@@ -117,6 +119,75 @@ namespace MicroserviceA.API.Controllers
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt
             });
+        }
+
+        // 👇 NUEVO: Usuario actualiza su propio perfil (cualquier usuario autenticado)
+        [HttpPut("me")]
+        [Authorize]
+        public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateMyProfileDto dto)
+        {
+            // Obtener el userId del token JWT
+            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                return Unauthorized(new { message = "No se pudo identificar el usuario" });
+
+            int userId = int.Parse(userIdClaim.Value);
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Usuario no encontrado" });
+
+            // Actualizar solo campos permitidos
+            user.FullName = dto.FullName;
+            user.Phone = dto.Phone ?? user.Phone;
+
+            // Si cambia el email, validar que no exista
+            if (user.Email != dto.Email)
+            {
+                bool emailExists = await _context.Users
+                    .AnyAsync(u => u.Email == dto.Email && u.Id != userId);
+                if (emailExists)
+                    return BadRequest(new { message = "El correo ya está registrado por otro usuario" });
+
+                if (!dto.Email.EndsWith("@uta.edu.ec"))
+                    return BadRequest(new { message = "Solo se permiten correos @uta.edu.ec" });
+
+                user.Email = dto.Email;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Perfil actualizado correctamente" });
+        }
+
+        // 👇 NUEVO: Cambiar contraseña
+        [HttpPut("me/password")]
+        [Authorize]
+        public async Task<IActionResult> ChangeMyPassword([FromBody] ChangePasswordDto dto)
+        {
+            // Obtener el userId del token JWT
+            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                return Unauthorized(new { message = "No se pudo identificar el usuario" });
+
+            int userId = int.Parse(userIdClaim.Value);
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Usuario no encontrado" });
+
+            // Verificar contraseña actual
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                return BadRequest(new { message = "Contraseña actual incorrecta" });
+
+            // Validar nueva contraseña
+            if (string.IsNullOrEmpty(dto.NewPassword) || dto.NewPassword.Length < 6)
+                return BadRequest(new { message = "La nueva contraseña debe tener al menos 6 caracteres" });
+
+            // Actualizar contraseña
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Contraseña actualizada correctamente" });
         }
 
         // POST: api/user
@@ -156,7 +227,7 @@ namespace MicroserviceA.API.Controllers
                 new { message = "Usuario creado correctamente", userId = user.Id });
         }
 
-        // PUT: api/user/5
+        // PUT: api/user/5 (SOLO ADMIN)
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateUserDto dto)

@@ -4,6 +4,7 @@ using MicroserviceA.API.Data;
 using MicroserviceA.API.Models.DTOs;
 using MicroserviceA.API.Services;
 using MicroserviceA.API.Models.Entities;
+using System.Security.Claims;
 
 namespace MicroserviceA.API.Controllers
 {

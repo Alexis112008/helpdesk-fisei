@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { ticketAPI, catalogAPI } from '../services/api';
+import { ticketAPI, catalogAPI, authAPI } from '../services/api';
 import { useNotifications } from '../components/NotificationProvider';
 import KnowledgeForm from '../components/KnowledgeForm';
 import { getConnection } from '../services/realtime';
@@ -13,6 +13,7 @@ import { getConnection } from '../services/realtime';
  * - Cambio de estado (PATCH /api/ticket/{id}/status).
  * - Botón escalar (HU7 — T7.4).
  * - Botón cerrar → abre KnowledgeForm obligatorio (HU8 — T8.5).
+ * - Información completa del solicitante (nombre, correo, teléfono)
  */
 function TicketDetailTech() {
   const { id } = useParams();
@@ -27,9 +28,12 @@ function TicketDetailTech() {
   const [escalateReason, setEscalateReason] = useState('');
   const [closeFormOpen, setCloseFormOpen] = useState(false);
 
-  // ← CAMBIO 1: agregar estados para nombres de servicio y daño
+  // Estados para nombres de servicio y daño
   const [serviceName, setServiceName] = useState('');
   const [damageName, setDamageName] = useState('');
+  
+  // NUEVO: Estado para información del solicitante
+  const [requester, setRequester] = useState(null);
 
   const fullName = localStorage.getItem('fullName');
 
@@ -37,11 +41,20 @@ function TicketDetailTech() {
     setLoading(true);
     ticketAPI
       .get(`/ticket/${id}/detail`)
-      .then((res) => {
+      .then(async (res) => {
         setDetail(res.data);
         setNewStatus(res.data.ticket.status);
         
-        // ← CAMBIO 2: cargar nombres de servicio y daño
+        // NUEVO: Cargar datos del solicitante
+        if (res.data.ticket.userId) {
+          try {
+            const userRes = await authAPI.get(`/user/${res.data.ticket.userId}`);
+            setRequester(userRes.data);
+          } catch (err) {
+            console.error('Error cargando solicitante:', err);
+          }
+        }
+        
         // Resolver nombres de servicio y daño
         if (res.data.ticket.serviceCatalogId) {
           catalogAPI.get(`/servicecatalog/${res.data.ticket.serviceCatalogId}`)
@@ -141,18 +154,27 @@ function TicketDetailTech() {
     }
   };
 
-  const onKnowledgeSaved = async () => {
-    // Tras registrar el artículo, cerramos el ticket
-    try {
-      await ticketAPI.post(`/ticket/${id}/close`);
-      showToast({ type: 'success', title: 'Cerrado', message: 'Ticket cerrado correctamente.' });
-      setCloseFormOpen(false);
-      load();
-    } catch (e) {
-      const msg = e?.response?.data?.message || 'Error cerrando ticket';
-      showToast({ type: 'error', title: 'Error', message: msg });
-    }
-  };
+const onKnowledgeSaved = async (solutionData) => {
+  try {
+    // Guardar la solución como acción de cierre
+    const solutionText = solutionData?.solution || 'Solución documentada en base de conocimiento.';
+    
+    await ticketAPI.post(`/ticket/${id}/actions`, {
+      actionType: 'Closure',
+      description: solutionText,
+    });
+    
+    // Cerrar el ticket
+    await ticketAPI.post(`/ticket/${id}/close`);
+    
+    showToast({ type: 'success', title: 'Cerrado', message: 'Ticket cerrado correctamente.' });
+    setCloseFormOpen(false);
+    load();
+  } catch (e) {
+    const msg = e?.response?.data?.message || 'Error cerrando ticket';
+    showToast({ type: 'error', title: 'Error', message: msg });
+  }
+};
 
   const statusColor = (s) => ({
     'Abierto': '#1565c0',
@@ -192,11 +214,20 @@ function TicketDetailTech() {
       <div style={st.grid}>
         {/* Columna izquierda — info y historial */}
         <div style={st.col}>
-          {/* ← CAMBIO 3: reemplazar sección "Información" completa */}
+          {/* Información del Ticket CON datos completos del solicitante */}
           <div style={st.card}>
             <h3 style={st.cardTitle}>Información del Ticket</h3>
             <div style={st.row}><span style={st.lbl}>N° Ticket</span><span style={{fontWeight:700, color:'#4361ee'}}>{t.ticketNumber}</span></div>
-            <div style={st.row}><span style={st.lbl}>Solicitante (ID)</span><span>{t.userId}</span></div>
+            
+            {/* SOLICITANTE - AHORA CON NOMBRE, CORREO Y TELÉFONO */}
+            <div style={st.row}><span style={st.lbl}>Solicitante</span><span><b>{requester?.fullName || `ID: ${t.userId}`}</b></span></div>
+            {requester?.email && (
+              <div style={st.row}><span style={st.lbl}>Correo</span><span>{requester.email}</span></div>
+            )}
+            {requester?.phone && (
+              <div style={st.row}><span style={st.lbl}>Teléfono</span><span>{requester.phone}</span></div>
+            )}
+            
             <div style={st.row}><span style={st.lbl}>Prioridad</span><span>{t.priority}</span></div>
             <div style={st.row}><span style={st.lbl}>Estado actual</span><span style={{fontWeight:600}}>{t.status}</span></div>
             <div style={st.row}><span style={st.lbl}>Nivel actual</span><span>{t.levelName}</span></div>
@@ -344,14 +375,14 @@ function TicketDetailTech() {
       )}
 
       {/* Modal KnowledgeForm (HU8 — T8.5) */}
-      {closeFormOpen && (
-        <KnowledgeForm
-          ticket={t}
-          fullName={fullName}
-          onClose={() => setCloseFormOpen(false)}
-          onSaved={onKnowledgeSaved}
-        />
-      )}
+{closeFormOpen && (
+  <KnowledgeForm
+    ticket={{ ...t, damageCatalogName: damageName }}
+    fullName={fullName}
+    onClose={() => setCloseFormOpen(false)}
+    onSaved={onKnowledgeSaved}
+  />
+)}
     </Layout>
   );
 }
