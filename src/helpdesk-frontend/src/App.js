@@ -10,6 +10,7 @@ import DamageCatalogPage from './pages/admin/DamageCatalog';
 import TechnicianAssignments from './pages/admin/TechnicianAssignments';
 import Register from './pages/Register';
 import AdminTickets from './pages/admin/AdminTickets';
+import Profile from './pages/Profile';
 
 // ----- Sprint 2 -----
 import TechnicianPanel from './pages/TechnicianPanel';
@@ -44,6 +45,9 @@ function App() {
 
           <Route path="/tickets" element={
             <PrivateRoute><TicketList /></PrivateRoute>
+          } />
+          <Route path="/perfil" element={
+          <Profile />
           } />
           <Route path="/tickets/:id" element={
             <PrivateRoute><TicketDetailUser /></PrivateRoute>

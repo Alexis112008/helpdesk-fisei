@@ -24,4 +24,17 @@ namespace MicroserviceA.API.Models.DTOs
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
     }
+
+    public class UpdateMyProfileDto
+    {
+        public string FullName { get; set; }
+        public string Email { get; set; }
+        public string? Phone { get; set; }
+    }
+
+    public class ChangePasswordDto
+    {
+        public string CurrentPassword { get; set; }
+        public string NewPassword { get; set; }
+    }
 }

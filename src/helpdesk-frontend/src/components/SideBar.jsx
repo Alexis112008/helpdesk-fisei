@@ -23,6 +23,9 @@ function Sidebar() {
   const navItems = [
     { label: 'Dashboard', icon: '▦', path: '/dashboard' },
 
+     // 👤 MI PERFIL - visible para todos
+    { label: 'Mi Perfil', icon: '👤', path: '/perfil' },
+
     // HU5 — Panel del técnico
     {
       label: 'Bandeja de Entrada',

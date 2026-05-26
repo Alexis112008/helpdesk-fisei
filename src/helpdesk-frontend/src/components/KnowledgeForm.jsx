@@ -7,13 +7,16 @@ import { catalogAPI } from '../services/api';
  * para que el padre cierre el ticket en MicroserviceB.
  */
 export default function KnowledgeForm({ ticket, fullName, onClose, onSaved }) {
+
+  const defaultCategory = ticket?.damageCatalogName || 'Software';
+  
   const [form, setForm] = useState({
     title: ticket?.title || '',
     problem: '',
     cause: '',
     symptoms: '',
     solution: '',
-    category: 'Software',
+    category: defaultCategory,  // ← AHORA USA EL DAÑO REAL
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +46,13 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved }) {
         createdByUserId: userId,
         createdByName: fullName,
       });
-      onSaved && onSaved();
+      onSaved && onSaved({
+        problem: form.problem,
+        cause: form.cause,
+        symptoms: form.symptoms,
+        solution: form.solution,
+        category: form.category,
+      });
     } catch (e) {
       setError(e?.response?.data?.message || 'Error al guardar el artículo.');
     } finally {
@@ -76,20 +85,14 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved }) {
           />
         </div>
 
+        {/* CAMBIO: Mostrar categoría como solo lectura (deshabilitada) */}
         <div style={s.field}>
-          <label style={s.lbl}>Categoría *</label>
-          <select
-            style={s.input}
+          <label style={s.lbl}>Categoría (según tipo de daño)</label>
+          <input
+            style={{ ...s.input, background: '#f3f4f6' }}
             value={form.category}
-            onChange={(e) => update('category', e.target.value)}
-          >
-            <option>Software</option>
-            <option>Hardware</option>
-            <option>Redes</option>
-            <option>Correo</option>
-            <option>Cuentas</option>
-            <option>Otros</option>
-          </select>
+            disabled
+          />
         </div>
 
         <div style={s.field}>
