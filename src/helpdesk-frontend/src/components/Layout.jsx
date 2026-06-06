@@ -1,41 +1,38 @@
+// Layout.jsx - Corregido
 import React from 'react';
-import Sidebar from './SideBar';
-import Topbar from './TopBar';
+import Sidebar from './SideBar';  // ← Nota: SideBar con B mayúscula
+import Topbar from './TopBar';    // ← Nota: TopBar con B mayúscula
 
 function Layout({ children }) {
   return (
-    <div style={s.root}>
+    <div style={layoutStyles.container}>
       <Sidebar />
-
-      <div style={s.main}>
+      <div style={layoutStyles.mainContent}>
         <Topbar />
-
-        <main style={s.content}>
+        <div style={layoutStyles.contentArea}>
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );
 }
 
-const s = {
-  root: {
+const layoutStyles = {
+  container: {
     display: 'flex',
     minHeight: '100vh',
-    backgroundColor: '#f5f7fb',
-    fontFamily: "'Segoe UI', system-ui, sans-serif",
+    backgroundColor: '#f0f2f5',
   },
-
-  main: {
-    marginLeft: 260,
+  mainContent: {
     flex: 1,
+    marginLeft: 260,
     display: 'flex',
     flexDirection: 'column',
+    minHeight: '100vh',
   },
-
-  content: {
-    padding: 32,
+  contentArea: {
     flex: 1,
+    backgroundColor: '#f0f2f5',
   },
 };
 

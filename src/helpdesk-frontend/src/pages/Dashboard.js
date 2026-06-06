@@ -1,7 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Plus, Inbox, Ticket, Search, X, ChevronRight,
+  Users, BookOpen, LayoutDashboard, Clock, TrendingUp,
+  AlertCircle, CheckCircle, FolderKanban, UserCheck, Calendar,
+  BarChart3, PieChart as PieChartIcon
+} from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
+  PieChart, Pie, Cell, ResponsiveContainer, Legend
+} from 'recharts';
 import Layout from '../components/Layout';
-import { ticketAPI, authAPI } from '../services/api';
+import { ticketAPI } from '../services/api';
+
+// Colores unificados
+const COLORS = {
+  Primario: '#2d6a9f',
+  PrimarioOscuro: '#1e3a5f',
+  PrimarioLight: '#eef2ff',
+  Abierto: '#2d6a9f',
+  EnProceso: '#f59e0b',
+  Resuelto: '#10b981',
+  Cerrado: '#6b7280',
+  Escalado: '#8b5cf6',
+  Vencido: '#ef4444'
+};
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -11,20 +34,21 @@ function Dashboard() {
 
   const [stats, setStats] = useState(null);
   const [recentTickets, setRecentTickets] = useState([]);
-  const [filteredTickets, setFilteredTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filteredTickets, setFilteredTickets] = useState([]);
 
-  const TECH_ROLES = ['TecnicoN1', 'TecnicoN2', 'DITIC', 'Proveedor'];
-  const isTech = TECH_ROLES.includes(role);
+  const isTech = ['TecnicoN1', 'TecnicoN2', 'DITIC', 'Proveedor'].includes(role);
   const isAdmin = role === 'Admin';
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        let tickets = [];
+        
         if (isAdmin) {
           const res = await ticketAPI.get('/ticket');
-          const tickets = res.data;
+          tickets = res.data;
           setStats({
             total: tickets.length,
             abiertos: tickets.filter(t => t.status === 'Abierto').length,
@@ -34,22 +58,19 @@ function Dashboard() {
             cerrados: tickets.filter(t => t.status === 'Cerrado').length,
             vencidos: tickets.filter(t => t.status === 'Vencido').length,
           });
-          setRecentTickets(tickets.slice(0, 5));
-          setFilteredTickets(tickets.slice(0, 5));
         } else if (isTech) {
           const res = await ticketAPI.get('/ticket/assigned');
-          const tickets = res.data;
+          tickets = res.data;
           setStats({
             total: tickets.length,
             enProceso: tickets.filter(t => t.status === 'En Proceso').length,
             escalados: tickets.filter(t => t.status === 'Escalado').length,
+            resueltos: tickets.filter(t => t.status === 'Resuelto').length,
             vencidos: tickets.filter(t => t.status === 'Vencido').length,
           });
-          setRecentTickets(tickets.slice(0, 5));
-          setFilteredTickets(tickets.slice(0, 5));
         } else {
           const res = await ticketAPI.get(`/ticket/user/${userId}`);
-          const tickets = res.data;
+          tickets = res.data;
           setStats({
             total: tickets.length,
             abiertos: tickets.filter(t => t.status === 'Abierto').length,
@@ -57,9 +78,10 @@ function Dashboard() {
             resueltos: tickets.filter(t => t.status === 'Resuelto').length,
             cerrados: tickets.filter(t => t.status === 'Cerrado').length,
           });
-          setRecentTickets(tickets.slice(0, 5));
-          setFilteredTickets(tickets.slice(0, 5));
         }
+        
+        setRecentTickets(tickets);
+        setFilteredTickets(tickets);
       } catch (err) {
         console.error(err);
       } finally {
@@ -67,9 +89,8 @@ function Dashboard() {
       }
     };
     loadData();
-  }, []);
+  }, [isAdmin, isTech, userId]);
 
-  // Función para filtrar tickets por búsqueda
   useEffect(() => {
     if (searchTerm.trim() === '') {
       setFilteredTickets(recentTickets);
@@ -77,321 +98,431 @@ function Dashboard() {
       const filtered = recentTickets.filter(ticket => 
         ticket.ticketNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ticket.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.priority?.toLowerCase().includes(searchTerm.toLowerCase())
+        ticket.status?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredTickets(filtered);
     }
   }, [searchTerm, recentTickets]);
 
-  const statusColor = (s) => ({
-    'Abierto': '#1565c0', 'En Proceso': '#f57f17',
-    'Escalado': '#6a1b9a', 'Resuelto': '#2e7d32',
-    'Cerrado': '#424242', 'Vencido': '#b71c1c',
-  }[s] || '#333');
+  const getBarChartData = () => {
+    const months = {};
+    recentTickets.forEach(ticket => {
+      const date = new Date(ticket.createdAt);
+      const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+      months[monthYear] = (months[monthYear] || 0) + 1;
+    });
+    return Object.entries(months).map(([name, tickets]) => ({ name, tickets }));
+  };
+
+  const getPieChartData = () => {
+    if (!stats) return [];
+    if (isAdmin) {
+      return [
+        { name: 'Abiertos', value: stats.abiertos, color: COLORS.Abierto },
+        { name: 'En Proceso', value: stats.enProceso, color: COLORS.EnProceso },
+        { name: 'Escalados', value: stats.escalados, color: COLORS.Escalado },
+        { name: 'Resueltos', value: stats.resueltos, color: COLORS.Resuelto },
+        { name: 'Cerrados', value: stats.cerrados, color: COLORS.Cerrado },
+      ].filter(d => d.value > 0);
+    } else if (isTech) {
+      return [
+        { name: 'En Proceso', value: stats.enProceso || 0, color: COLORS.EnProceso },
+        { name: 'Escalados', value: stats.escalados || 0, color: COLORS.Escalado },
+        { name: 'Resueltos', value: stats.resueltos || 0, color: COLORS.Resuelto },
+        { name: 'Vencidos', value: stats.vencidos || 0, color: COLORS.Vencido },
+      ].filter(d => d.value > 0);
+    } else {
+      return [
+        { name: 'Abiertos', value: stats.abiertos || 0, color: COLORS.Abierto },
+        { name: 'En Proceso', value: stats.enProceso || 0, color: COLORS.EnProceso },
+        { name: 'Resueltos', value: stats.resueltos || 0, color: COLORS.Resuelto },
+        { name: 'Cerrados', value: stats.cerrados || 0, color: COLORS.Cerrado },
+      ].filter(d => d.value > 0);
+    }
+  };
 
   const getGreeting = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Buenos días';
-    if (h < 18) return 'Buenas tardes';
+    if (h < 19) return 'Buenas tardes';
     return 'Buenas noches';
+  };
+
+  const getInitials = () => {
+    if (!fullName) return 'U';
+    return fullName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  };
+
+  const getStatusColor = (status) => COLORS[status] || '#6b7280';
+  
+  const getStatusBgColor = (status) => ({
+    'Abierto': '#eef2ff',
+    'En Proceso': '#fffbeb',
+    'Escalado': '#f3e8ff',
+    'Resuelto': '#ecfdf5',
+    'Cerrado': '#f3f4f6',
+    'Vencido': '#fef2f2',
+  }[status] || '#f3f4f6');
+
+  const getPriorityStyle = (priority) => {
+    const colors = {
+      'Baja': { bg: '#ecfdf5', color: '#10b981' },
+      'Media': { bg: '#fffbeb', color: '#f59e0b' },
+      'Alta': { bg: '#fff7ed', color: '#f97316' },
+      'Crítica': { bg: '#fef2f2', color: '#ef4444' },
+    };
+    const style = colors[priority] || colors['Media'];
+    return {
+      padding: '4px 12px',
+      borderRadius: 20,
+      fontSize: 11,
+      fontWeight: 600,
+      backgroundColor: style.bg,
+      color: style.color,
+    };
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short' });
+  };
+
+  const cardStyle = {
+    background: '#fff',
+    borderRadius: 20,
+    padding: '20px 24px',
+    border: '1px solid #e4e7eb',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+  };
+
+  const StatCard = ({ icon, label, value, color, bg }) => (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: bg, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+        <div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: color }}>{value}</div>
+          <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>{label}</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const getPanelTitle = () => {
+    if (isAdmin) return 'Panel de Administración';
+    if (isTech) return 'Panel Técnico';
+    return 'Panel de Usuario';
+  };
+
+  const getPanelDescription = () => {
+    if (isAdmin) return 'Visión general del sistema';
+    if (isTech) return 'Tus tickets asignados y estadísticas';
+    return 'Tus tickets y actividad reciente';
+  };
+
+  const getMainButton = () => {
+    if (isTech) {
+      return (
+        <button style={{
+          background: '#fff',
+          color: COLORS.Primario,
+          border: 'none',
+          padding: '12px 24px',
+          borderRadius: 40,
+          fontWeight: 600,
+          fontSize: 14,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }} onClick={() => navigate('/tecnico/panel')}>
+          <Inbox size={18} />
+          Ver Bandeja
+        </button>
+      );
+    }
+    if (!isAdmin && !isTech) {
+      return (
+        <button style={{
+          background: '#fff',
+          color: COLORS.Primario,
+          border: 'none',
+          padding: '12px 24px',
+          borderRadius: 40,
+          fontWeight: 600,
+          fontSize: 14,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }} onClick={() => navigate('/crear-ticket')}>
+          <Plus size={18} />
+          Nuevo Ticket
+        </button>
+      );
+    }
+    return null;
+  };
+
+  const getStatCards = () => {
+    if (isAdmin) {
+      return (
+        <>
+          <StatCard icon={<Ticket size={24} />} label="Total Tickets" value={stats.total} color={COLORS.Primario} bg="#eef2ff" />
+          <StatCard icon={<Clock size={24} />} label="Abiertos" value={stats.abiertos} color={COLORS.Abierto} bg="#eef2ff" />
+          <StatCard icon={<TrendingUp size={24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
+          <StatCard icon={<AlertCircle size={24} />} label="Escalados" value={stats.escalados} color={COLORS.Escalado} bg="#f3e8ff" />
+          <StatCard icon={<CheckCircle size={24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
+          <StatCard icon={<FolderKanban size={24} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
+        </>
+      );
+    } else if (isTech) {
+      return (
+        <>
+          <StatCard icon={<Ticket size={24} />} label="Asignados" value={stats.total} color={COLORS.Primario} bg="#eef2ff" />
+          <StatCard icon={<TrendingUp size={24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
+          <StatCard icon={<AlertCircle size={24} />} label="Escalados" value={stats.escalados} color={COLORS.Escalado} bg="#f3e8ff" />
+          <StatCard icon={<CheckCircle size={24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
+          <StatCard icon={<AlertCircle size={24} />} label="Vencidos" value={stats.vencidos} color={COLORS.Vencido} bg="#fef2f2" />
+        </>
+      );
+    } else {
+      return (
+        <>
+          <StatCard icon={<Ticket size={24} />} label="Mis Tickets" value={stats.total} color={COLORS.Primario} bg="#eef2ff" />
+          <StatCard icon={<Clock size={24} />} label="Abiertos" value={stats.abiertos} color={COLORS.Abierto} bg="#eef2ff" />
+          <StatCard icon={<TrendingUp size={24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
+          <StatCard icon={<CheckCircle size={24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
+          <StatCard icon={<FolderKanban size={24} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
+        </>
+      );
+    }
   };
 
   return (
     <Layout>
-      <main style={s.content}>
-        {/* Encabezado */}
-        <div style={s.welcomeCard}>
-          <div>
-            <h1 style={s.welcomeTitle}>
-              {getGreeting()}, {fullName?.split(' ')[0]} 
-            </h1>
-            <p style={s.welcomeSub}>
-              {isAdmin && 'Panel de administración — visión general del sistema'}
-              {isTech && `Panel técnico — ${role}`}
-              {!isAdmin && !isTech && 'Bienvenido al Help Desk FISEI · UTA'}
-            </p>
+      <div style={{ padding: '28px 32px', backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
+        
+        {/* Tarjeta de bienvenida */}
+        <div style={{
+          ...cardStyle,
+          background: 'linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%)',
+          color: '#fff',
+          marginBottom: 28,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 28,
+                background: 'rgba(255,255,255,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22, fontWeight: 700
+              }}>{getInitials()}</div>
+              <div>
+                <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+                  {getGreeting()}, {fullName?.split(' ')[0] || 'Usuario'}
+                </h1>
+                <p style={{ fontSize: 13, opacity: 0.85, marginTop: 6 }}>
+                  {getPanelTitle()} — {getPanelDescription()}
+                </p>
+              </div>
+            </div>
+            
+            {getMainButton()}
           </div>
-          {!isAdmin && !isTech && (
-            <button style={s.newTicketBtn} onClick={() => navigate('/crear-ticket')}>
-              + Nuevo Ticket
-            </button>
-          )}
-          {isTech && (
-            <button style={s.newTicketBtn} onClick={() => navigate('/tecnico/panel')}>
-               Ver Bandeja
-            </button>
-          )}
-          {isAdmin && (
-            <button style={s.newTicketBtn} onClick={() => navigate('/admin/tickets')}>
-               Ver Todos los Tickets
-            </button>
-          )}
         </div>
 
-        {/* Stats - Dashboard diferente según el rol */}
+        {/* Tarjetas de estadísticas */}
         {!loading && stats && (
-          <div style={isAdmin ? s.statsGridAdmin : s.statsGrid}>
-            {/* Admin Stats */}
-            {isAdmin && (
-              <>
-                <StatCard label="Total" value={stats.total} color="#4361ee" />
-                <StatCard label="Abiertos" value={stats.abiertos} color="#1565c0" />
-                <StatCard label="En Proceso" value={stats.enProceso} color="#f57f17" />
-                <StatCard label="Escalados" value={stats.escalados} color="#6a1b9a" />
-                <StatCard label="Resueltos" value={stats.resueltos} color="#2e7d32" />
-                <StatCard label="Cerrados" value={stats.cerrados} color="#424242" />
-                {stats.vencidos > 0 && (
-                  <StatCard label="Vencidos" value={stats.vencidos} color="#b71c1c" />
-                )}
-              </>
-            )}
-
-            {/* Tech Stats */}
-            {isTech && (
-              <>
-                <StatCard label="Total Asignados" value={stats.total} color="#4361ee" />
-                <StatCard label="En Proceso" value={stats.enProceso} color="#f57f17" />
-                <StatCard label="Escalados" value={stats.escalados} color="#6a1b9a" />
-                {stats.vencidos > 0 && (
-                  <StatCard label="Vencidos" value={stats.vencidos} color="#b71c1c" />
-                )}
-              </>
-            )}
-
-            {/* User Stats */}
-            {!isAdmin && !isTech && (
-              <>
-                <StatCard label="Mis Tickets" value={stats.total} color="#4361ee" />
-                <StatCard label="Abiertos" value={stats.abiertos} color="#1565c0" />
-                <StatCard label="En Proceso" value={stats.enProceso} color="#f57f17" />
-                <StatCard label="Resueltos" value={stats.resueltos} color="#2e7d32" />
-                <StatCard label="Cerrados" value={stats.cerrados} color="#424242" />
-              </>
-            )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 20, marginBottom: 28 }}>
+            {getStatCards()}
           </div>
         )}
 
-        {/* Buscador integrado */}
-        <div style={s.searchContainer}>
-          <input
-            type="text"
-            placeholder="🔍 Buscar por número, título, estado o prioridad..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={s.searchInput}
-          />
-          {searchTerm && (
-            <button onClick={() => setSearchTerm('')} style={s.clearBtn}>
-              ✕
-            </button>
-          )}
-        </div>
-
-        {/* Tickets recientes con filtro */}
-        {!loading && filteredTickets.length > 0 && (
-          <div style={s.card}>
-            <div style={s.cardHeader}>
-              <h3 style={s.cardTitle}>
-                {isAdmin ? 'Tickets recientes' : isTech ? 'Mis tickets asignados' : 'Mis tickets recientes'}
-                {searchTerm && <span style={s.searchBadge}> 🔍 {filteredTickets.length} resultados</span>}
-              </h3>
-              <button
-                style={s.verTodosBtn}
-                onClick={() => navigate(isAdmin ? '/admin/tickets' : isTech ? '/tecnico/panel' : '/tickets')}
-              >
-                Ver todos →
-              </button>
+        {/* GRÁFICOS */}
+        {!loading && stats && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 20, marginBottom: 28 }}>
+            
+            {/* Gráfico de Barras */}
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                <BarChart3 size={18} color={COLORS.Primario} />
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Tickets por mes</span>
+              </div>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={getBarChartData()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="tickets" fill={COLORS.Primario} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <table style={s.table}>
-              <thead>
-                <tr style={s.thead}>
-                  <th style={s.th}>N° Ticket</th>
-                  <th style={s.th}>Título</th>
-                  <th style={s.th}>Estado</th>
-                  <th style={s.th}>Prioridad</th>
-                  <th style={s.th}>Fecha</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTickets.map((t) => (
-                  <tr
-                    key={t.id}
-                    style={{ ...s.tr, cursor: 'pointer' }}
-                    onClick={() => navigate(isTech ? `/tecnico/ticket/${t.id}` : `/tickets/${t.id}`)}
-                  >
-                    <td style={s.td}><span style={s.tno}>{t.ticketNumber}</span></td>
-                    <td style={s.td}>{t.title}</td>
-                    <td style={s.td}>
-                      <span style={{ ...s.badge, backgroundColor: statusColor(t.status) }}>
-                        {t.status}
-                      </span>
-                    </td>
-                    <td style={s.td}>{t.priority}</td>
-                    <td style={s.td}>{new Date(t.createdAt).toLocaleDateString('es-EC')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredTickets.length === 0 && searchTerm && (
-              <div style={s.noResults}>
-                No se encontraron tickets para "{searchTerm}"
+
+            {/* Gráfico de Pastel */}
+            {getPieChartData().length > 0 && (
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                  <PieChartIcon size={18} color={COLORS.Primario} />
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Distribución por estado</span>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={getPieChartData()}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                    >
+                      {getPieChartData().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             )}
           </div>
         )}
 
-        {/* Accesos rápidos */}
-        <div style={s.quickGrid}>
-          {!isAdmin && !isTech && (
-            <>
-              <QuickCard icon="🎫" title="Mis Tickets" desc="Ver el estado de tus solicitudes" onClick={() => navigate('/tickets')} />
-              <QuickCard icon="➕" title="Nuevo Ticket" desc="Reportar un nuevo problema" onClick={() => navigate('/crear-ticket')} />
-              <QuickCard icon="📚" title="Base de Conocimiento" desc="Buscar soluciones documentadas" onClick={() => navigate('/conocimiento')} />
-            </>
-          )}
-          {isTech && (
-            <>
-              <QuickCard icon="📥" title="Bandeja de Entrada" desc="Ver tickets disponibles y asignados" onClick={() => navigate('/tecnico/panel')} />
-              <QuickCard icon="📚" title="Base de Conocimiento" desc="Consultar soluciones anteriores" onClick={() => navigate('/conocimiento')} />
-            </>
-          )}
-          {isAdmin && (
-            <>
-              <QuickCard icon="👤" title="Usuarios" desc="Gestionar usuarios del sistema" onClick={() => navigate('/admin/usuarios')} />
-              <QuickCard icon="📋" title="Seguimiento" desc="Ver todos los tickets" onClick={() => navigate('/admin/tickets')} />
-              <QuickCard icon="🔧" title="Asignaciones" desc="Asignar servicios a técnicos" onClick={() => navigate('/admin/asignaciones')} />
-              <QuickCard icon="📚" title="Base de Conocimiento" desc="Consultar soluciones" onClick={() => navigate('/conocimiento')} />
-            </>
-          )}
+        {/* Buscador */}
+        <div style={{ ...cardStyle, marginBottom: 28, padding: '16px 24px' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: 450 }}>
+            <Search size={18} color="#9ca3af" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Buscar por número, título o estado..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 20px 12px 44px',
+                fontSize: 13,
+                border: '1px solid #e4e7eb',
+                borderRadius: 40,
+                outline: 'none',
+                backgroundColor: '#f9fafb',
+              }}
+              onFocus={(e) => e.target.style.borderColor = COLORS.Primario}
+              onBlur={(e) => e.target.style.borderColor = '#e4e7eb'}
+            />
+          </div>
         </div>
-      </main>
+
+        {/* Tabla de tickets recientes */}
+        {!loading && filteredTickets.length > 0 && (
+          <div style={{ ...cardStyle, marginBottom: 28, padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e4e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <LayoutDashboard size={20} color={COLORS.Primario} />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>
+                  {isTech ? 'Mis tickets asignados' : 'Mis tickets recientes'}
+                </h3>
+              </div>
+              <button style={{ background: 'none', border: 'none', color: COLORS.Primario, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => navigate(isTech ? '/tecnico/panel' : '/tickets')}>
+                Ver todos <ChevronRight size={14} />
+              </button>
+            </div>
+            
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #edf2f7', background: '#f9fafb' }}>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>N° Ticket</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Título</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Estado</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Prioridad</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTickets.slice(0, 5).map((t) => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                        onClick={() => navigate(isTech ? `/tecnico/ticket/${t.id}` : `/tickets/${t.id}`)}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '14px 20px', fontSize: 13 }}><span style={{ fontWeight: 700, color: COLORS.Primario, fontFamily: 'monospace' }}>{t.ticketNumber}</span></td>
+                      <td style={{ padding: '14px 20px', fontSize: 13 }}>{t.title}</td>
+                      <td style={{ padding: '14px 20px', fontSize: 13 }}>
+                        <span style={{
+                          padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                          backgroundColor: getStatusBgColor(t.status),
+                          color: getStatusColor(t.status)
+                        }}>{t.status}</span>
+                      </td>
+                      <td style={{ padding: '14px 20px', fontSize: 13 }}>
+                        <span style={getPriorityStyle(t.priority)}>{t.priority}</span>
+                      </td>
+                      <td style={{ padding: '14px 20px', fontSize: 12, color: '#6b7280' }}>
+                        <Calendar size={12} style={{ marginRight: 4, opacity: 0.6, display: 'inline' }} />
+                        {formatDate(t.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Accesos rápidos según rol */}
+        <div>
+          <h4 style={{ fontSize: 14, fontWeight: 600, color: '#6b7280', marginBottom: 16, letterSpacing: 0.5 }}>Accesos rápidos</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+            {!isAdmin && !isTech && (
+              <>
+                <QuickCard icon={<Ticket size={28} />} title="Mis Tickets" desc="Ver estado de tus solicitudes" onClick={() => navigate('/tickets')} />
+                <QuickCard icon={<Plus size={28} />} title="Nuevo Ticket" desc="Reportar un nuevo problema" onClick={() => navigate('/crear-ticket')} />
+                <QuickCard icon={<BookOpen size={28} />} title="Base de Conocimiento" desc="Buscar soluciones documentadas" onClick={() => navigate('/conocimiento')} />
+              </>
+            )}
+            {isTech && (
+              <>
+                <QuickCard icon={<Inbox size={28} />} title="Bandeja" desc="Ver tickets disponibles" onClick={() => navigate('/tecnico/panel')} />
+                <QuickCard icon={<BookOpen size={28} />} title="Conocimiento" desc="Consultar soluciones" onClick={() => navigate('/conocimiento')} />
+              </>
+            )}
+            {isAdmin && (
+              <>
+                <QuickCard icon={<Users size={28} />} title="Usuarios" desc="Gestionar usuarios" onClick={() => navigate('/admin/usuarios')} />
+                <QuickCard icon={<FolderKanban size={28} />} title="Tickets" desc="Ver todos los tickets" onClick={() => navigate('/admin/tickets')} />
+                <QuickCard icon={<UserCheck size={28} />} title="Asignaciones" desc="Asignar técnicos" onClick={() => navigate('/admin/asignaciones')} />
+                <QuickCard icon={<BookOpen size={28} />} title="Conocimiento" desc="Buscar soluciones" onClick={() => navigate('/conocimiento')} />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </Layout>
   );
 }
 
-function StatCard({ label, value, color, icon }) {
-  return (
-    <div style={{ ...s.statCard, borderTop: `4px solid ${color}` }}>
-      <div style={s.statIcon}>{icon}</div>
-      <div style={{ ...s.statValue, color }}>{value}</div>
-      <div style={s.statLabel}>{label}</div>
-    </div>
-  );
-}
-
+// Componente QuickCard
 function QuickCard({ icon, title, desc, onClick }) {
   return (
-    <button style={s.quickCard} onClick={onClick}>
-      <div style={s.quickIcon}>{icon}</div>
-      <div style={s.quickTitle}>{title}</div>
-      <div style={s.quickDesc}>{desc}</div>
+    <button style={{
+      background: '#fff',
+      border: '1px solid #e4e7eb',
+      borderRadius: 20,
+      padding: '24px 20px',
+      textAlign: 'center',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      width: '100%'
+    }} onClick={onClick}>
+      <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2d6a9f' }}>{icon}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a2e', marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 12, color: '#9ca3af' }}>{desc}</div>
     </button>
   );
 }
-
-const s = {
-  content: { padding: '32px', flex: 1 },
-  welcomeCard: {
-    background: 'linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%)',
-    borderRadius: 16, padding: '28px 32px', marginBottom: 24,
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    color: '#fff',
-  },
-  welcomeTitle: { fontSize: 26, fontWeight: 700, margin: 0 },
-  welcomeSub: { fontSize: 14, opacity: 0.85, marginTop: 6 },
-  newTicketBtn: {
-    background: '#fff', color: '#4361ee', border: 'none',
-    padding: '12px 20px', borderRadius: 10, fontWeight: 700,
-    fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap',
-  },
-  statsGrid: {
-    display: 'flex',
-    gap: 16,
-    marginBottom: 24,
-    flexWrap: 'wrap',
-  },
-  statsGridAdmin: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(7, 1fr)',
-    gap: 16,
-    marginBottom: 24,
-  },
-  statCard: {
-    background: '#fff',
-    borderRadius: 12,
-    padding: '20px 16px',
-    border: '1px solid #eaecf0',
-    textAlign: 'center',
-    flex: '1 1 160px',
-    maxWidth: 200,
-  },
-  statIcon: { fontSize: 24, marginBottom: 8 },
-  statValue: { fontSize: 32, fontWeight: 800, lineHeight: 1 },
-  statLabel: { fontSize: 12, color: '#6b7280', marginTop: 4, fontWeight: 600 },
-  card: {
-    background: '#fff', borderRadius: 16, border: '1px solid #eaecf0',
-    padding: 24, marginBottom: 24,
-  },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 },
-  cardTitle: { fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 },
-  searchBadge: { fontSize: 12, fontWeight: 'normal', color: '#6b7280', marginLeft: 8 },
-  verTodosBtn: {
-    background: 'none', border: 'none', color: '#4361ee',
-    cursor: 'pointer', fontSize: 13, fontWeight: 600,
-  },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  thead: { background: '#f9fafb' },
-  th: { padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' },
-  tr: { borderBottom: '1px solid #f1f3f5' },
-  td: { padding: '14px 16px', fontSize: 13, color: '#344054' },
-  tno: { fontWeight: 700, color: '#4361ee' },
-  badge: { color: '#fff', padding: '4px 10px', borderRadius: 16, fontSize: 11, fontWeight: 700, display: 'inline-block' },
-  quickGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: 16,
-  },
-  quickCard: {
-    background: '#fff', border: '1px solid #eaecf0', borderRadius: 14,
-    padding: '20px 18px', textAlign: 'left', cursor: 'pointer',
-    transition: 'all .2s',
-  },
-  quickIcon: { fontSize: 28, marginBottom: 10 },
-  quickTitle: { fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 4 },
-  quickDesc: { fontSize: 12, color: '#6b7280' },
-  searchContainer: {
-    position: 'relative',
-    marginBottom: 24,
-    width: '100%',
-  },
-  searchInput: {
-    width: '100%',
-    padding: '12px 40px 12px 16px',
-    fontSize: 14,
-    border: '1px solid #eaecf0',
-    borderRadius: 12,
-    outline: 'none',
-    transition: 'all 0.2s',
-    backgroundColor: '#fff',
-  },
-  clearBtn: {
-    position: 'absolute',
-    right: 12,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#6b7280',
-    fontSize: 16,
-    padding: '4px 8px',
-  },
-  noResults: {
-    textAlign: 'center',
-    padding: '40px',
-    color: '#6b7280',
-    fontSize: 14,
-  },
-};
 
 export default Dashboard;

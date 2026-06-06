@@ -1,8 +1,9 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MicroserviceC.API.Data;
 using MicroserviceC.API.Models.DTOs;
 using MicroserviceC.API.Models.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MicroserviceC.API.Controllers
 {
@@ -54,8 +55,7 @@ namespace MicroserviceC.API.Controllers
                 var term = q.Trim().ToLower();
                 query = query.Where(a =>
                     a.Title.ToLower().Contains(term) ||
-                    a.Problem.ToLower().Contains(term) ||
-                    a.Symptoms.ToLower().Contains(term) ||
+                    a.Problem.ToLower().Contains(term) ||   // ← Buscar en Problem (problema+síntomas)
                     a.Solution.ToLower().Contains(term));
             }
 
@@ -110,12 +110,12 @@ namespace MicroserviceC.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateKnowledgeArticleDto dto)
         {
+            // Validación: ahora solo Problem (que incluye síntomas), Cause y Solution
             if (string.IsNullOrWhiteSpace(dto.Problem)
                 || string.IsNullOrWhiteSpace(dto.Cause)
-                || string.IsNullOrWhiteSpace(dto.Symptoms)
                 || string.IsNullOrWhiteSpace(dto.Solution))
             {
-                return BadRequest(new { message = "Problema, causa, síntomas y solución son obligatorios" });
+                return BadRequest(new { message = "Problema y síntomas, causa y solución son obligatorios" });
             }
 
             // No duplicar artículo por ticket
@@ -127,9 +127,9 @@ namespace MicroserviceC.API.Controllers
             var article = new KnowledgeArticle
             {
                 Title = string.IsNullOrWhiteSpace(dto.Title) ? dto.Problem : dto.Title,
-                Problem = dto.Problem,
+                Problem = dto.Problem,      // ← Guarda el texto completo (problema + síntomas)
+                Symptoms = dto.Problem,     // ← Guarda el MISMO texto en Symptoms (para mantener compatibilidad)
                 Cause = dto.Cause,
-                Symptoms = dto.Symptoms,
                 Solution = dto.Solution,
                 Category = dto.Category,
                 TicketId = dto.TicketId,
@@ -153,9 +153,12 @@ namespace MicroserviceC.API.Controllers
             if (article == null) return NotFound(new { message = "Artículo no encontrado" });
 
             if (!string.IsNullOrWhiteSpace(dto.Title)) article.Title = dto.Title;
-            if (!string.IsNullOrWhiteSpace(dto.Problem)) article.Problem = dto.Problem;
+            if (!string.IsNullOrWhiteSpace(dto.Problem))
+            {
+                article.Problem = dto.Problem;
+                article.Symptoms = dto.Problem;  // ← Mantener sincronizado
+            }
             if (!string.IsNullOrWhiteSpace(dto.Cause)) article.Cause = dto.Cause;
-            if (!string.IsNullOrWhiteSpace(dto.Symptoms)) article.Symptoms = dto.Symptoms;
             if (!string.IsNullOrWhiteSpace(dto.Solution)) article.Solution = dto.Solution;
             if (!string.IsNullOrWhiteSpace(dto.Category)) article.Category = dto.Category;
             article.UpdatedAt = DateTime.UtcNow;
@@ -173,6 +176,120 @@ namespace MicroserviceC.API.Controllers
             _context.KnowledgeArticles.Remove(article);
             await _context.SaveChangesAsync();
             return Ok(new { message = "Artículo eliminado" });
+        }
+
+        /// <summary>
+        /// Subir imágenes asociadas a un artículo de conocimiento
+        /// </summary>
+        [HttpPost("attachments")]
+        [Authorize]
+        public async Task<IActionResult> UploadSolutionAttachments([FromForm] List<IFormFile> files, [FromForm] int articleId)
+        {
+            Console.WriteLine($"=== UploadSolutionAttachments llamado ===");
+            Console.WriteLine($"articleId: {articleId}");
+            Console.WriteLine($"files count: {files?.Count ?? 0}");
+
+            try
+            {
+                if (files == null || files.Count == 0)
+                {
+                    Console.WriteLine("No se enviaron archivos");
+                    return BadRequest(new { message = "No se enviaron archivos" });
+                }
+
+                var article = await _context.KnowledgeArticles.FindAsync(articleId);
+                if (article == null)
+                {
+                    Console.WriteLine($"Artículo {articleId} no encontrado");
+                    return NotFound(new { message = "Artículo no encontrado" });
+                }
+
+                Console.WriteLine($"Artículo encontrado: {article.Id}");
+
+                var allowedTypes = new[] { "image/jpeg", "image/png", "image/jpg", "image/gif", "image/webp" };
+                var uploadedFiles = new List<object>();
+
+                foreach (var file in files)
+                {
+                    Console.WriteLine($"Procesando archivo: {file.FileName}, tamaño: {file.Length}");
+
+                    if (file.Length > 5 * 1024 * 1024)
+                    {
+                        Console.WriteLine($"Archivo {file.FileName} excede 5MB, ignorado");
+                        continue;
+                    }
+
+                    if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                    {
+                        Console.WriteLine($"Tipo no permitido: {file.ContentType}");
+                        continue;
+                    }
+
+                    using var memoryStream = new MemoryStream();
+                    await file.CopyToAsync(memoryStream);
+
+                    var attachment = new KnowledgeArticleAttachment
+                    {
+                        KnowledgeArticleId = articleId,
+                        FileName = file.FileName,
+                        FileSize = (int)file.Length,
+                        FileType = file.ContentType,
+                        FileData = memoryStream.ToArray(),
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    _context.KnowledgeArticleAttachments.Add(attachment);
+                    uploadedFiles.Add(new { id = attachment.Id, fileName = attachment.FileName });
+                    Console.WriteLine($"Archivo guardado con ID: {attachment.Id}");
+                }
+
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"Total guardados: {uploadedFiles.Count}");
+
+                return Ok(new { message = $"{uploadedFiles.Count} imágenes subidas", files = uploadedFiles });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR: {ex.Message}");
+                Console.WriteLine($"STACK: {ex.StackTrace}");
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Obtener imágenes de un artículo de conocimiento
+        /// </summary>
+        [HttpGet("{articleId}/attachments")]
+        [Authorize]
+        public async Task<IActionResult> GetSolutionAttachments(int articleId)
+        {
+            var attachments = await _context.KnowledgeArticleAttachments
+                .Where(a => a.KnowledgeArticleId == articleId)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.FileName,
+                    a.FileSize,
+                    a.FileType,
+                    a.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(attachments);
+        }
+
+        /// <summary>
+        /// Descargar una imagen de solución
+        /// </summary>
+        [HttpGet("attachments/{attachmentId}/download")]
+        public async Task<IActionResult> DownloadSolutionAttachment(int attachmentId)
+        {
+            var attachment = await _context.KnowledgeArticleAttachments.FindAsync(attachmentId);
+
+            if (attachment == null)
+                return NotFound();
+
+            return File(attachment.FileData, attachment.FileType, attachment.FileName);
         }
     }
 }

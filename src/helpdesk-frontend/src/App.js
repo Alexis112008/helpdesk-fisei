@@ -47,7 +47,7 @@ function App() {
             <PrivateRoute><TicketList /></PrivateRoute>
           } />
           <Route path="/perfil" element={
-          <Profile />
+            <Profile />
           } />
           <Route path="/tickets/:id" element={
             <PrivateRoute><TicketDetailUser /></PrivateRoute>
@@ -55,7 +55,6 @@ function App() {
           <Route path="/crear-ticket" element={
             <PrivateRoute><CreateTicket /></PrivateRoute>
           } />
-
           {/* HU5 - Panel del tecnico */}
           <Route path="/tecnico/panel" element={
             <PrivateRoute techOnly><TechnicianPanel /></PrivateRoute>
@@ -64,7 +63,7 @@ function App() {
             <PrivateRoute techOnly><TicketDetailTech /></PrivateRoute>
           } />
 
-          {/* HU8 - Base de conocimiento (accesible a todos los autenticados) */}
+          {/* HU8 - Base de conocimiento */}
           <Route path="/conocimiento" element={
             <PrivateRoute><KnowledgeSearch /></PrivateRoute>
           } />
@@ -82,7 +81,7 @@ function App() {
             <PrivateRoute adminOnly><TechnicianAssignments /></PrivateRoute>
           } />
           <Route path="/admin/tickets" element={
-          <PrivateRoute adminOnly><AdminTickets /></PrivateRoute>
+            <PrivateRoute adminOnly><AdminTickets /></PrivateRoute>
           } />
         </Routes>
       </NotificationProvider>

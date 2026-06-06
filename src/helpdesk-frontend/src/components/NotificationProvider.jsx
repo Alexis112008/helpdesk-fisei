@@ -77,17 +77,19 @@ export function NotificationProvider({ children }) {
     setToasts((prev) => [...prev, t]);
 
     // Cada toast también va al historial de la campanita
-    setNotifications((prev) => [
-      {
-        id,
-        type: t.type,
-        title: t.title || '',
-        message: t.message || '',
-        createdAt: new Date().toISOString(),
-        read: false,
-      },
-      ...prev,
-    ]);
+setNotifications((prev) => [
+  {
+    id,
+    type: t.type,
+    title: t.title || '',
+    message: t.message || '',
+    ticketNumber: t.ticketNumber || null,
+    ticketId: t.ticketId || null,
+    createdAt: new Date().toISOString(),
+    read: false,
+  },
+  ...prev,
+]);
 
     if (t.duration > 0) {
       setTimeout(() => {
@@ -187,6 +189,8 @@ export function NotificationProvider({ children }) {
             type: 'info',
             title: 'Nuevo ticket',
             message: `Ticket ${payload.ticketNumber} creado.`,
+            ticketNumber: payload?.ticketNumber,
+            ticketId: payload?.ticketId || null,
           });
         };
 
@@ -199,6 +203,8 @@ export function NotificationProvider({ children }) {
             type: 'info',
             title: 'Ticket actualizado',
             message: `${ticketNumber}: ${fromStatus} → ${toStatus}`,
+            ticketNumber: payload?.ticketNumber,
+            ticketId: payload?.ticketId || null,
           });
         };
 
@@ -211,6 +217,8 @@ export function NotificationProvider({ children }) {
             type: 'warning',
             title: 'Ticket escalado',
             message: `${tn} escalado de N${from} a N${to}`,
+            ticketNumber: payload?.ticketNumber,
+            ticketId: payload?.ticketId || null,
           });
         };
 
@@ -220,6 +228,8 @@ export function NotificationProvider({ children }) {
             type: 'success',
             title: 'Ticket resuelto',
             message: `${payload.ticketNumber} fue resuelto.`,
+            ticketNumber: payload?.ticketNumber,
+            ticketId: payload?.ticketId || null,
           });
         };
 
@@ -229,6 +239,8 @@ export function NotificationProvider({ children }) {
             type: 'success',
             title: 'Ticket cerrado',
             message: `${payload.ticketNumber} fue cerrado.`,
+            ticketNumber: payload?.ticketNumber,
+            ticketId: payload?.ticketId || null,
           });
         };
 
@@ -238,6 +250,8 @@ export function NotificationProvider({ children }) {
             type: 'error',
             title: 'Ticket vencido',
             message: `${payload.ticketNumber} superó su SLA.`,
+            ticketNumber: payload?.ticketNumber,
+            ticketId: payload?.ticketId || null,
             duration: 8000,
           });
         };
@@ -252,6 +266,8 @@ export function NotificationProvider({ children }) {
             type: 'info',
             title: 'Nuevo comentario',
             message: `${who} comentó en el ticket ${payload.ticketNumber}.`,
+            ticketNumber: payload?.ticketNumber,
+            ticketId: payload?.ticketId || null,
           });
         };
 
@@ -263,6 +279,8 @@ export function NotificationProvider({ children }) {
             type: 'info',
             title: 'Nuevo ticket disponible',
             message: `${payload.ticketNumber} entró al pool de N${payload.level}.`,
+            ticketNumber: payload?.ticketNumber,
+            ticketId: payload?.ticketId || null,
           });
         };
 

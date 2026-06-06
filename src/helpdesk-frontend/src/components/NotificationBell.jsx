@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Check, Trash2, X } from 'lucide-react';
+import { Bell, Check, Trash2, X, Info, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { useNotifications } from './NotificationProvider';
 
 /**
@@ -39,10 +39,10 @@ function NotificationBell() {
   };
 
   const typeColors = {
-    info: { bg: '#dbeafe', color: '#1e40af', icon: '●' },
-    success: { bg: '#dcfce7', color: '#15803d', icon: '✓' },
-    warning: { bg: '#fef3c7', color: '#92400e', icon: '!' },
-    error: { bg: '#fee2e2', color: '#991b1b', icon: '×' },
+    info: { bg: '#dbeafe', color: '#1e40af', icon: Info },
+    success: { bg: '#dcfce7', color: '#15803d', icon: CheckCircle },
+    warning: { bg: '#fef3c7', color: '#92400e', icon: AlertTriangle },
+    error: { bg: '#fee2e2', color: '#991b1b', icon: XCircle },
   };
 
   const formatTime = (iso) => {
@@ -66,7 +66,7 @@ function NotificationBell() {
         title="Notificaciones"
         aria-label="Ver notificaciones"
       >
-        <Bell size={18} color="#374151" />
+        <Bell size={18} color="#374151" strokeWidth={1.5} />
         {unreadCount > 0 && (
           <span style={s.badge}>
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -92,14 +92,14 @@ function NotificationBell() {
               onClick={() => setOpen(false)}
               aria-label="Cerrar"
             >
-              <X size={16} color="#6b7280" />
+              <X size={16} color="#6b7280" strokeWidth={1.5} />
             </button>
           </div>
 
           {notifications.length > 0 && (
             <div style={s.toolbar}>
               <button style={s.toolBtn} onClick={markAllRead}>
-                <Check size={12} /> Marcar todas como leídas
+                <Check size={12} strokeWidth={2} /> Marcar todas como leídas
               </button>
               <button
                 style={{ ...s.toolBtn, color: '#b91c1c' }}
@@ -109,7 +109,7 @@ function NotificationBell() {
                   }
                 }}
               >
-                <Trash2 size={12} /> Limpiar
+                <Trash2 size={12} strokeWidth={2} /> Limpiar
               </button>
             </div>
           )}
@@ -117,7 +117,7 @@ function NotificationBell() {
           <div style={s.list}>
             {notifications.length === 0 ? (
               <div style={s.empty}>
-                <Bell size={32} color="#d1d5db" />
+                <Bell size={32} color="#d1d5db" strokeWidth={1.5} />
                 <p style={s.emptyText}>
                   No tienes notificaciones aún.
                 </p>
@@ -129,6 +129,8 @@ function NotificationBell() {
             ) : (
               notifications.map((n) => {
                 const palette = typeColors[n.type] || typeColors.info;
+                const IconComponent = palette.icon;
+                
                 return (
                   <div
                     key={n.id}
@@ -145,7 +147,7 @@ function NotificationBell() {
                         color: palette.color,
                       }}
                     >
-                      {palette.icon}
+                      <IconComponent size={16} strokeWidth={2} />
                     </div>
 
                     <div style={s.itemBody}>
@@ -188,6 +190,7 @@ const s = {
     backgroundColor: '#fff',
     cursor: 'pointer',
     padding: 0,
+    transition: 'all 0.2s ease',
   },
   badge: {
     position: 'absolute',
@@ -246,6 +249,8 @@ const s = {
     padding: 4,
     display: 'flex',
     alignItems: 'center',
+    borderRadius: 4,
+    transition: 'background 0.2s ease',
   },
   toolbar: {
     display: 'flex',
@@ -265,6 +270,8 @@ const s = {
     alignItems: 'center',
     gap: 4,
     padding: 4,
+    borderRadius: 4,
+    transition: 'all 0.2s ease',
   },
   list: {
     overflowY: 'auto',
@@ -308,8 +315,6 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: 700,
-    fontSize: 14,
     flexShrink: 0,
   },
   itemBody: { flex: 1, minWidth: 0 },

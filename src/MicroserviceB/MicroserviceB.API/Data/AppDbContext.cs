@@ -10,21 +10,43 @@ namespace MicroserviceB.API.Data
 
         public DbSet<Ticket> Tickets { get; set; }
         public DbSet<TicketAction> TicketActions { get; set; }
+        public DbSet<TicketAttachment> TicketAttachments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Ticket>()
-                .ToTable("Tickets");
+            // Configurar Ticket
+            modelBuilder.Entity<Ticket>(entity =>
+            {
+                entity.ToTable("Tickets");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TicketNumber).IsUnique();
 
-            modelBuilder.Entity<Ticket>()
-                .HasIndex(t => t.TicketNumber)
-                .IsUnique();
+                // Relación con TicketAttachments
+                entity.HasMany(e => e.TicketAttachments)
+                      .WithOne(e => e.Ticket)
+                      .HasForeignKey(e => e.TicketId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
 
-            modelBuilder.Entity<TicketAction>()
-                .ToTable("TicketActions");
+            // Configurar TicketAction
+            modelBuilder.Entity<TicketAction>(entity =>
+            {
+                entity.ToTable("TicketActions");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TicketId);
+            });
 
-            modelBuilder.Entity<TicketAction>()
-                .HasIndex(a => a.TicketId);
+            // Configurar TicketAttachment
+            modelBuilder.Entity<TicketAttachment>(entity =>
+            {
+                entity.ToTable("TicketAttachments");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityColumn(); 
+                entity.HasOne(e => e.Ticket)
+                      .WithMany(e => e.TicketAttachments)
+                      .HasForeignKey(e => e.TicketId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }

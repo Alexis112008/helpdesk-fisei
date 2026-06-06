@@ -23,6 +23,8 @@ builder.Services.AddScoped<ITicketActionService, TicketActionService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
+// Servicio de almacenamiento de archivos
+builder.Services.AddScoped<IFileStorageService, DatabaseFileStorageService>();
 
 // ----- Job de escalamiento (HU7 - T7.3) -----
 builder.Services.AddHostedService<TimedEscalationService>();

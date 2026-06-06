@@ -18,6 +18,6 @@ namespace MicroserviceB.API.Models.Entities
         public DateTime? LastEscalationCheck { get; set; }
         public string Location { get; set; } = string.Empty;
         public string AssetCode { get; set; } = string.Empty;
-
+        public virtual ICollection<TicketAttachment> TicketAttachments { get; set; } = new List<TicketAttachment>();
     }
 }
