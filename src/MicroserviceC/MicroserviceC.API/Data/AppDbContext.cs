@@ -10,6 +10,7 @@ namespace MicroserviceC.API.Data
         public DbSet<DamageCatalog> DamageCatalogs { get; set; }
         public DbSet<ServiceCatalog> ServiceCatalogs { get; set; }
         public DbSet<KnowledgeArticle> KnowledgeArticles { get; set; }
+        public DbSet<KnowledgeArticleAttachment> KnowledgeArticleAttachments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

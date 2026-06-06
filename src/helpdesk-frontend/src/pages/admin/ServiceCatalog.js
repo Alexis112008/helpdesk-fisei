@@ -3,8 +3,21 @@ import {
   Pencil,
   Trash2,
   Plus,
+  Search,
+  X,
+  Save,
+  Package,
+  Briefcase,
+  FileText,
+  Clock,
+  Shield,
+  Wrench,
+  Filter,
+  CheckCircle,
+  AlertCircle,
+  RefreshCw,
+  Layers
 } from 'lucide-react';
-
 import { catalogAPI } from '../../services/api';
 import Layout from '../../components/Layout';
 
@@ -17,7 +30,6 @@ function ServiceCatalogPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  // ← NUEVO: estados para filtros
   const [search, setSearch] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterDamage, setFilterDamage] = useState('');
@@ -37,6 +49,7 @@ function ServiceCatalogPage() {
   }, []);
 
   const loadServices = () => {
+    setLoading(true);
     catalogAPI
       .get('/servicecatalog')
       .then((res) => setServices(res.data))
@@ -50,7 +63,6 @@ function ServiceCatalogPage() {
       .then((res) => setDamages(res.data));
   };
 
-  // ← NUEVO: filtrado de servicios
   const filteredServices = services.filter((sv) => {
     const matchSearch = search === '' ||
       sv.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -62,7 +74,6 @@ function ServiceCatalogPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     setError('');
     setSuccess('');
 
@@ -77,7 +88,6 @@ function ServiceCatalogPage() {
             damageCatalogId: parseInt(form.damageCatalogId),
           }
         );
-
         setSuccess('Servicio actualizado correctamente');
       } else {
         await catalogAPI.post(
@@ -89,13 +99,11 @@ function ServiceCatalogPage() {
             damageCatalogId: parseInt(form.damageCatalogId),
           }
         );
-
         setSuccess('Servicio creado correctamente');
       }
 
       setShowForm(false);
       setEditItem(null);
-
       setForm({
         name: '',
         description: '',
@@ -104,7 +112,6 @@ function ServiceCatalogPage() {
         estimatedTimeHours: 24,
         damageCatalogId: '',
       });
-
       loadServices();
     } catch {
       setError('Error al guardar el servicio');
@@ -113,7 +120,6 @@ function ServiceCatalogPage() {
 
   const handleEdit = (item) => {
     setEditItem(item);
-
     setForm({
       name: item.name,
       description: item.description,
@@ -122,18 +128,14 @@ function ServiceCatalogPage() {
       estimatedTimeHours: item.estimatedTimeHours,
       damageCatalogId: item.damageCatalogId,
     });
-
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('¿Desactivar este servicio?')) return;
-
     try {
       await catalogAPI.delete(`/servicecatalog/${id}`);
-
       setSuccess('Servicio desactivado');
-
       loadServices();
     } catch {
       setError('Error al desactivar servicio');
@@ -147,7 +149,6 @@ function ServiceCatalogPage() {
       3: 'N3',
       4: 'N4',
     };
-
     return names[level] || 'N1';
   };
 
@@ -158,9 +159,26 @@ function ServiceCatalogPage() {
       3: '#6a1b9a',
       4: '#c62828',
     };
-
     return colors[level] || '#1565c0';
   };
+
+  const getLevelIcon = (level) => {
+    switch(level) {
+      case 1: return <Shield size={12} style={{ marginRight: 4 }} />;
+      case 2: return <Shield size={12} style={{ marginRight: 4 }} />;
+      case 3: return <Shield size={12} style={{ marginRight: 4 }} />;
+      case 4: return <Shield size={12} style={{ marginRight: 4 }} />;
+      default: return <Shield size={12} style={{ marginRight: 4 }} />;
+    }
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setFilterLevel('');
+    setFilterDamage('');
+  };
+
+  const hasFilters = search !== '' || filterLevel !== '' || filterDamage !== '';
 
   return (
     <Layout>
@@ -168,44 +186,37 @@ function ServiceCatalogPage() {
         <div style={s.header}>
           <div>
             <h1 style={s.title}>
+              <Briefcase size={28} style={{ marginRight: 12, color: '#4361ee', verticalAlign: 'middle' }} />
               Catálogo de Servicios
             </h1>
-
-            <p style={s.subtitle}>
-              Administra servicios y
-              categorías tecnológicas
-            </p>
+            <p style={s.subtitle}>Administra servicios y categorías tecnológicas</p>
           </div>
-
-          <button
-            style={s.actionBtn}
-            onClick={() => {
-              setShowForm(true);
-              setEditItem(null);
-
-              setForm({
-                name: '',
-                description: '',
-                category: '',
-                attentionLevel: 1,
-                estimatedTimeHours: 24,
-                damageCatalogId: '',
-              });
-            }}
-          >
-            <Plus size={16} />
+          <button style={s.actionBtn} onClick={() => {
+            setShowForm(true);
+            setEditItem(null);
+            setForm({
+              name: '',
+              description: '',
+              category: '',
+              attentionLevel: 1,
+              estimatedTimeHours: 24,
+              damageCatalogId: '',
+            });
+          }}>
+            <Plus size={16} style={{ marginRight: 6 }} />
             Nuevo Servicio
           </button>
         </div>
 
         {success && (
           <div style={s.success}>
+            <CheckCircle size={18} style={{ marginRight: 10 }} />
             {success}
           </div>
         )}
-
         {error && (
           <div style={s.error}>
+            <AlertCircle size={18} style={{ marginRight: 10 }} />
             {error}
           </div>
         )}
@@ -213,27 +224,29 @@ function ServiceCatalogPage() {
         {showForm && (
           <div style={s.formCard}>
             <h4 style={s.formTitle}>
-              {editItem
-                ? 'Editar Servicio'
-                : 'Nuevo Servicio'}
+              {editItem ? (
+                <>
+                  <Pencil size={20} style={{ marginRight: 8 }} />
+                  Editar Servicio
+                </>
+              ) : (
+                <>
+                  <Plus size={20} style={{ marginRight: 8 }} />
+                  Nuevo Servicio
+                </>
+              )}
             </h4>
-
             <form onSubmit={handleSubmit}>
               <div style={s.formGrid}>
                 <div style={s.field}>
                   <label style={s.label}>
-                    Nombre
+                    <Package size={14} style={{ marginRight: 4 }} />
+                    Nombre *
                   </label>
-
                   <input
                     style={s.input}
                     value={form.name}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        name: e.target.value,
-                      })
-                    }
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="Nombre del servicio"
                     required
                   />
@@ -241,119 +254,78 @@ function ServiceCatalogPage() {
 
                 <div style={s.field}>
                   <label style={s.label}>
-                    Categoría
+                    <Layers size={14} style={{ marginRight: 4 }} />
+                    Categoría *
                   </label>
-
                   <input
                     style={s.input}
                     value={form.category}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        category: e.target.value,
-                      })
-                    }
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
                     placeholder="Hardware, Software, Redes..."
                     required
                   />
                 </div>
 
-                <div style={s.field}>
+                <div style={{ ...s.field, gridColumn: '1 / -1' }}>
                   <label style={s.label}>
+                    <FileText size={14} style={{ marginRight: 4 }} />
                     Descripción
                   </label>
-
                   <input
                     style={s.input}
                     value={form.description}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        description: e.target.value,
-                      })
-                    }
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
                     placeholder="Descripción del servicio"
                   />
                 </div>
 
                 <div style={s.field}>
                   <label style={s.label}>
-                    Nivel de atención
+                    <Shield size={14} style={{ marginRight: 4 }} />
+                    Nivel de atención *
                   </label>
-
                   <select
                     style={s.input}
                     value={form.attentionLevel}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        attentionLevel: e.target.value,
-                      })
-                    }
+                    onChange={(e) => setForm({ ...form, attentionLevel: e.target.value })}
                   >
-                    <option value={1}>
-                      N1 — Técnico Básico
-                    </option>
-
-                    <option value={2}>
-                      N2 — Técnico Profesional
-                    </option>
-
-                    <option value={3}>
-                      N3 — DITIC
-                    </option>
-
-                    <option value={4}>
-                      N4 — Proveedor Externo
-                    </option>
+                    <option value={1}>N1 — Técnico Básico</option>
+                    <option value={2}>N2 — Técnico Profesional</option>
+                    <option value={3}>N3 — DITIC</option>
+                    <option value={4}>N4 — Proveedor Externo</option>
                   </select>
                 </div>
 
                 <div style={s.field}>
                   <label style={s.label}>
-                    Tiempo estimado (horas)
+                    <Clock size={14} style={{ marginRight: 4 }} />
+                    Tiempo estimado (horas) *
                   </label>
-
                   <input
                     style={s.input}
                     type="number"
                     min={1}
                     max={720}
                     value={form.estimatedTimeHours}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        estimatedTimeHours: e.target.value,
-                      })
-                    }
+                    onChange={(e) => setForm({ ...form, estimatedTimeHours: e.target.value })}
                     required
                   />
                 </div>
 
                 <div style={s.field}>
                   <label style={s.label}>
-                    Categoría de daño
+                    <Wrench size={14} style={{ marginRight: 4 }} />
+                    Categoría de daño *
                   </label>
-
                   <select
                     style={s.input}
                     value={form.damageCatalogId}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        damageCatalogId: e.target.value,
-                      })
-                    }
+                    onChange={(e) => setForm({ ...form, damageCatalogId: e.target.value })}
                     required
                   >
-                    <option value="">
-                      -- Selecciona --
-                    </option>
-
+                    <option value="">-- Selecciona --</option>
                     {damages.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
+                      <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
                 </div>
@@ -361,19 +333,14 @@ function ServiceCatalogPage() {
 
               <div style={s.formButtons}>
                 <button type="submit" style={s.saveBtn}>
-                  {editItem
-                    ? 'Guardar Cambios'
-                    : 'Crear Servicio'}
+                  <Save size={14} style={{ marginRight: 6 }} />
+                  {editItem ? 'Guardar Cambios' : 'Crear Servicio'}
                 </button>
-
-                <button
-                  type="button"
-                  style={s.cancelBtn}
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditItem(null);
-                  }}
-                >
+                <button type="button" style={s.cancelBtn} onClick={() => {
+                  setShowForm(false);
+                  setEditItem(null);
+                }}>
+                  <X size={14} style={{ marginRight: 6 }} />
                   Cancelar
                 </button>
               </div>
@@ -381,44 +348,66 @@ function ServiceCatalogPage() {
           </div>
         )}
 
-        {/* ← NUEVO: Barra de filtros */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-          <input
-            style={{ ...s.input, maxWidth: 250 }}
-            placeholder="Buscar servicio..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            style={s.input}
-            value={filterLevel}
-            onChange={(e) => setFilterLevel(e.target.value)}
-          >
-            <option value="">Todos los niveles</option>
-            <option value="1">N1</option>
-            <option value="2">N2</option>
-            <option value="3">N3</option>
-            <option value="4">N4</option>
-          </select>
-          <select
-            style={s.input}
-            value={filterDamage}
-            onChange={(e) => setFilterDamage(e.target.value)}
-          >
-            <option value="">Todos los tipos de daño</option>
-            {damages.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: 13, color: '#6b7280', alignSelf: 'center' }}>
+        {/* Barra de filtros */}
+        <div style={s.filtersBar}>
+          <div style={s.searchWrapper}>
+            <Search size={18} color="#9ca3af" style={s.searchIcon} />
+            <input
+              style={s.searchInput}
+              placeholder="Buscar servicio por nombre o categoría..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button style={s.clearSearchBtn} onClick={() => setSearch('')}>
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div style={s.filterWrapper}>
+            <Shield size={14} color="#6b7280" style={s.filterIcon} />
+            <select style={s.filterSelect} value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
+              <option value="">Todos los niveles</option>
+              <option value="1">N1</option>
+              <option value="2">N2</option>
+              <option value="3">N3</option>
+              <option value="4">N4</option>
+            </select>
+          </div>
+
+          <div style={s.filterWrapper}>
+            <Wrench size={14} color="#6b7280" style={s.filterIcon} />
+            <select style={s.filterSelect} value={filterDamage} onChange={(e) => setFilterDamage(e.target.value)}>
+              <option value="">Todos los tipos de daño</option>
+              {damages.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {hasFilters && (
+            <button style={s.clearFiltersBtn} onClick={clearFilters}>
+              <X size={14} style={{ marginRight: 4 }} />
+              Limpiar filtros
+            </button>
+          )}
+
+          <span style={s.resultCount}>
+            <Briefcase size={12} style={{ marginRight: 4 }} />
             {filteredServices.length} de {services.length} servicios
           </span>
         </div>
 
         {loading ? (
           <div style={s.stateContainer}>
+            <RefreshCw size={24} style={s.spinner} />
+            <p style={s.stateText}>Cargando servicios...</p>
+          </div>
+        ) : filteredServices.length === 0 ? (
+          <div style={s.stateContainer}>
             <p style={s.stateText}>
-              Cargando servicios...
+              {hasFilters ? 'No hay servicios que coincidan con los filtros.' : 'No hay servicios registrados.'}
             </p>
           </div>
         ) : (
@@ -428,93 +417,67 @@ function ServiceCatalogPage() {
                 <thead>
                   <tr style={s.thead}>
                     <th style={s.th}>
+                      <Package size={12} style={{ marginRight: 4 }} />
                       Servicio
                     </th>
-
                     <th style={s.th}>
+                      <Layers size={12} style={{ marginRight: 4 }} />
                       Categoría
                     </th>
-
                     <th style={s.th}>
+                      <FileText size={12} style={{ marginRight: 4 }} />
                       Descripción
                     </th>
-
                     <th style={s.th}>
+                      <Shield size={12} style={{ marginRight: 4 }} />
                       Nivel
                     </th>
-
                     <th style={s.th}>
+                      <Clock size={12} style={{ marginRight: 4 }} />
                       Tiempo Est.
                     </th>
-
                     <th style={s.th}>
+                      <Wrench size={12} style={{ marginRight: 4 }} />
                       Tipo de Daño
                     </th>
-
-                    <th style={s.th}>
-                      Acciones
-                    </th>
+                    <th style={s.th}>Acciones</th>
                   </tr>
                 </thead>
-
                 <tbody>
-                  {/* ← CAMBIADO: services.map por filteredServices.map */}
                   {filteredServices.map((sItem) => (
                     <tr key={sItem.id} style={s.tr}>
                       <td style={s.td}>
-                        {sItem.name}
+                        <strong>{sItem.name}</strong>
                       </td>
-
+                      <td style={s.td}>{sItem.category}</td>
+                      <td style={s.td}>{sItem.description || '—'}</td>
                       <td style={s.td}>
-                        {sItem.category}
-                      </td>
-
-                      <td style={s.td}>
-                        {sItem.description}
-                      </td>
-
-                      <td style={s.td}>
-                        <span
-                          style={{
-                            ...s.badge,
-                            backgroundColor: getLevelColor(sItem.attentionLevel),
-                          }}
-                        >
+                        <span style={{ ...s.badge, backgroundColor: getLevelColor(sItem.attentionLevel) }}>
+                          {getLevelIcon(sItem.attentionLevel)}
                           {getLevelName(sItem.attentionLevel)}
                         </span>
                       </td>
-
                       <td style={s.td}>
-                        {sItem.estimatedTimeHours}h
+                        <span style={s.timeBadge}>
+                          <Clock size={12} style={{ marginRight: 4 }} />
+                          {sItem.estimatedTimeHours}h
+                        </span>
                       </td>
-
-                      <td style={s.td}>
-                        {sItem.damageName}
-                      </td>
-
+                      <td style={s.td}>{sItem.damageName}</td>
                       <td style={s.td}>
                         <div style={s.actions}>
-                          <button
-                            onClick={() => handleEdit(sItem)}
-                            style={s.iconBtn}
-                            title="Editar"
-                          >
+                          <button onClick={() => handleEdit(sItem)} style={s.iconBtn} title="Editar">
                             <Pencil size={15} color="#4361ee" />
                           </button>
-
-                          <button
-                            onClick={() => handleDelete(sItem.id)}
-                            style={s.iconBtn}
-                            title="Desactivar"
-                          >
+                          <button onClick={() => handleDelete(sItem.id)} style={s.iconBtn} title="Desactivar">
                             <Trash2 size={15} color="#dc2626" />
                           </button>
                         </div>
-                       </td>
-                     </tr>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
-               </table>
+              </table>
             </div>
           </div>
         )}
@@ -528,26 +491,26 @@ const s = {
     padding: '32px',
     flex: 1,
   },
-
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '24px',
+    flexWrap: 'wrap',
+    gap: 16,
   },
-
   title: {
     fontSize: 28,
     fontWeight: 700,
     color: '#111827',
     marginBottom: 8,
+    display: 'flex',
+    alignItems: 'center',
   },
-
   subtitle: {
     fontSize: 14,
     color: '#6b7280',
   },
-
   actionBtn: {
     display: 'flex',
     alignItems: 'center',
@@ -560,8 +523,8 @@ const s = {
     cursor: 'pointer',
     fontWeight: 600,
     fontSize: 14,
+    transition: 'background-color 0.2s ease',
   },
-
   success: {
     backgroundColor: '#ecfdf3',
     color: '#027a48',
@@ -569,8 +532,9 @@ const s = {
     borderRadius: 10,
     marginBottom: 20,
     fontSize: 14,
+    display: 'flex',
+    alignItems: 'center',
   },
-
   error: {
     backgroundColor: '#fef3f2',
     color: '#b42318',
@@ -578,8 +542,9 @@ const s = {
     borderRadius: 10,
     marginBottom: 20,
     fontSize: 14,
+    display: 'flex',
+    alignItems: 'center',
   },
-
   formCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -587,32 +552,30 @@ const s = {
     padding: 32,
     marginBottom: 24,
   },
-
   formTitle: {
     fontSize: 22,
     fontWeight: 700,
     color: '#111827',
     marginBottom: 24,
+    display: 'flex',
+    alignItems: 'center',
   },
-
   formGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: 20,
   },
-
   field: {
     marginBottom: 20,
   },
-
   label: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
     marginBottom: 8,
     fontSize: 14,
     fontWeight: 600,
     color: '#374151',
   },
-
   input: {
     width: '100%',
     padding: '12px 14px',
@@ -622,14 +585,13 @@ const s = {
     boxSizing: 'border-box',
     outline: 'none',
     backgroundColor: '#fff',
+    transition: 'border-color 0.2s ease',
   },
-
   formButtons: {
     display: 'flex',
     gap: 12,
     marginTop: 12,
   },
-
   saveBtn: {
     padding: '12px 24px',
     backgroundColor: '#4361ee',
@@ -638,8 +600,10 @@ const s = {
     borderRadius: 10,
     cursor: 'pointer',
     fontWeight: 600,
+    display: 'inline-flex',
+    alignItems: 'center',
+    transition: 'background-color 0.2s ease',
   },
-
   cancelBtn: {
     padding: '12px 24px',
     backgroundColor: '#f3f4f6',
@@ -648,8 +612,96 @@ const s = {
     borderRadius: 10,
     cursor: 'pointer',
     fontWeight: 600,
+    display: 'inline-flex',
+    alignItems: 'center',
+    transition: 'background-color 0.2s ease',
   },
-
+  filtersBar: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  searchWrapper: {
+    position: 'relative',
+    flex: '1 1 260px',
+    minWidth: 220,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 12,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
+  },
+  searchInput: {
+    width: '100%',
+    padding: '10px 32px 10px 38px',
+    borderRadius: 10,
+    border: '1px solid #d0d5dd',
+    fontSize: 14,
+    outline: 'none',
+    backgroundColor: '#fff',
+  },
+  clearSearchBtn: {
+    position: 'absolute',
+    right: 8,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#9ca3af',
+    display: 'flex',
+    alignItems: 'center',
+    padding: 4,
+  },
+  filterWrapper: {
+    position: 'relative',
+    minWidth: 160,
+  },
+  filterIcon: {
+    position: 'absolute',
+    left: 12,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
+  },
+  filterSelect: {
+    width: '100%',
+    padding: '10px 14px 10px 38px',
+    borderRadius: 10,
+    border: '1px solid #d0d5dd',
+    fontSize: 14,
+    backgroundColor: '#fff',
+    cursor: 'pointer',
+    outline: 'none',
+    appearance: 'none',
+  },
+  clearFiltersBtn: {
+    backgroundColor: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    color: '#374151',
+    padding: '8px 14px',
+    borderRadius: 10,
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    transition: 'all 0.2s ease',
+  },
+  resultCount: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginLeft: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+    padding: '8px 14px',
+    borderRadius: 10,
+  },
   tableCard: {
     width: '100%',
     backgroundColor: '#fff',
@@ -657,54 +709,59 @@ const s = {
     border: '1px solid #eaecf0',
     overflow: 'hidden',
   },
-
   tableWrapper: {
     overflowX: 'auto',
   },
-
   table: {
     width: '100%',
     borderCollapse: 'collapse',
   },
-
   thead: {
     backgroundColor: '#f9fafb',
   },
-
   th: {
     padding: '16px 20px',
     textAlign: 'left',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 700,
     color: '#667085',
     borderBottom: '1px solid #eaecf0',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-
   tr: {
     borderBottom: '1px solid #f1f3f5',
+    transition: 'background-color 0.2s ease',
   },
-
   td: {
     padding: '18px 20px',
     fontSize: 14,
     color: '#344054',
   },
-
   badge: {
     color: '#fff',
     padding: '6px 12px',
     borderRadius: 20,
     fontSize: 12,
     fontWeight: 600,
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
   },
-
+  timeBadge: {
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    padding: '4px 10px',
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: 500,
+    display: 'inline-flex',
+    alignItems: 'center',
+  },
   actions: {
     display: 'flex',
     gap: 4,
     alignItems: 'center',
   },
-
   iconBtn: {
     width: 32,
     height: 32,
@@ -715,17 +772,33 @@ const s = {
     border: 'none',
     borderRadius: 8,
     cursor: 'pointer',
+    transition: 'background-color 0.2s ease',
   },
-
   stateContainer: {
     padding: '60px 20px',
     textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
   },
-
   stateText: {
     color: '#6b7280',
     fontSize: 15,
   },
+  spinner: {
+    animation: 'spin 1s linear infinite',
+  },
 };
+
+// Añadir animación para el spinner
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(styleSheet);
 
 export default ServiceCatalogPage;

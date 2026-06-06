@@ -1,5 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Pencil, Trash2, Plus, Search, X } from 'lucide-react';
+import { 
+  Pencil, 
+  Trash2, 
+  Plus, 
+  Search, 
+  X, 
+  Users, 
+  Mail, 
+  Phone, 
+  FileText, 
+  Award,
+  Building,
+  UserCheck,
+  UserX,
+  Calendar,
+  Filter,
+  AlertCircle,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  IdCard,
+  Shield,
+  Lock
+} from 'lucide-react';
 import { authAPI } from '../../services/api';
 import Layout from '../../components/Layout';
 
@@ -203,26 +226,50 @@ function UserManagement() {
     return colors[role] || '#555';
   };
 
+  const getRoleIcon = (role) => {
+    switch(role) {
+      case 'Admin': return <Shield size={12} style={{ marginRight: 4 }} />;
+      default: return <Users size={12} style={{ marginRight: 4 }} />;
+    }
+  };
+
   return (
     <Layout>
       <main style={s.content}>
         <div style={s.header}>
           <div>
-            <h1 style={s.title}>Gestión de Usuarios</h1>
+            <h1 style={s.title}>
+              <Users size={28} style={{ marginRight: 12, color: '#4361ee', verticalAlign: 'middle' }} />
+              Gestión de Usuarios
+            </h1>
             <p style={s.subtitle}>Administra usuarios, roles y permisos del sistema</p>
           </div>
           <button style={s.actionBtn} onClick={openCreate}>
-            <Plus size={16} /> Crear Usuario
+            <Plus size={16} style={{ marginRight: 6 }} />
+            Crear Usuario
           </button>
         </div>
 
-        {success && <div style={s.success}>{success}</div>}
-        {error && <div style={s.error}>{error}</div>}
+        {success && (
+          <div style={s.success}>
+            <CheckCircle size={18} style={{ marginRight: 10 }} />
+            {success}
+          </div>
+        )}
+        {error && (
+          <div style={s.error}>
+            <AlertCircle size={18} style={{ marginRight: 10 }} />
+            {error}
+          </div>
+        )}
 
         <div style={s.filterCard}>
           <div style={s.filterGrid}>
             <div style={s.filterField}>
-              <label style={s.label}>Buscar</label>
+              <label style={s.label}>
+                <Search size={14} style={{ marginRight: 4 }} />
+                Buscar
+              </label>
               <input
                 style={s.input}
                 type="text"
@@ -232,7 +279,10 @@ function UserManagement() {
               />
             </div>
             <div style={s.filterField}>
-              <label style={s.label}>Rol</label>
+              <label style={s.label}>
+                <Shield size={14} style={{ marginRight: 4 }} />
+                Rol
+              </label>
               <select
                 style={s.input}
                 value={filters.roleId}
@@ -245,7 +295,10 @@ function UserManagement() {
               </select>
             </div>
             <div style={s.filterField}>
-              <label style={s.label}>Estado</label>
+              <label style={s.label}>
+                <UserCheck size={14} style={{ marginRight: 4 }} />
+                Estado
+              </label>
               <select
                 style={s.input}
                 value={filters.isActive}
@@ -258,9 +311,11 @@ function UserManagement() {
             </div>
             <div style={s.filterButtons}>
               <button style={s.searchBtn} onClick={handleSearch}>
-                <Search size={16} /> Buscar
+                <Search size={14} style={{ marginRight: 4 }} />
+                Buscar
               </button>
               <button style={s.resetBtn} onClick={handleResetFilters}>
+                <X size={14} style={{ marginRight: 4 }} />
                 Limpiar
               </button>
             </div>
@@ -269,7 +324,19 @@ function UserManagement() {
 
         {showForm && (
           <div style={s.formCard}>
-            <h4 style={s.formTitle}>{editUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h4>
+            <h4 style={s.formTitle}>
+              {editUser ? (
+                <>
+                  <Pencil size={20} style={{ marginRight: 8 }} />
+                  Editar Usuario
+                </>
+              ) : (
+                <>
+                  <Plus size={20} style={{ marginRight: 8 }} />
+                  Nuevo Usuario
+                </>
+              )}
+            </h4>
             <form onSubmit={handleSubmit}>
               <div style={s.formGrid}>
                 <div style={s.field}>
@@ -284,7 +351,10 @@ function UserManagement() {
                 </div>
 
                 <div style={s.field}>
-                  <label style={s.label}>Correo institucional *</label>
+                  <label style={s.label}>
+                    <Mail size={14} style={{ marginRight: 4 }} />
+                    Correo institucional *
+                  </label>
                   <input
                     style={s.input}
                     type="email"
@@ -297,7 +367,10 @@ function UserManagement() {
 
                 {!editUser && (
                   <div style={s.field}>
-                    <label style={s.label}>Contraseña *</label>
+                    <label style={s.label}>
+                      <Lock size={14} style={{ marginRight: 4 }} />
+                      Contraseña *
+                    </label>
                     <input
                       style={s.input}
                       type="password"
@@ -311,7 +384,10 @@ function UserManagement() {
                 )}
 
                 <div style={s.field}>
-                  <label style={s.label}>Teléfono</label>
+                  <label style={s.label}>
+                    <Phone size={14} style={{ marginRight: 4 }} />
+                    Teléfono
+                  </label>
                   <input
                     style={s.input}
                     value={form.phone}
@@ -321,7 +397,10 @@ function UserManagement() {
                 </div>
 
                 <div style={s.field}>
-                  <label style={s.label}>Cédula</label>
+                  <label style={s.label}>
+                    <IdCard size={14} style={{ marginRight: 4 }} />
+                    Cédula
+                  </label>
                   <input
                     style={s.input}
                     value={form.cedula}
@@ -332,7 +411,10 @@ function UserManagement() {
                 </div>
 
                 <div style={s.field}>
-                  <label style={s.label}>Departamento / Facultad</label>
+                  <label style={s.label}>
+                    <Building size={14} style={{ marginRight: 4 }} />
+                    Departamento / Facultad
+                  </label>
                   <input
                     style={s.input}
                     value={form.department}
@@ -342,7 +424,10 @@ function UserManagement() {
                 </div>
 
                 <div style={s.field}>
-                  <label style={s.label}>Especialidad</label>
+                  <label style={s.label}>
+                    <Award size={14} style={{ marginRight: 4 }} />
+                    Especialidad
+                  </label>
                   <input
                     style={s.input}
                     value={form.specialty}
@@ -352,7 +437,10 @@ function UserManagement() {
                 </div>
 
                 <div style={s.field}>
-                  <label style={s.label}>Rol *</label>
+                  <label style={s.label}>
+                    <Shield size={14} style={{ marginRight: 4 }} />
+                    Rol *
+                  </label>
                   <select
                     style={s.input}
                     value={form.roleId}
@@ -375,6 +463,7 @@ function UserManagement() {
                         style={{ ...s.toggleBtn, ...(form.isActive ? s.toggleActive : s.toggleInactive) }}
                         onClick={() => setForm({ ...form, isActive: true })}
                       >
+                        <UserCheck size={14} style={{ marginRight: 4 }} />
                         Activo
                       </button>
                       <button
@@ -382,6 +471,7 @@ function UserManagement() {
                         style={{ ...s.toggleBtn, ...(!form.isActive ? s.toggleActive : s.toggleInactive) }}
                         onClick={() => setForm({ ...form, isActive: false })}
                       >
+                        <UserX size={14} style={{ marginRight: 4 }} />
                         Inactivo
                       </button>
                     </div>
@@ -398,6 +488,7 @@ function UserManagement() {
                   style={s.cancelBtn}
                   onClick={() => { setShowForm(false); setEditUser(null); }}
                 >
+                  <X size={14} style={{ marginRight: 4 }} />
                   Cancelar
                 </button>
               </div>
@@ -416,34 +507,42 @@ function UserManagement() {
             />
           </div>
 
-          <select
-            style={s.filterSelect}
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-          >
-            <option value="">Todos los roles</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.name}>{r.name}</option>
-            ))}
-          </select>
+          <div style={s.filterWrapper}>
+            <Shield size={14} color="#6b7280" style={s.filterIcon} />
+            <select
+              style={s.filterSelect}
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+            >
+              <option value="">Todos los roles</option>
+              {roles.map((r) => (
+                <option key={r.id} value={r.name}>{r.name}</option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            style={s.filterSelect}
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="">Todos los estados</option>
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-          </select>
+          <div style={s.filterWrapper}>
+            <UserCheck size={14} color="#6b7280" style={s.filterIcon} />
+            <select
+              style={s.filterSelect}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="">Todos los estados</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
 
           {hasFilters && (
             <button style={s.clearBtn} onClick={clearFilters}>
-              <X size={13} /> Limpiar
+              <X size={13} style={{ marginRight: 4 }} />
+              Limpiar
             </button>
           )}
 
           <span style={s.resultCount}>
+            <Users size={12} style={{ marginRight: 4 }} />
             {filteredUsers.length} de {users.length} usuarios
           </span>
         </div>
@@ -476,20 +575,43 @@ function UserManagement() {
                 <tbody>
                   {filteredUsers.map((u) => (
                     <tr key={u.id} style={s.tr}>
-                      <td style={s.td}><strong>{u.fullName}</strong></td>
-                      <td style={s.td}>{u.email}</td>
-                      <td style={s.td}>{u.phone || '—'}</td>
+                      <td style={s.td}>
+                        <strong>{u.fullName}</strong>
+                      </td>
+                      <td style={s.td}>
+                        <div style={s.emailCell}>
+                          <Mail size={12} color="#6b7280" />
+                          <span>{u.email}</span>
+                        </div>
+                      </td>
+                      <td style={s.td}>
+                        <div style={s.phoneCell}>
+                          <Phone size={12} color="#6b7280" />
+                          <span>{u.phone || '—'}</span>
+                        </div>
+                      </td>
                       <td style={s.td}>
                         <span style={{ ...s.badge, backgroundColor: getRoleBadgeColor(u.roleName) }}>
+                          {getRoleIcon(u.roleName)}
                           {u.roleName}
                         </span>
                       </td>
                       <td style={s.td}>
                         <span style={{ ...s.badge, backgroundColor: u.isActive ? '#2e7d32' : '#c62828' }}>
+                          {u.isActive ? (
+                            <UserCheck size={12} style={{ marginRight: 4 }} />
+                          ) : (
+                            <UserX size={12} style={{ marginRight: 4 }} />
+                          )}
                           {u.isActive ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td style={s.td}>{new Date(u.createdAt).toLocaleDateString('es-EC')}</td>
+                      <td style={s.td}>
+                        <div style={s.dateCell}>
+                          <Calendar size={12} color="#9ca3af" />
+                          <span>{new Date(u.createdAt).toLocaleDateString('es-EC')}</span>
+                        </div>
+                      </td>
                       <td style={s.td}>
                         <div style={s.actions}>
                           <button onClick={() => handleEdit(u)} style={s.iconBtn} title="Editar">
@@ -497,7 +619,7 @@ function UserManagement() {
                           </button>
                           {u.isActive && (
                             <button onClick={() => handleDeactivate(u.id)} style={s.iconBtn} title="Desactivar">
-                              <Trash2 size={15} color="#dc2626" />
+                              <UserX size={15} color="#dc2626" />
                             </button>
                           )}
                         </div>
@@ -515,6 +637,7 @@ function UserManagement() {
                   disabled={pagination.page === 1}
                   style={{ ...s.pageBtn, opacity: pagination.page === 1 ? 0.5 : 1 }}
                 >
+                  <ChevronLeft size={14} style={{ marginRight: 4 }} />
                   Anterior
                 </button>
                 <span style={s.pageInfo}>
@@ -526,6 +649,7 @@ function UserManagement() {
                   style={{ ...s.pageBtn, opacity: pagination.page >= Math.ceil(pagination.total / pagination.pageSize) ? 0.5 : 1 }}
                 >
                   Siguiente
+                  <ChevronRight size={14} style={{ marginLeft: 4 }} />
                 </button>
               </div>
             )}
@@ -538,52 +662,293 @@ function UserManagement() {
 
 const s = {
   content: { padding: '32px', flex: 1 },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-  title: { fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8 },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: 16 },
+  title: { fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8, display: 'flex', alignItems: 'center' },
   subtitle: { fontSize: 14, color: '#6b7280' },
-  actionBtn: { display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#4361ee', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14 },
-  success: { backgroundColor: '#ecfdf3', color: '#027a48', padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 14 },
-  error: { backgroundColor: '#fef3f2', color: '#b42318', padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 14 },
-  filterCard: { backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', padding: '20px 24px', marginBottom: 24 },
-  filterGrid: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
+  actionBtn: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: 6, 
+    backgroundColor: '#4361ee', 
+    color: '#fff', 
+    border: 'none', 
+    padding: '10px 18px', 
+    borderRadius: 10, 
+    cursor: 'pointer', 
+    fontWeight: 600, 
+    fontSize: 14 
+  },
+  success: { 
+    backgroundColor: '#ecfdf3', 
+    color: '#027a48', 
+    padding: 14, 
+    borderRadius: 10, 
+    marginBottom: 20, 
+    fontSize: 14,
+    display: 'flex',
+    alignItems: 'center'
+  },
+  error: { 
+    backgroundColor: '#fef3f2', 
+    color: '#b42318', 
+    padding: 14, 
+    borderRadius: 10, 
+    marginBottom: 20, 
+    fontSize: 14,
+    display: 'flex',
+    alignItems: 'center'
+  },
+  filterCard: { 
+    backgroundColor: '#fff', 
+    borderRadius: 16, 
+    border: '1px solid #eaecf0', 
+    padding: '20px 24px', 
+    marginBottom: 24 
+  },
+  filterGrid: { 
+    display: 'flex', 
+    gap: '16px', 
+    alignItems: 'flex-end', 
+    flexWrap: 'wrap' 
+  },
   filterField: { flex: 1, minWidth: '150px' },
   filterButtons: { display: 'flex', gap: 8 },
-  searchBtn: { display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#4361ee', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 500, fontSize: 13 },
-  resetBtn: { backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #d0d5dd', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 500, fontSize: 13 },
-  formCard: { backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', padding: 32, marginBottom: 24 },
-  formTitle: { fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 24 },
+  searchBtn: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: 6, 
+    backgroundColor: '#4361ee', 
+    color: '#fff', 
+    border: 'none', 
+    padding: '10px 18px', 
+    borderRadius: 8, 
+    cursor: 'pointer', 
+    fontWeight: 500, 
+    fontSize: 13 
+  },
+  resetBtn: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: 6, 
+    backgroundColor: '#f3f4f6', 
+    color: '#374151', 
+    border: '1px solid #d0d5dd', 
+    padding: '10px 18px', 
+    borderRadius: 8, 
+    cursor: 'pointer', 
+    fontWeight: 500, 
+    fontSize: 13 
+  },
+  formCard: { 
+    backgroundColor: '#fff', 
+    borderRadius: 16, 
+    border: '1px solid #eaecf0', 
+    padding: 32, 
+    marginBottom: 24 
+  },
+  formTitle: { 
+    fontSize: 22, 
+    fontWeight: 700, 
+    color: '#111827', 
+    marginBottom: 24,
+    display: 'flex',
+    alignItems: 'center'
+  },
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 },
   field: { marginBottom: 20 },
-  label: { display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: '#374151' },
-  input: { width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, boxSizing: 'border-box', outline: 'none', backgroundColor: '#fff' },
+  label: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    marginBottom: 8, 
+    fontSize: 14, 
+    fontWeight: 600, 
+    color: '#374151' 
+  },
+  input: { 
+    width: '100%', 
+    padding: '12px 14px', 
+    borderRadius: 10, 
+    border: '1px solid #d0d5dd', 
+    fontSize: 14, 
+    boxSizing: 'border-box', 
+    outline: 'none', 
+    backgroundColor: '#fff' 
+  },
   toggleRow: { display: 'flex', gap: 8 },
-  toggleBtn: { flex: 1, padding: '10px 0', borderRadius: 8, border: '2px solid transparent', cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all 0.15s' },
+  toggleBtn: { 
+    flex: 1, 
+    padding: '10px 0', 
+    borderRadius: 8, 
+    border: '2px solid transparent', 
+    cursor: 'pointer', 
+    fontWeight: 600, 
+    fontSize: 13, 
+    transition: 'all 0.15s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   toggleActive: { backgroundColor: '#4361ee', color: '#fff', borderColor: '#4361ee' },
   toggleInactive: { backgroundColor: '#f3f4f6', color: '#6b7280', borderColor: '#e5e7eb' },
   formButtons: { display: 'flex', gap: 12, marginTop: 12 },
-  saveBtn: { padding: '12px 24px', backgroundColor: '#4361ee', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600 },
-  cancelBtn: { padding: '12px 24px', backgroundColor: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600 },
-  filtersBar: { display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' },
-  searchWrapper: { position: 'relative', flex: '1 1 220px', minWidth: 180 },
-  searchIcon: { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
-  searchInput: { width: '100%', padding: '10px 14px 10px 36px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, boxSizing: 'border-box', outline: 'none', backgroundColor: '#fff' },
-  filterSelect: { padding: '10px 14px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, backgroundColor: '#fff', cursor: 'pointer', outline: 'none' },
-  clearBtn: { display: 'flex', alignItems: 'center', gap: 4, padding: '10px 14px', borderRadius: 10, border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', color: '#374151', cursor: 'pointer', fontSize: 13, fontWeight: 500 },
-  resultCount: { fontSize: 13, color: '#6b7280', marginLeft: 'auto' },
-  tableCard: { width: '100%', backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', overflow: 'hidden' },
+  saveBtn: { 
+    padding: '12px 24px', 
+    backgroundColor: '#4361ee', 
+    color: '#fff', 
+    border: 'none', 
+    borderRadius: 10, 
+    cursor: 'pointer', 
+    fontWeight: 600 
+  },
+  cancelBtn: { 
+    padding: '12px 24px', 
+    backgroundColor: '#f3f4f6', 
+    color: '#374151', 
+    border: 'none', 
+    borderRadius: 10, 
+    cursor: 'pointer', 
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center'
+  },
+  filtersBar: { 
+    display: 'flex', 
+    gap: 10, 
+    alignItems: 'center', 
+    marginBottom: 16, 
+    flexWrap: 'wrap' 
+  },
+  searchWrapper: { 
+    position: 'relative', 
+    flex: '1 1 220px', 
+    minWidth: 180 
+  },
+  searchIcon: { 
+    position: 'absolute', 
+    left: 12, 
+    top: '50%', 
+    transform: 'translateY(-50%)', 
+    pointerEvents: 'none' 
+  },
+  searchInput: { 
+    width: '100%', 
+    padding: '10px 14px 10px 36px', 
+    borderRadius: 10, 
+    border: '1px solid #d0d5dd', 
+    fontSize: 14, 
+    boxSizing: 'border-box', 
+    outline: 'none', 
+    backgroundColor: '#fff' 
+  },
+  filterWrapper: {
+    position: 'relative',
+    minWidth: 140,
+  },
+  filterIcon: {
+    position: 'absolute',
+    left: 12,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
+  },
+  filterSelect: { 
+    width: '100%',
+    padding: '10px 14px 10px 36px', 
+    borderRadius: 10, 
+    border: '1px solid #d0d5dd', 
+    fontSize: 14, 
+    backgroundColor: '#fff', 
+    cursor: 'pointer', 
+    outline: 'none',
+    appearance: 'none',
+  },
+  clearBtn: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: 4, 
+    padding: '10px 14px', 
+    borderRadius: 10, 
+    border: '1px solid #e5e7eb', 
+    backgroundColor: '#f9fafb', 
+    color: '#374151', 
+    cursor: 'pointer', 
+    fontSize: 13, 
+    fontWeight: 500 
+  },
+  resultCount: { 
+    fontSize: 13, 
+    color: '#6b7280', 
+    marginLeft: 'auto',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  tableCard: { 
+    width: '100%', 
+    backgroundColor: '#fff', 
+    borderRadius: 16, 
+    border: '1px solid #eaecf0', 
+    overflow: 'hidden' 
+  },
   tableWrapper: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { backgroundColor: '#f9fafb' },
-  th: { padding: '16px 20px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' },
-  tr: { borderBottom: '1px solid #f1f3f5' },
+  th: { 
+    padding: '16px 20px', 
+    textAlign: 'left', 
+    fontSize: 12, 
+    fontWeight: 700, 
+    color: '#667085', 
+    borderBottom: '1px solid #eaecf0',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tr: { borderBottom: '1px solid #f1f3f5', transition: 'background-color 0.2s ease' },
   td: { padding: '18px 20px', fontSize: 14, color: '#344054' },
-  badge: { color: '#fff', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, display: 'inline-block' },
+  emailCell: { display: 'flex', alignItems: 'center', gap: 6 },
+  phoneCell: { display: 'flex', alignItems: 'center', gap: 6 },
+  dateCell: { display: 'flex', alignItems: 'center', gap: 6 },
+  badge: { 
+    color: '#fff', 
+    padding: '6px 12px', 
+    borderRadius: 20, 
+    fontSize: 12, 
+    fontWeight: 600, 
+    display: 'inline-flex',
+    alignItems: 'center'
+  },
   actions: { display: 'flex', gap: 4, alignItems: 'center' },
-  iconBtn: { width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', border: 'none', borderRadius: 8, cursor: 'pointer' },
+  iconBtn: { 
+    width: 32, 
+    height: 32, 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: 'transparent', 
+    border: 'none', 
+    borderRadius: 8, 
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease'
+  },
   stateContainer: { padding: '60px 20px', textAlign: 'center' },
   stateText: { color: '#6b7280', fontSize: 15 },
-  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, padding: '20px', borderTop: '1px solid #eaecf0' },
-  pageBtn: { padding: '8px 16px', backgroundColor: '#f3f4f6', border: '1px solid #d0d5dd', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
+  pagination: { 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    gap: 16, 
+    padding: '20px', 
+    borderTop: '1px solid #eaecf0' 
+  },
+  pageBtn: { 
+    padding: '8px 16px', 
+    backgroundColor: '#f3f4f6', 
+    border: '1px solid #d0d5dd', 
+    borderRadius: 8, 
+    cursor: 'pointer', 
+    fontSize: 13,
+    display: 'inline-flex',
+    alignItems: 'center'
+  },
   pageInfo: { fontSize: 13, color: '#344054' }
 };
 

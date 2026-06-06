@@ -1,5 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Power, PowerOff } from 'lucide-react';
+import { 
+  Plus, 
+  Trash2, 
+  Power, 
+  PowerOff, 
+  User, 
+  Mail, 
+  Briefcase, 
+  Shield,
+  AlertCircle,
+  CheckCircle,
+  X,
+  Save,
+  RefreshCw,
+  UserCog,
+  Tag
+} from 'lucide-react';
 import { authAPI, catalogAPI } from '../../services/api';
 import Layout from '../../components/Layout';
 
@@ -132,6 +148,16 @@ function TechnicianAssignments() {
     return colors[role] || '#555';
   };
 
+  const getRoleIcon = (role) => {
+    switch(role) {
+      case 'TecnicoN1': return <Shield size={12} style={{ marginRight: 4 }} />;
+      case 'TecnicoN2': return <Shield size={12} style={{ marginRight: 4 }} />;
+      case 'DITIC': return <Shield size={12} style={{ marginRight: 4 }} />;
+      case 'Proveedor': return <Briefcase size={12} style={{ marginRight: 4 }} />;
+      default: return <User size={12} style={{ marginRight: 4 }} />;
+    }
+  };
+
   // Agrupar asignaciones por técnico para la tabla
   const grouped = technicians.map((t) => ({
     ...t,
@@ -143,7 +169,10 @@ function TechnicianAssignments() {
       <main style={s.content}>
         <div style={s.header}>
           <div>
-            <h1 style={s.title}>Asignación de Servicios a Técnicos</h1>
+            <h1 style={s.title}>
+              <UserCog size={28} style={{ marginRight: 12, color: '#4361ee', verticalAlign: 'middle' }} />
+              Asignación de Servicios a Técnicos
+            </h1>
             <p style={s.subtitle}>
               Define qué servicios atiende cada técnico. El nivel de atención se
               asigna automáticamente según el rol del técnico.
@@ -157,20 +186,37 @@ function TechnicianAssignments() {
               setSuccess('');
             }}
           >
-            <Plus size={16} /> Nueva Asignación
+            <Plus size={16} style={{ marginRight: 6 }} />
+            Nueva Asignación
           </button>
         </div>
 
-        {success && <div style={s.success}>{success}</div>}
-        {error && <div style={s.error}>{error}</div>}
+        {success && (
+          <div style={s.success}>
+            <CheckCircle size={18} style={{ marginRight: 10 }} />
+            {success}
+          </div>
+        )}
+        {error && (
+          <div style={s.error}>
+            <AlertCircle size={18} style={{ marginRight: 10 }} />
+            {error}
+          </div>
+        )}
 
         {showForm && (
           <div style={s.formCard}>
-            <h4 style={s.formTitle}>Nueva Asignación</h4>
+            <h4 style={s.formTitle}>
+              <Plus size={20} style={{ marginRight: 8 }} />
+              Nueva Asignación
+            </h4>
             <form onSubmit={handleSubmit}>
               <div style={s.formGrid}>
                 <div style={s.field}>
-                  <label style={s.label}>Técnico</label>
+                  <label style={s.label}>
+                    <User size={14} style={{ marginRight: 4 }} />
+                    Técnico *
+                  </label>
                   <select
                     style={s.input}
                     value={form.technicianId}
@@ -189,7 +235,10 @@ function TechnicianAssignments() {
                 </div>
 
                 <div style={s.field}>
-                  <label style={s.label}>Servicio</label>
+                  <label style={s.label}>
+                    <Briefcase size={14} style={{ marginRight: 4 }} />
+                    Servicio *
+                  </label>
                   <select
                     style={s.input}
                     value={form.serviceCatalogId}
@@ -212,6 +261,7 @@ function TechnicianAssignments() {
               {selectedTechnician && (
                 <div style={s.levelInfo}>
                   <div style={s.levelInfoLabel}>
+                    <Shield size={12} style={{ marginRight: 4 }} />
                     Nivel de atención asignado automáticamente:
                   </div>
                   <div style={s.levelInfoBadge}>
@@ -224,13 +274,13 @@ function TechnicianAssignments() {
                     >
                       {getLevelBadge(selectedTechnician.level).text}
                     </span>
-                    
                   </div>
                 </div>
               )}
 
               <div style={s.formButtons}>
                 <button type="submit" style={s.saveBtn}>
+                  <Save size={14} style={{ marginRight: 6 }} />
                   Crear Asignación
                 </button>
                 <button
@@ -238,6 +288,7 @@ function TechnicianAssignments() {
                   style={s.cancelBtn}
                   onClick={() => setShowForm(false)}
                 >
+                  <X size={14} style={{ marginRight: 6 }} />
                   Cancelar
                 </button>
               </div>
@@ -247,6 +298,7 @@ function TechnicianAssignments() {
 
         {loading ? (
           <div style={s.stateContainer}>
+            <RefreshCw size={24} style={s.spinner} />
             <p style={s.stateText}>Cargando asignaciones...</p>
           </div>
         ) : grouped.length === 0 ? (
@@ -263,8 +315,14 @@ function TechnicianAssignments() {
                 <div key={t.id} style={s.techCard}>
                   <div style={s.techHeader}>
                     <div>
-                      <h3 style={s.techName}>{t.fullName}</h3>
-                      <p style={s.techEmail}>{t.email}</p>
+                      <h3 style={s.techName}>
+                        <User size={14} style={{ marginRight: 6, color: '#4361ee' }} />
+                        {t.fullName}
+                      </h3>
+                      <p style={s.techEmail}>
+                        <Mail size={11} style={{ marginRight: 4 }} />
+                        {t.email}
+                      </p>
                     </div>
                     <div style={s.techBadges}>
                       <span
@@ -273,6 +331,7 @@ function TechnicianAssignments() {
                           backgroundColor: getRoleColor(t.role),
                         }}
                       >
+                        {getRoleIcon(t.role)}
                         {t.role}
                       </span>
                       <span
@@ -280,7 +339,7 @@ function TechnicianAssignments() {
                           ...s.levelBadge,
                           background: lvl.bg,
                           color: lvl.color,
-                          marginTop: 4,
+                          marginTop: 6,
                         }}
                       >
                         {lvl.text}
@@ -292,6 +351,7 @@ function TechnicianAssignments() {
 
                   <div style={s.assignedSection}>
                     <div style={s.assignedHeader}>
+                      <Briefcase size={12} style={{ marginRight: 4 }} />
                       Servicios asignados ({t.assignments.length})
                     </div>
 
@@ -303,6 +363,7 @@ function TechnicianAssignments() {
                           <li key={a.id} style={s.assignedItem}>
                             <div style={s.assignedInfo}>
                               <div style={s.assignedService}>
+                                <Tag size={12} style={{ marginRight: 6, color: '#6b7280' }} />
                                 {getServiceName(a.serviceCatalogId)}
                                 {!a.isActive && (
                                   <span style={s.inactiveBadge}>Inactivo</span>
@@ -350,16 +411,34 @@ function TechnicianAssignments() {
 }
 
 const s = {
-  content: { padding: 32, flex: 1 },
+  content: { 
+    padding: '28px 32px', 
+    flex: 1,
+    backgroundColor: '#f5f7fa',
+    minHeight: '100vh',
+  },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
     gap: 16,
+    flexWrap: 'wrap',
   },
-  title: { fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 14, color: '#6b7280', maxWidth: 600 },
+  title: { 
+    fontSize: 26, 
+    fontWeight: 700, 
+    color: '#1a1a2e', 
+    marginBottom: 8,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  subtitle: { 
+    fontSize: 13, 
+    color: '#6b7280', 
+    maxWidth: 600,
+    marginLeft: 40,
+  },
   actionBtn: {
     display: 'flex',
     alignItems: 'center',
@@ -368,36 +447,49 @@ const s = {
     color: '#fff',
     border: 'none',
     padding: '10px 18px',
-    borderRadius: 10,
+    borderRadius: 40,
     cursor: 'pointer',
     fontWeight: 600,
-    fontSize: 14,
+    fontSize: 13,
     whiteSpace: 'nowrap',
+    transition: 'background-color 0.2s',
   },
   success: {
+    display: 'flex',
+    alignItems: 'center',
     backgroundColor: '#ecfdf3',
     color: '#027a48',
-    padding: 14,
-    borderRadius: 10,
+    padding: '12px 16px',
+    borderRadius: 12,
     marginBottom: 20,
-    fontSize: 14,
+    fontSize: 13,
   },
   error: {
+    display: 'flex',
+    alignItems: 'center',
     backgroundColor: '#fef3f2',
     color: '#b42318',
-    padding: 14,
-    borderRadius: 10,
+    padding: '12px 16px',
+    borderRadius: 12,
     marginBottom: 20,
-    fontSize: 14,
+    fontSize: 13,
   },
   formCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    border: '1px solid #eaecf0',
-    padding: 32,
+    borderRadius: 20,
+    border: '1px solid #e4e7eb',
+    padding: 28,
     marginBottom: 24,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
   },
-  formTitle: { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 20 },
+  formTitle: { 
+    fontSize: 18, 
+    fontWeight: 700, 
+    color: '#1a1a2e', 
+    marginBottom: 20,
+    display: 'flex',
+    alignItems: 'center',
+  },
   formGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -405,70 +497,87 @@ const s = {
   },
   field: { marginBottom: 20 },
   label: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
     marginBottom: 8,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 600,
     color: '#374151',
   },
   input: {
     width: '100%',
-    padding: '12px 14px',
+    padding: '10px 14px',
     borderRadius: 10,
     border: '1px solid #d0d5dd',
-    fontSize: 14,
+    fontSize: 13,
     boxSizing: 'border-box',
     outline: 'none',
     backgroundColor: '#fff',
+    transition: 'border-color 0.2s',
   },
   levelInfo: {
     background: '#f9fafb',
     border: '1px dashed #d1d5db',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 14,
     marginBottom: 16,
   },
   levelInfoLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 600,
     color: '#6b7280',
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    display: 'flex',
+    alignItems: 'center',
   },
   levelInfoBadge: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  levelInfoHelp: { fontSize: 12, color: '#6b7280' },
   formButtons: { display: 'flex', gap: 12, marginTop: 12 },
   saveBtn: {
-    padding: '12px 24px',
+    padding: '10px 24px',
     backgroundColor: '#4361ee',
     color: '#fff',
     border: 'none',
     borderRadius: 10,
     cursor: 'pointer',
     fontWeight: 600,
+    fontSize: 13,
+    display: 'flex',
+    alignItems: 'center',
   },
   cancelBtn: {
-    padding: '12px 24px',
+    padding: '10px 24px',
     backgroundColor: '#f3f4f6',
     color: '#374151',
     border: 'none',
     borderRadius: 10,
     cursor: 'pointer',
     fontWeight: 600,
+    fontSize: 13,
+    display: 'flex',
+    alignItems: 'center',
   },
-  stateContainer: { padding: '60px 20px', textAlign: 'center' },
-  stateText: { color: '#6b7280', fontSize: 15 },
+  stateContainer: { 
+    padding: '60px 20px', 
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
+  },
+  stateText: { color: '#6b7280', fontSize: 14 },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-    gap: 18,
+    gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+    gap: 20,
   },
   techCard: {
     background: '#fff',
-    border: '1px solid #eaecf0',
-    borderRadius: 14,
+    border: '1px solid #e4e7eb',
+    borderRadius: 20,
     padding: 20,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
   },
   techHeader: {
     display: 'flex',
@@ -476,37 +585,54 @@ const s = {
     alignItems: 'flex-start',
     gap: 12,
   },
-  techName: { fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 },
-  techEmail: { fontSize: 12, color: '#6b7280', margin: '4px 0 0 0' },
+  techName: { 
+    fontSize: 15, 
+    fontWeight: 700, 
+    color: '#1a1a2e', 
+    margin: 0,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  techEmail: { 
+    fontSize: 11, 
+    color: '#8a9bb5', 
+    margin: '4px 0 0 0',
+    display: 'flex',
+    alignItems: 'center',
+  },
   techBadges: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' },
   roleBadge: {
     color: '#fff',
     padding: '4px 10px',
     borderRadius: 12,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 700,
     whiteSpace: 'nowrap',
+    display: 'inline-flex',
+    alignItems: 'center',
   },
   levelBadge: {
     padding: '3px 10px',
     borderRadius: 10,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 700,
     whiteSpace: 'nowrap',
     display: 'inline-block',
   },
-  divider: { height: 1, background: '#f3f4f6', margin: '14px 0' },
+  divider: { height: 1, background: '#f0f2f5', margin: '14px 0' },
   assignedSection: {},
   assignedHeader: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
-    color: '#6b7280',
+    color: '#8a9bb5',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 10,
+    marginBottom: 12,
+    display: 'flex',
+    alignItems: 'center',
   },
   noAssignments: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#9ca3af',
     fontStyle: 'italic',
     margin: 0,
@@ -519,15 +645,15 @@ const s = {
     alignItems: 'center',
     padding: '10px 12px',
     background: '#f9fafb',
-    borderRadius: 8,
+    borderRadius: 10,
     marginBottom: 6,
     gap: 8,
   },
   assignedInfo: { flex: 1, minWidth: 0 },
   assignedService: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 600,
-    color: '#111827',
+    color: '#1a1a2e',
     display: 'flex',
     alignItems: 'center',
     gap: 8,
@@ -535,12 +661,12 @@ const s = {
   inactiveBadge: {
     background: '#fee2e2',
     color: '#991b1b',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 700,
     padding: '2px 6px',
     borderRadius: 8,
   },
-  assignedMeta: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  assignedMeta: { fontSize: 10, color: '#8a9bb5', marginTop: 2 },
   assignedActions: { display: 'flex', gap: 4 },
   iconBtn: {
     width: 28,
@@ -550,9 +676,23 @@ const s = {
     justifyContent: 'center',
     backgroundColor: 'transparent',
     border: '1px solid #e5e7eb',
-    borderRadius: 6,
+    borderRadius: 8,
     cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+  spinner: {
+    animation: 'spin 1s linear infinite',
   },
 };
+
+// Añadir animación para el spinner
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(styleSheet);
 
 export default TechnicianAssignments;

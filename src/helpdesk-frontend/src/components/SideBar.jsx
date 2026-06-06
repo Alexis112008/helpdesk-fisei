@@ -1,5 +1,30 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  Inbox, 
+  Users, 
+  Wrench, 
+  Briefcase, 
+  UserCog, 
+  TicketCheck, 
+  Ticket, 
+  PlusCircle, 
+  BookOpen, 
+  User,
+  GraduationCap,
+  ChevronRight
+} from 'lucide-react';
+
+const COLORS = {
+  Primario: '#2d6a9f',
+  PrimarioOscuro: '#b2cdf0',
+  PrimarioLight: '#eef2ff',
+  Texto: '#1a1a2e',
+  TextoSecundario: '#5a6e8a',
+  Borde: '#e4e7eb',
+  FondoSidebar: '#fff',
+};
 
 function Sidebar() {
   const navigate = useNavigate();
@@ -9,81 +34,24 @@ function Sidebar() {
   const role = localStorage.getItem('role');
 
   const initials = fullName
-    ? fullName
-        .split(' ')
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
+    ? fullName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
     : 'US';
 
   const TECH_ROLES = ['TecnicoN1', 'TecnicoN2', 'DITIC', 'Proveedor'];
   const isTechnician = TECH_ROLES.includes(role);
 
   const navItems = [
-    { label: 'Dashboard', icon: '▦', path: '/dashboard' },
-
-     // 👤 MI PERFIL - visible para todos
-    { label: 'Mi Perfil', icon: '👤', path: '/perfil' },
-
-    // HU5 — Panel del técnico
-    {
-      label: 'Bandeja de Entrada',
-      icon: '📥',
-      path: '/tecnico/panel',
-      techOnly: true,
-    },
-
-    {
-      label: 'Usuarios',
-      icon: '👤',
-      path: '/admin/usuarios',
-      adminOnly: true,
-    },
-    {
-      label: 'Catálogo de Daños',
-      icon: '⊞',
-      path: '/admin/daños',
-      adminOnly: true,
-    },
-    {
-      label: 'Catálogo de Servicios',
-      icon: '≡',
-      path: '/admin/servicios',
-      adminOnly: true,
-    },
-    {
-      label: 'Asignaciones de Técnicos',
-      icon: '🔧',
-      path: '/admin/asignaciones',
-      adminOnly: true,
-    },
-    // ← NUEVO ITEM: Seguimiento de Tickets
-    {
-      label: 'Seguimiento de Tickets',
-      icon: '📋',
-      path: '/admin/tickets',
-      adminOnly: true,
-    },
-    {
-      label: 'Mis Tickets',
-      icon: '🎫',
-      path: '/tickets',
-      hideForTech: true,
-    },
-    {
-      label: 'Nuevo Ticket',
-      icon: '➕',
-      path: '/crear-ticket',
-      hideForTech: true,
-    },
-
-    // HU8 — Base de conocimiento (todos)
-    {
-      label: 'Base de Conocimiento',
-      icon: '📚',
-      path: '/conocimiento',
-    },
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+    { label: 'Bandeja de Entrada', icon: Inbox, path: '/tecnico/panel', techOnly: true },
+    { label: 'Usuarios', icon: Users, path: '/admin/usuarios', adminOnly: true },
+    { label: 'Catálogo de Daños', icon: Wrench, path: '/admin/daños', adminOnly: true },
+    { label: 'Catálogo de Servicios', icon: Briefcase, path: '/admin/servicios', adminOnly: true },
+    { label: 'Asignaciones de Técnicos', icon: UserCog, path: '/admin/asignaciones', adminOnly: true },
+    { label: 'Seguimiento de Tickets', icon: TicketCheck, path: '/admin/tickets', adminOnly: true },
+    { label: 'Mis Tickets', icon: Ticket, path: '/tickets', hideForTech: true },
+    { label: 'Nuevo Ticket', icon: PlusCircle, path: '/crear-ticket', hideForTech: true },
+    { label: 'Base de Conocimiento', icon: BookOpen, path: '/conocimiento' },
+    { label: 'Mi Perfil', icon: User, path: '/perfil' }, 
   ];
 
   const visibleNav = navItems.filter((item) => {
@@ -96,8 +64,9 @@ function Sidebar() {
   return (
     <aside style={s.sidebar}>
       <div style={s.sidebarLogo}>
-        <div style={s.logoIcon}>🎓</div>
-
+        <div style={s.logoIcon}>
+          <GraduationCap size={24} color="#fff" />
+        </div>
         <div>
           <div style={s.logoTitle}>UTA Service Desk</div>
           <div style={s.logoSub}>DTIC</div>
@@ -107,6 +76,7 @@ function Sidebar() {
       <nav style={s.nav}>
         {visibleNav.map((item) => {
           const active = location.pathname === item.path;
+          const IconComponent = item.icon;
 
           return (
             <button
@@ -115,10 +85,35 @@ function Sidebar() {
                 ...s.navItem,
                 ...(active ? s.navItemActive : {}),
               }}
+              onMouseEnter={e => {
+                if (!active) {
+                  e.currentTarget.style.backgroundColor = '#b2cdf0';
+                  e.currentTarget.querySelectorAll('span').forEach(el => el.style.color = '#1a1a2e');
+                  e.currentTarget.querySelectorAll('svg').forEach(el => el.style.color = '#1a1a2e');
+                }
+              }}
+              onMouseLeave={e => {
+                if (!active) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.querySelectorAll('span').forEach(el => el.style.color = COLORS.TextoSecundario);
+                  e.currentTarget.querySelectorAll('svg').forEach(el => el.style.color = COLORS.TextoSecundario);
+                }
+              }}
               onClick={() => navigate(item.path)}
             >
-              <span style={s.navIcon}>{item.icon}</span>
-              <span>{item.label}</span>
+              <IconComponent 
+                size={20} 
+                style={s.navIcon}
+                color={active ? COLORS.Primario : COLORS.TextoSecundario}
+                strokeWidth={1.5}
+              />
+              <span style={{ 
+                color: active ? COLORS.Primario : COLORS.TextoSecundario,
+                fontWeight: active ? 600 : 500
+              }}>
+                {item.label}
+              </span>
+              {active && <ChevronRight size={14} style={s.activeArrow} />}
             </button>
           );
         })}
@@ -126,10 +121,9 @@ function Sidebar() {
 
       <div style={s.sidebarUser}>
         <div style={s.avatar}>{initials}</div>
-
         <div>
-          <div style={s.sidebarUserName}>{fullName}</div>
-          <div style={s.sidebarUserRole}>{role}</div>
+          <div style={s.sidebarUserName}>{fullName?.split(' ')[0] || 'Usuario'}</div>
+          <div style={s.sidebarUserRole}>{role || 'Usuario'}</div>
         </div>
       </div>
     </aside>
@@ -139,112 +133,107 @@ function Sidebar() {
 const s = {
   sidebar: {
     width: 260,
-    backgroundColor: '#fff',
-    borderRight: '1px solid #eaecf0',
+    backgroundColor: COLORS.FondoSidebar,
     display: 'flex',
     flexDirection: 'column',
-    padding: '0 0 16px 0',
     position: 'fixed',
     top: 0,
     left: 0,
     bottom: 0,
     zIndex: 100,
+    borderRight: `1px solid ${COLORS.Borde}`,
+    boxShadow: '2px 0 12px rgba(0,0,0,0.03)',
   },
-
   sidebarLogo: {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    padding: '20px',
-    borderBottom: '1px solid #eaecf0',
+    padding: '20px 20px',
+    borderBottom: `1px solid ${COLORS.Borde}`,
   },
-
   logoIcon: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    backgroundColor: '#4361ee',
+    borderRadius: 12,
+    backgroundColor: COLORS.Primario,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 20,
   },
-
   logoTitle: {
     fontWeight: 700,
     fontSize: 14,
-    color: '#111',
+    color: COLORS.Texto,
   },
-
   logoSub: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 11,
+    color: '#8a9bb5',
   },
-
   nav: {
     flex: 1,
-    padding: '16px 12px',
+    padding: '20px 12px',
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
   },
-
   navItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     padding: '10px 12px',
-    borderRadius: 8,
+    borderRadius: 10,
     border: 'none',
     background: 'none',
     cursor: 'pointer',
-    color: '#444',
-    fontSize: 14,
-    fontWeight: 500,
+    fontSize: 13,
     textAlign: 'left',
     width: '100%',
+    transition: 'all 0.2s ease',
+    position: 'relative',
   },
-
   navItemActive: {
-    backgroundColor: '#eef1ff',
-    color: '#4361ee',
-    fontWeight: 600,
+    backgroundColor: COLORS.PrimarioLight,
+    borderLeft: `3px solid ${COLORS.Primario}`,
+    borderRadius: '0 10px 10px 0',
+    marginLeft: '-12px',
+    paddingLeft: '21px',
   },
-
   navIcon: {
-    width: 20,
-    textAlign: 'center',
+    minWidth: 20,
   },
-
+  activeArrow: {
+    position: 'absolute',
+    right: 12,
+    color: COLORS.Primario,
+  },
   sidebarUser: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
-    padding: '12px 20px',
-    borderTop: '1px solid #eaecf0',
+    gap: 12,
+    padding: '16px 20px',
+    borderTop: `1px solid ${COLORS.Borde}`,
+    backgroundColor: '#fafbfc',
   },
-
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: '50%',
-    backgroundColor: '#4361ee',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: COLORS.Primario,
     color: '#fff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontWeight: 700,
+    fontSize: 14,
   },
-
   sidebarUserName: {
     fontSize: 13,
     fontWeight: 600,
-    color: '#111',
+    color: COLORS.Texto,
   },
-
   sidebarUserRole: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 11,
+    color: '#8a9bb5',
   },
 };
 

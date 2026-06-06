@@ -1,7 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  Lock, 
+  Key, 
+  Shield, 
+  CheckCircle, 
+  AlertCircle,
+  Save,
+  RefreshCw,
+  Briefcase,
+  Building2,
+  Calendar
+} from 'lucide-react';
 import { authAPI } from '../services/api';
 import Layout from '../components/Layout';
+
+// Colores unificados con el Dashboard
+const COLORS = {
+  Primario: '#2d6a9f',
+  PrimarioOscuro: '#1e3a5f',
+  PrimarioLight: '#eef2ff',
+  Exito: '#10b981',
+  Advertencia: '#f59e0b',
+  Error: '#ef4444',
+  Texto: '#1a1a2e',
+  TextoSecundario: '#6b7280',
+  Borde: '#e4e7eb',
+  Fondo: '#f5f7fa',
+};
 
 function Profile() {
   const navigate = useNavigate();
@@ -26,7 +55,6 @@ function Profile() {
 
   const loadUserData = async () => {
     try {
-      // Usar GET /api/user/{id} (es público por [AllowAnonymous])
       const res = await authAPI.get(`/user/${userId}`);
       setFormData({
         ...formData,
@@ -53,7 +81,6 @@ function Profile() {
     setMessage({ type: '', text: '' });
 
     try {
-      // Usar PUT /api/user/me (nuevo endpoint)
       await authAPI.put('/user/me', {
         fullName: formData.fullName,
         email: formData.email,
@@ -94,7 +121,6 @@ function Profile() {
     setMessage({ type: '', text: '' });
 
     try {
-      // Usar PUT /api/user/me/password (nuevo endpoint)
       await authAPI.put('/user/me/password', {
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
@@ -127,140 +153,374 @@ function Profile() {
     }
   };
 
+  const getRoleIcon = () => {
+    switch(role) {
+      case 'Admin': return <Shield size={20} color={COLORS.Primario} />;
+      default: return <Briefcase size={20} color={COLORS.Primario} />;
+    }
+  };
+
+  const cardStyle = {
+    background: '#fff',
+    borderRadius: 20,
+    border: `1px solid ${COLORS.Borde}`,
+    padding: '24px 28px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.2s ease',
+    width: '100%',
+    boxSizing: 'border-box',
+  };
+
   if (loading) {
     return (
       <Layout>
-        <div style={s.loading}>Cargando perfil...</div>
+        <div style={styles.loading}>
+          <RefreshCw size={24} style={styles.spinner} color={COLORS.Primario} />
+          <span>Cargando perfil...</span>
+        </div>
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div style={s.container}>
-        <div style={s.header}>
-          <h1 style={s.title}>Mi Perfil</h1>
-          <p style={s.subtitle}>Gestiona tu información personal y contraseña</p>
+      <main style={styles.content}>
+        <div style={styles.container}>
+          {/* Header */}
+          <div style={styles.header}>
+            <div style={styles.headerIcon}>
+              <User size={32} color={COLORS.Primario} />
+            </div>
+            <div>
+              <h1 style={styles.title}>Mi Perfil</h1>
+              <p style={styles.subtitle}>Gestiona tu información personal y contraseña</p>
+            </div>
+          </div>
+
+          {/* Mensaje de éxito/error */}
+          {message.text && (
+            <div style={{ 
+              ...styles.message, 
+              backgroundColor: message.type === 'success' ? '#ecfdf5' : '#fef2f2', 
+              borderColor: message.type === 'success' ? '#10b981' : '#ef4444',
+              color: message.type === 'success' ? '#065f46' : '#991b1b'
+            }}>
+              {message.type === 'success' ? (
+                <CheckCircle size={18} style={styles.messageIcon} color="#10b981" />
+              ) : (
+                <AlertCircle size={18} style={styles.messageIcon} color="#ef4444" />
+              )}
+              {message.text}
+            </div>
+          )}
+
+          {/* Grid de tarjetas */}
+          <div style={styles.grid}>
+            {/* Tarjeta de Información Personal */}
+            <div style={cardStyle}>
+              <div style={styles.cardHeader}>
+                <User size={20} color={COLORS.Primario} />
+                <h2 style={styles.cardTitle}>Información Personal</h2>
+              </div>
+              <form onSubmit={handleUpdateProfile} style={styles.form}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>ROL</label>
+                  <div style={styles.roleBadge}>
+                    {getRoleIcon()}
+                    <span>{getRoleName()}</span>
+                  </div>
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>NOMBRE COMPLETO</label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    required
+                    style={styles.input}
+                    placeholder="Tu nombre completo"
+                  />
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>CORREO ELECTRÓNICO</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    style={styles.input}
+                    placeholder="usuario@ejemplo.com"
+                  />
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>TELÉFONO</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="Opcional"
+                    style={styles.input}
+                  />
+                </div>
+                <button type="submit" disabled={saving} style={styles.button}>
+                  <Save size={16} style={{ marginRight: 8 }} />
+                  {saving ? 'Guardando...' : 'Actualizar Perfil'}
+                </button>
+              </form>
+            </div>
+
+            {/* Tarjeta de Cambiar Contraseña */}
+            <div style={cardStyle}>
+              <div style={styles.cardHeader}>
+                <Lock size={20} color={COLORS.Primario} />
+                <h2 style={styles.cardTitle}>Cambiar Contraseña</h2>
+              </div>
+              <form onSubmit={handleChangePassword} style={styles.form}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>CONTRASEÑA ACTUAL</label>
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    value={formData.currentPassword}
+                    onChange={handleChange}
+                    required
+                    style={styles.input}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>NUEVA CONTRASEÑA</label>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    value={formData.newPassword}
+                    onChange={handleChange}
+                    required
+                    style={styles.input}
+                    placeholder="••••••••"
+                  />
+                  <small style={styles.hint}>Mínimo 6 caracteres</small>
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>CONFIRMAR NUEVA CONTRASEÑA</label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    style={styles.input}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <button type="submit" disabled={saving} style={styles.button}>
+                  <RefreshCw size={16} style={{ marginRight: 8 }} />
+                  {saving ? 'Guardando...' : 'Cambiar Contraseña'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ ...cardStyle, marginTop: 24, textAlign: 'center', padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Building2 size={14} color={COLORS.TextoSecundario} />
+              <span style={{ fontSize: 12, color: COLORS.TextoSecundario }}>Departamento de Service Desk</span>
+              <span style={{ color: COLORS.TextoSecundario }}>•</span>
+              <Calendar size={14} color={COLORS.TextoSecundario} />
+              <span style={{ fontSize: 12, color: COLORS.TextoSecundario }}>EISEI</span>
+            </div>
+          </div>
         </div>
-
-        {message.text && (
-          <div style={{ ...s.message, backgroundColor: message.type === 'success' ? '#d4edda' : '#f8d7da', color: message.type === 'success' ? '#155724' : '#721c24' }}>
-            {message.text}
-          </div>
-        )}
-
-        <div style={s.grid}>
-          <div style={s.card}>
-            <h2 style={s.cardTitle}>Información Personal</h2>
-            <form onSubmit={handleUpdateProfile} style={s.form}>
-              <div style={s.formGroup}>
-                <label style={s.label}>Rol</label>
-                <input type="text" value={getRoleName()} disabled style={{ ...s.input, ...s.disabled }} />
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Nombre completo</label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  required
-                  style={s.input}
-                />
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Correo electrónico</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  style={s.input}
-                />
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Teléfono</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="Opcional"
-                  style={s.input}
-                />
-              </div>
-              <button type="submit" disabled={saving} style={s.button}>
-                {saving ? 'Guardando...' : 'Actualizar Perfil'}
-              </button>
-            </form>
-          </div>
-
-          <div style={s.card}>
-            <h2 style={s.cardTitle}>Cambiar Contraseña</h2>
-            <form onSubmit={handleChangePassword} style={s.form}>
-              <div style={s.formGroup}>
-                <label style={s.label}>Contraseña actual</label>
-                <input
-                  type="password"
-                  name="currentPassword"
-                  value={formData.currentPassword}
-                  onChange={handleChange}
-                  required
-                  style={s.input}
-                />
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Nueva contraseña</label>
-                <input
-                  type="password"
-                  name="newPassword"
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  required
-                  style={s.input}
-                />
-                <small style={s.hint}>Mínimo 6 caracteres</small>
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Confirmar nueva contraseña</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  style={s.input}
-                />
-              </div>
-              <button type="submit" disabled={saving} style={s.button}>
-                {saving ? 'Guardando...' : 'Cambiar Contraseña'}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
+      </main>
     </Layout>
   );
 }
 
-const s = {
-  container: { maxWidth: 1200, margin: '0 auto' },
-  header: { marginBottom: 24 },
-  title: { fontSize: 24, fontWeight: 700, color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 14, color: '#6b7280' },
-  loading: { textAlign: 'center', padding: 40, fontSize: 16, color: '#6b7280' },
-  message: { padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 14 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 24 },
-  card: { backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', padding: 24 },
-  cardTitle: { fontSize: 18, fontWeight: 700, marginBottom: 20, color: '#111827' },
-  form: { display: 'flex', flexDirection: 'column', gap: 16 },
-  formGroup: { display: 'flex', flexDirection: 'column', gap: 6 },
-  label: { fontSize: 14, fontWeight: 600, color: '#374151' },
-  input: { padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, outline: 'none' },
-  disabled: { backgroundColor: '#f3f4f6', color: '#6b7280' },
-  hint: { fontSize: 12, color: '#6b7280', marginTop: 4 },
-  button: { backgroundColor: '#4361ee', color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 8 },
+const styles = {
+  content: {
+    padding: '28px 32px',
+    flex: 1,
+    backgroundColor: COLORS.Fondo,
+    minHeight: '100vh',
+  },
+
+  container: {
+    maxWidth: 1200,
+    margin: '0 auto',
+  },
+
+  header: {
+    marginBottom: 28,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+  },
+
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: COLORS.PrimarioLight,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  title: {
+    fontSize: 26,
+    fontWeight: 700,
+    color: COLORS.Texto,
+    marginBottom: 4,
+  },
+
+  subtitle: {
+    fontSize: 13,
+    color: COLORS.TextoSecundario,
+  },
+
+  loading: {
+    textAlign: 'center',
+    padding: 60,
+    fontSize: 14,
+    color: COLORS.TextoSecundario,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+
+  spinner: {
+    animation: 'spin 1s linear infinite',
+  },
+
+  message: {
+    padding: '14px 18px',
+    borderRadius: 12,
+    marginBottom: 24,
+    fontSize: 13,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    border: '1px solid',
+  },
+
+  messageIcon: {
+    marginRight: 4,
+  },
+
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+    gap: 28,
+  },
+
+  cardHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottom: `1px solid ${COLORS.Borde}`,
+  },
+
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    margin: 0,
+    color: COLORS.Texto,
+  },
+
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 20,
+  },
+
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+
+  label: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: COLORS.TextoSecundario,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  input: {
+    width: '100%',
+    padding: '12px 14px',
+    border: `1px solid ${COLORS.Borde}`,
+    borderRadius: 10,
+    fontSize: 14,
+    outline: 'none',
+    transition: 'all 0.2s ease',
+    backgroundColor: '#fff',
+    color: COLORS.Texto,
+    boxSizing: 'border-box',
+  },
+
+  roleBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '10px 14px',
+    backgroundColor: COLORS.PrimarioLight,
+    borderRadius: 10,
+    color: COLORS.Primario,
+    fontSize: 14,
+    fontWeight: 500,
+  },
+
+  hint: {
+    fontSize: 11,
+    color: COLORS.TextoSecundario,
+    marginTop: 4,
+    display: 'block',
+  },
+
+  button: {
+    backgroundColor: COLORS.Primario,
+    color: '#fff',
+    border: 'none',
+    padding: '12px 20px',
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    marginTop: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+  },
 };
+
+// Añadir animaciones y efectos focus
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  input:focus {
+    border-color: ${COLORS.Primario} !important;
+    box-shadow: 0 0 0 3px rgba(45, 106, 159, 0.1) !important;
+    outline: none !important;
+  }
+  
+  button:hover {
+    transform: translateY(-1px);
+  }
+`;
+document.head.appendChild(styleSheet);
 
 export default Profile;

@@ -8,6 +8,8 @@ using MicroserviceB.API.Messaging;
 using MicroserviceB.API.Models.DTOs;
 using MicroserviceB.API.Models.Entities;
 using MicroserviceB.API.Services;
+using Microsoft.AspNetCore.Http;
+
 
 namespace MicroserviceB.API.Controllers
 {
@@ -22,6 +24,8 @@ namespace MicroserviceB.API.Controllers
         private readonly IEventBus _eventBus;
         private readonly IUserLookupService _userLookup;
         private readonly IRealtimeNotifier _realtime;
+        private readonly IFileStorageService _fileStorage;
+        private readonly ILogger<TicketController> _logger;
 
         public TicketController(
             AppDbContext context,
@@ -30,7 +34,9 @@ namespace MicroserviceB.API.Controllers
             ITicketActionService actionService,
             IEventBus eventBus,
             IUserLookupService userLookup,
-            IRealtimeNotifier realtime)
+            IRealtimeNotifier realtime,
+            IFileStorageService fileStorage,
+            ILogger<TicketController> logger)
         {
             _context = context;
             _assignmentService = assignmentService;
@@ -39,6 +45,8 @@ namespace MicroserviceB.API.Controllers
             _eventBus = eventBus;
             _userLookup = userLookup;
             _realtime = realtime;
+            _fileStorage = fileStorage;
+            _logger = logger;
         }
 
         // ---------- Helpers ----------
@@ -128,10 +136,6 @@ namespace MicroserviceB.API.Controllers
         // HU5 — Panel del Técnico
         // ============================================================
 
-        /// <summary>
-        /// HU5 — T5.1: Tickets asignados al técnico autenticado.
-        /// Filtros: ?status=...  (opcional)
-        /// </summary>
         /// <summary>
         /// HU5 — T5.1: Tickets ASIGNADOS al técnico autenticado.
         /// Filtrado opcional por estado.
@@ -312,9 +316,6 @@ namespace MicroserviceB.API.Controllers
             }
         }
 
-        /// <summary>
-        /// HU5 — Detalle ampliado: ticket + historial de acciones.
-        /// </summary>
         /// <summary>
         /// HU5 — T5.1: Detalle del ticket + historial de acciones.
         /// Accesible para:
@@ -542,12 +543,12 @@ namespace MicroserviceB.API.Controllers
 
             var allowed = new Dictionary<string, string[]>
             {
-                ["Abierto"]    = new[] { "En Proceso", "Escalado" },
+                ["Abierto"] = new[] { "En Proceso", "Escalado" },
                 ["En Proceso"] = new[] { "Escalado", "Resuelto" },
-                ["Escalado"]   = new[] { "En Proceso", "Resuelto" },
-                ["Resuelto"]   = new[] { "Cerrado", "En Proceso" },
-                ["Vencido"]    = new[] { "En Proceso" },
-                ["Cerrado"]    = Array.Empty<string>()
+                ["Escalado"] = new[] { "En Proceso", "Resuelto" },
+                ["Resuelto"] = new[] { "Cerrado", "En Proceso" },
+                ["Vencido"] = new[] { "En Proceso" },
+                ["Cerrado"] = Array.Empty<string>()
             };
 
             return allowed.TryGetValue(from, out var dests) && dests.Contains(to);
@@ -558,14 +559,28 @@ namespace MicroserviceB.API.Controllers
         // ============================================================
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateTicketDto dto)
+        public async Task<IActionResult> Create([FromForm] CreateTicketDto dto, [FromForm] List<IFormFile>? files)
         {
+            _logger.LogInformation("=== CREANDO TICKET ===");
+            _logger.LogInformation($"DTO: Title={dto.Title}, UserId={dto.UserId}, DamageCatalogId={dto.DamageCatalogId}, ServiceCatalogId={dto.ServiceCatalogId}");
+            _logger.LogInformation($"Files recibidos: {files?.Count ?? 0}");
+
+            if (files != null && files.Any())
+            {
+                foreach (var file in files)
+                {
+                    _logger.LogInformation($"Archivo: {file.FileName}, Tamaño: {file.Length} bytes, Tipo: {file.ContentType}");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ NO se recibieron archivos en la petición");
+            }
+            // ============================================================
+
             var count = await _context.Tickets.CountAsync();
             var ticketNumber = $"TKT-{DateTime.UtcNow:yyyyMMdd}-{(count + 1):D4}";
 
-            // RN-005: Todos los tickets inician en el Nivel 1.
-            // El ticket queda en el "pool" del nivel: sin asignar (AssignedTechnicianId = null).
-            // Cualquier técnico N1 del servicio podrá aceptarlo desde su bandeja.
             var ticket = new Ticket
             {
                 Location = dto.Location,
@@ -587,20 +602,73 @@ namespace MicroserviceB.API.Controllers
             _context.Tickets.Add(ticket);
             await _context.SaveChangesAsync();
 
-            // Historial inicial
+            _logger.LogInformation($"Ticket creado con ID: {ticket.Id}, Número: {ticket.TicketNumber}");
+
+
+            if (files != null && files.Any())
+            {
+                _logger.LogInformation($"Procesando {files.Count} archivos para el ticket {ticket.Id}");
+
+                var allowedTypes = new[] { "image/jpeg", "image/png", "image/jpg", "image/gif", "image/webp" };
+                var savedCount = 0;
+
+                foreach (var file in files)
+                {
+                    _logger.LogInformation($"Procesando archivo: {file.FileName}");
+
+                    if (file.Length > 5 * 1024 * 1024)
+                    {
+                        _logger.LogWarning($"Archivo {file.FileName} excede 5MB, ignorado");
+                        continue;
+                    }
+
+                    if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                    {
+                        _logger.LogWarning($"Tipo no permitido: {file.ContentType}, ignorado");
+                        continue;
+                    }
+
+                    using var memoryStream = new MemoryStream();
+                    await file.CopyToAsync(memoryStream);
+                    var fileData = memoryStream.ToArray();
+
+                    _logger.LogInformation($"Archivo leído: {fileData.Length} bytes");
+
+                    var attachment = new TicketAttachment
+                    {
+                        TicketId = ticket.Id,
+                        UserId = dto.UserId,
+                        FileName = file.FileName,
+                        FileSize = (int)file.Length,
+                        FileType = file.ContentType,
+                        FileData = fileData,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.TicketAttachments.Add(attachment);
+                    savedCount++;
+                }
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation($"Archivos guardados: {savedCount} de {files.Count}");
+            }
+            else
+            {
+                _logger.LogInformation("No hay archivos para guardar");
+            }
+
             try
             {
                 await _actionService.RegisterActionAsync(
                     ticketId: ticket.Id, userId: dto.UserId, userFullName: "Solicitante",
                     actionType: "Created",
-                    description: "Ticket creado. Pendiente de aceptación por un técnico de Nivel 1.");
+                    description: "Ticket creado. Pendiente de aceptación por un técnico.");
+                _logger.LogInformation("Acción inicial registrada");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[TicketController] No se pudo registrar acción inicial: {ex.Message}");
+                _logger.LogError(ex, "No se pudo registrar acción inicial");
             }
 
-            // Evento de creación (errores no deben tumbar la respuesta)
             try
             {
                 var user = await _userLookup.GetByIdAsync(dto.UserId);
@@ -618,9 +686,6 @@ namespace MicroserviceB.API.Controllers
                     Description = ticket.Description
                 });
 
-                // Notificar al solicitante (confirmación) y al pool del nivel
-                // (todos los técnicos N1 conectados a su grupo de nivel reciben el aviso
-                // para refrescar su bandeja).
                 await _realtime.NotifyToUserAsync(
                     ticket.UserId,
                     "ticket-created",
@@ -641,14 +706,16 @@ namespace MicroserviceB.API.Controllers
                         title = ticket.Title,
                         level = ticket.CurrentLevel
                     });
+
+                _logger.LogInformation("Eventos y notificaciones publicados");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[TicketController] Error publicando eventos: {ex.Message}");
+                _logger.LogError(ex, "Error publicando eventos");
             }
 
             return CreatedAtAction(nameof(GetById), new { id = ticket.Id },
-                new { message = "Ticket creado y pendiente de aceptación", ticketNumber, id = ticket.Id });
+                new { message = "Ticket creado", ticketNumber, id = ticket.Id });
         }
 
         // ============================================================
@@ -681,14 +748,10 @@ namespace MicroserviceB.API.Controllers
         // ============================================================
 
         /// <summary>
-        /// HU8 — T8.3 / RN: Cerrar un ticket. Sólo permitido si:
-        ///   - Existe al menos un KnowledgeArticle vinculado al ticket (FK ticketId).
-        ///   - El ticket está en estado "Resuelto".
-        /// El registro del artículo se hace contra Microservicio C antes
-        /// de invocar este endpoint.
+        /// HU8 — Cerrar un ticket y guardar en Base de Conocimiento
         /// </summary>
-        [Authorize]
         [HttpPost("{id}/close")]
+        [Authorize]
         public async Task<IActionResult> Close(int id, [FromServices] IHttpClientFactory httpFactory)
         {
             var ticket = await _context.Tickets.FindAsync(id);
@@ -697,28 +760,65 @@ namespace MicroserviceB.API.Controllers
             if (ticket.Status != "Resuelto")
                 return UnprocessableEntity(new { message = "Solo se pueden cerrar tickets en estado 'Resuelto'." });
 
-            // Verificar artículo asociado en Microservicio C
-            try
-            {
-                var client = httpFactory.CreateClient("CatalogClient");
-                var resp = await client.GetAsync($"/api/knowledge/byticket/{id}");
-                if (!resp.IsSuccessStatusCode)
-                {
-                    return UnprocessableEntity(new
-                    {
-                        message = "Debe registrar la solución antes de cerrar el ticket."
-                    });
-                }
-            }
-            catch
+            // ✅ DECLARAR userId y fullName AQUÍ (antes del try)
+            var (userId, fullName, role) = GetCurrentUser();
+
+            // Obtener la última acción de resolución (donde el técnico guardó la solución)
+            var resolutionAction = await _context.TicketActions
+                .Where(a => a.TicketId == id && a.ActionType == "Resolution")
+                .OrderByDescending(a => a.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (resolutionAction == null)
             {
                 return UnprocessableEntity(new
                 {
-                    message = "No se pudo verificar la solución registrada. Intente nuevamente."
+                    message = "No se ha registrado una solución para este ticket. El técnico debe registrar una solución antes de cerrar."
                 });
             }
 
-            var (userId, fullName, _) = GetCurrentUser();
+            // Extraer la solución de la descripción
+            var solutionText = resolutionAction.Description;
+            var problem = ExtractField(solutionText, "Problema");
+            var cause = ExtractField(solutionText, "Causa");
+            var solution = ExtractField(solutionText, "Solución");
+
+            // Crear el artículo en MicroserviceC
+            try
+            {
+                var client = httpFactory.CreateClient("CatalogClient");
+
+                var createDto = new
+                {
+                    Title = ticket.Title,
+                    Problem = problem ?? ticket.Description,
+                    Cause = cause ?? "No especificada",
+                    Solution = solution ?? "Solución aplicada",
+                    Category = "Software", // O categoría del ticket
+                    TicketId = ticket.Id,
+                    TicketNumber = ticket.TicketNumber,
+                    CreatedByUserId = userId,      // ✅ Ahora existe
+                    CreatedByName = fullName       // ✅ Ahora existe
+                };
+
+                var resp = await client.PostAsJsonAsync("/api/knowledge", createDto);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    var error = await resp.Content.ReadAsStringAsync();
+                    return UnprocessableEntity(new
+                    {
+                        message = $"Error al guardar en base de conocimiento: {error}"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return UnprocessableEntity(new
+                {
+                    message = $"No se pudo guardar la solución: {ex.Message}"
+                });
+            }
+
             var from = ticket.Status;
             ticket.Status = "Cerrado";
             ticket.UpdatedAt = DateTime.UtcNow;
@@ -741,7 +841,7 @@ namespace MicroserviceB.API.Controllers
                 Title = ticket.Title,
                 AssignedTechnicianId = ticket.AssignedTechnicianId,
                 CurrentLevel = ticket.CurrentLevel,
-                Solution = "Ver base de conocimiento vinculada"
+                Solution = solutionText
             });
 
             await _realtime.NotifyTicketUpdatedAsync(
@@ -753,7 +853,361 @@ namespace MicroserviceB.API.Controllers
                 payload: new { ticketId = ticket.Id, ticketNumber = ticket.TicketNumber },
                 actorUserId: userId);
 
-            return Ok(new { message = "Ticket cerrado" });
+            return Ok(new { message = "Ticket cerrado y solución guardada en base de conocimiento" });
         }
+
+        // Helper para extraer campos del texto
+        private string ExtractField(string text, string fieldName)
+        {
+            var pattern = $"{fieldName}:";
+            var index = text.IndexOf(pattern);
+            if (index == -1) return null;
+
+            var start = index + pattern.Length;
+            var nextField = new[] { "Problema:", "Causa:", "Solución:" }
+                .Select(f => text.IndexOf(f, start))
+                .Where(i => i > 0)
+                .DefaultIfEmpty(text.Length)
+                .Min();
+
+            return text.Substring(start, nextField - start).Trim();
+        }
+
+        // ============================================================
+        // NUEVOS ENDPOINTS PARA ARCHIVOS ADJUNTOS
+        // ============================================================
+
+        /// <summary>
+        /// Subir archivos adjuntos a un ticket
+        /// </summary>
+        [HttpPost("{ticketId}/attachments")]
+        [Authorize]
+        public async Task<IActionResult> UploadAttachments(int ticketId, [FromForm] List<IFormFile> files)
+        {
+            try
+            {
+                _logger.LogInformation($"=== INICIO UploadAttachments ===");
+                _logger.LogInformation($"TicketId: {ticketId}");
+                _logger.LogInformation($"Files count: {files?.Count ?? 0}");
+
+                // 1. Verificar ticket
+                var ticket = await _context.Tickets.FindAsync(ticketId);
+                if (ticket == null)
+                {
+                    return NotFound(new { message = "Ticket no encontrado" });
+                }
+
+                // 2. Verificar permisos
+                var (userId, fullName, role) = GetCurrentUser();
+                bool isOwner = ticket.UserId == userId;
+                bool isAssignedTech = ticket.AssignedTechnicianId == userId;
+                bool isAdmin = role == "Admin";
+
+                if (!isOwner && !isAssignedTech && !isAdmin)
+                {
+                    return Forbid();
+                }
+
+                // 3. Verificar límite de archivos
+                var currentCount = await _context.TicketAttachments.CountAsync(a => a.TicketId == ticketId);
+                if (currentCount + files.Count > 5)
+                {
+                    return BadRequest(new { message = $"Máximo 5 archivos por ticket. Actualmente tienes {currentCount}" });
+                }
+
+                // 4. Procesar cada archivo
+                var uploadedFiles = new List<object>();
+                var allowedTypes = new[] { "image/jpeg", "image/png", "image/jpg", "image/gif", "image/webp" };
+
+                foreach (var file in files)
+                {
+                    if (file.Length > 5 * 1024 * 1024)
+                    {
+                        _logger.LogWarning($"Archivo {file.FileName} excede 5MB");
+                        continue;
+                    }
+
+                    if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                    {
+                        _logger.LogWarning($"Tipo no permitido: {file.ContentType}");
+                        continue;
+                    }
+
+                    // Leer el archivo
+                    using var memoryStream = new MemoryStream();
+                    await file.CopyToAsync(memoryStream);
+                    var fileData = memoryStream.ToArray();
+
+                    // Crear attachment DIRECTAMENTE con el TicketId correcto
+                    var attachment = new TicketAttachment
+                    {
+                        TicketId = ticketId,
+                        UserId = userId,
+                        FileName = file.FileName,
+                        FileSize = (int)file.Length,
+                        FileType = file.ContentType,
+                        FileData = fileData,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    _context.TicketAttachments.Add(attachment);
+                    await _context.SaveChangesAsync();
+
+                    uploadedFiles.Add(new
+                    {
+                        id = attachment.Id,
+                        fileName = attachment.FileName,
+                        fileSize = attachment.FileSize,
+                        fileType = attachment.FileType
+                    });
+                }
+
+                // ============================================================
+                // NUEVO: NOTIFICAR EN TIEMPO REAL
+                // ============================================================
+                if (uploadedFiles.Count > 0)
+                {
+                    var actorName = isOwner ? "El solicitante" : fullName;
+
+                    // Registrar acción en el historial
+                    await _actionService.RegisterActionAsync(
+                        ticketId: ticket.Id,
+                        userId: userId,
+                        userFullName: fullName,
+                        actionType: "Comment",
+                        description: $"{actorName} agregó {uploadedFiles.Count} archivo(s) adjunto(s).",
+                        fromValue: null,
+                        toValue: null);
+
+                    // Notificar en tiempo real
+                    await _realtime.NotifyTicketUpdatedAsync(
+                        ticketId: ticket.Id,
+                        userId: ticket.UserId,
+                        technicianId: ticket.AssignedTechnicianId,
+                        level: ticket.CurrentLevel,
+                        eventType: "ticket-attachments-added",
+                        payload: new
+                        {
+                            ticketId = ticket.Id,
+                            ticketNumber = ticket.TicketNumber,
+                            attachmentsCount = uploadedFiles.Count,
+                            newAttachments = uploadedFiles
+                        },
+                        actorUserId: userId);
+
+                    _logger.LogInformation($"Notificación enviada: {uploadedFiles.Count} archivos agregados al ticket {ticketId}");
+                }
+
+                return Ok(new { message = $"{uploadedFiles.Count} archivos subidos", files = uploadedFiles });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ERROR en UploadAttachments");
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Obtener todos los archivos adjuntos de un ticket
+        /// </summary>
+        [Authorize]
+        [HttpGet("{ticketId}/attachments")]
+        public async Task<IActionResult> GetTicketAttachments(int ticketId)
+        {
+            var attachments = await _context.TicketAttachments
+                .Where(a => a.TicketId == ticketId)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.FileName,
+                    a.FileSize,
+                    a.FileType,
+                    a.CreatedAt,
+                    a.UserId
+                })
+                .ToListAsync();
+
+            return Ok(attachments);
+        }
+
+        /// <summary>
+        /// Descargar un archivo adjunto
+        /// </summary>
+        [Authorize]
+        [HttpGet("attachments/{attachmentId}/download")]
+        public async Task<IActionResult> DownloadAttachment(int attachmentId)
+        {
+            // Usar el contexto directamente, no el servicio
+            var attachment = await _context.TicketAttachments.FindAsync(attachmentId);
+
+            if (attachment == null)
+                return NotFound(new { message = "Archivo no encontrado" });
+
+            if (attachment.FileData == null || attachment.FileData.Length == 0)
+                return NotFound(new { message = "El archivo no contiene datos" });
+
+            // Verificar permisos
+            var (userId, _, role) = GetCurrentUser();
+            var ticket = await _context.Tickets.FindAsync(attachment.TicketId);
+
+            if (ticket != null)
+            {
+                bool isOwner = ticket.UserId == userId;
+                bool isAssignedTech = ticket.AssignedTechnicianId == userId;
+                bool isAdmin = role == "Admin";
+
+                if (!isOwner && !isAssignedTech && !isAdmin)
+                    return Forbid();
+            }
+
+            return File(attachment.FileData, attachment.FileType, attachment.FileName);
+        }
+
+        /// <summary>
+        /// Eliminar un archivo adjunto
+        /// </summary>
+        [Authorize]
+        [HttpDelete("attachments/{attachmentId}")]
+        public async Task<IActionResult> DeleteAttachment(int attachmentId)
+        {
+            var attachment = await _context.TicketAttachments.FindAsync(attachmentId);
+            if (attachment == null)
+                return NotFound(new { message = "Archivo no encontrado" });
+
+            var (userId, fullName, role) = GetCurrentUser();
+
+            // Solo puede eliminar quien subió la imagen o un admin
+            bool isOwner = attachment.UserId == userId;
+            bool isAdmin = role == "Admin";
+
+            if (!isOwner && !isAdmin)
+                return Forbid();
+
+            var ticket = await _context.Tickets.FindAsync(attachment.TicketId);
+            if (ticket == null)
+                return NotFound(new { message = "Ticket no encontrado" });
+
+            // Registrar acción en el historial
+            await _actionService.RegisterActionAsync(
+                ticketId: ticket.Id,
+                userId: userId,
+                userFullName: fullName,
+                actionType: "Comment",
+                description: $"Se eliminó el archivo: {attachment.FileName}",
+                fromValue: null,
+                toValue: null);
+
+            _context.TicketAttachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+
+            // Notificar en tiempo real
+            await _realtime.NotifyTicketUpdatedAsync(
+                ticketId: ticket.Id,
+                userId: ticket.UserId,
+                technicianId: ticket.AssignedTechnicianId,
+                level: ticket.CurrentLevel,
+                eventType: "ticket-attachment-deleted",
+                payload: new
+                {
+                    ticketId = ticket.Id,
+                    ticketNumber = ticket.TicketNumber,
+                    attachmentId = attachmentId,
+                    fileName = attachment.FileName,
+                    deletedBy = fullName
+                },
+                actorUserId: userId);
+
+            return Ok(new { message = "Archivo eliminado" });
+        }
+
+        /// <summary>
+        /// Rechazar la solución de un ticket (solo usuarios)
+        /// </summary>
+        [HttpPost("{id}/reject-solution")]
+        [Authorize]
+        public async Task<IActionResult> RejectSolution(int id, [FromBody] RejectSolutionDto dto)
+        {
+            // Buscar el ticket
+            var ticket = await _context.Tickets.FindAsync(id);
+            if (ticket == null)
+                return NotFound(new { message = "Ticket no encontrado" });
+
+            // Validar que el ticket esté en estado "Resuelto"
+            if (ticket.Status != "Resuelto")
+                return BadRequest(new { message = "Solo se puede rechazar la solución de un ticket en estado 'Resuelto'" });
+
+            // Validar que el motivo no esté vacío
+            if (string.IsNullOrWhiteSpace(dto.Reason))
+                return BadRequest(new { message = "Debes especificar el motivo del rechazo" });
+
+            // Obtener el usuario actual
+            var (userId, fullName, role) = GetCurrentUser();
+
+            // Cambiar estado a "Abierto"
+            ticket.Status = "En Procesox|x|";
+            ticket.UpdatedAt = DateTime.UtcNow;
+
+            // Registrar la acción con el motivo (incluyendo el nombre del usuario en la descripción)
+            var action = new TicketAction
+            {
+                TicketId = id,
+                ActionType = "ResolutionRejected",
+                Description = $"Solución rechazada por {fullName}. Motivo: {dto.Reason}",
+                CreatedAt = DateTime.UtcNow
+                // ✅ No usamos CreatedByUserId
+            };
+
+            _context.TicketActions.Add(action);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Solución rechazada",
+                reason = dto.Reason,
+                ticketStatus = ticket.Status
+            });
+        }
+
+        /// <summary>
+        /// Obtener el motivo del último rechazo de solución de un ticket
+        /// </summary>
+        [HttpGet("{id}/rejection-reason")]
+        [Authorize]
+        public async Task<IActionResult> GetRejectionReason(int id)
+        {
+            var lastRejection = await _context.TicketActions
+                .Where(a => a.TicketId == id && a.ActionType == "ResolutionRejected")
+                .OrderByDescending(a => a.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (lastRejection == null)
+                return Ok(new { hasRejection = false, reason = (string?)null });
+
+            // Extraer el motivo del Description
+            string description = lastRejection.Description;
+            string reason = "";
+
+            // Buscar después de "Motivo: "
+            var reasonIndex = description.IndexOf("Motivo: ");
+            if (reasonIndex != -1)
+            {
+                reason = description.Substring(reasonIndex + 8);
+            }
+            else
+            {
+                // Si no encuentra el formato, devuelve la descripción completa
+                reason = description;
+            }
+
+            return Ok(new
+            {
+                hasRejection = true,
+                reason = reason,
+                rejectedAt = lastRejection.CreatedAt,
+                rejectedBy = description.Contains("por") ?
+                    description.Substring(0, description.IndexOf(".")) : "Usuario"
+            });
+        }
+
     }
 }

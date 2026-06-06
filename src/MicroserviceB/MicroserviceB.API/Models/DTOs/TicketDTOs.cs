@@ -41,5 +41,9 @@ namespace MicroserviceB.API.Models.DTOs
     {
         public string Reason { get; set; } = string.Empty;
     }
+    public class RejectSolutionDto
+    {
+        public string Reason { get; set; } = string.Empty;
+    }
 
 }

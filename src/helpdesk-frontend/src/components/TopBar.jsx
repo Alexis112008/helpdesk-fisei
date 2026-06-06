@@ -1,13 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, LogOut, Bell, X } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import { disconnect } from '../services/realtime';
 
+// Colores unificados con el Dashboard
+const COLORS = {
+  Primario: '#2d6a9f',
+  PrimarioOscuro: '#1e3a5f',
+  PrimarioLight: '#eef2ff',
+  Texto: '#1a1a2e',
+  TextoSecundario: '#6b7280',
+  Borde: '#e4e7eb',
+  Fondo: '#f5f7fa',
+};
+
 function Topbar({ buttonText, buttonAction }) {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   const fullName = localStorage.getItem('fullName');
   const role = localStorage.getItem('role');
+  const userRole = localStorage.getItem('role');
 
   const initials = fullName
     ? fullName
@@ -19,112 +34,164 @@ function Topbar({ buttonText, buttonAction }) {
     : 'US';
 
   const handleLogout = async () => {
-    // Desconectar SignalR antes de limpiar localStorage para que el cliente
-    // salga de los grupos correctamente y no reciba eventos de la sesión
-    // anterior al volver a entrar.
     try { await disconnect(); } catch {}
-
-    // Limpiar solo las claves de la sesión actual. El historial de
-    // notificaciones se guarda por usuario (key helpdesk_notifications_v1_<id>)
-    // y se conserva para cuando ese usuario vuelva a entrar.
     localStorage.removeItem('token');
     localStorage.removeItem('fullName');
     localStorage.removeItem('role');
     localStorage.removeItem('userId');
-
     navigate('/');
   };
 
-  return (
-    <header style={s.topbar}>
-      <div style={s.searchBox}>
-        <span>🔍</span>
-        <span style={s.searchPlaceholder}>Buscar...</span>
-      </div>
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Redirigir a la base de conocimiento con la búsqueda
+      navigate(`/conocimiento?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+      setShowSearchResults(false);
+    }
+  };
 
-      <div style={s.topbarRight}>
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch(e);
+    }
+  };
+
+  return (
+    <header style={styles.topbar}>
+      <form onSubmit={handleSearch} style={styles.searchBox}>
+        <Search size={18} color={COLORS.TextoSecundario} strokeWidth={1.5} />
+        <input
+          type="text"
+          style={styles.searchInput}
+          placeholder="Buscar tickets, artículos..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyPress={handleKeyPress}
+          onFocus={() => setShowSearchResults(true)}
+        />
+        {searchQuery && (
+          <button 
+            type="button"
+            style={styles.clearBtn}
+            onClick={() => setSearchQuery('')}
+          >
+            <X size={14} />
+          </button>
+        )}
+        <button type="submit" style={styles.searchSubmitBtn}>
+          <Search size={14} />
+        </button>
+      </form>
+
+      <div style={styles.topbarRight}>
         {buttonText && (
-          <button style={s.actionBtn} onClick={buttonAction}>
+          <button style={styles.actionBtn} onClick={buttonAction}>
             {buttonText}
           </button>
         )}
 
         <NotificationBell />
 
-        <div style={s.userPill}>
-          <div style={s.avatarSm}>{initials}</div>
-          <span style={s.userPillName}>{role}</span>
+        <div style={styles.userPill}>
+          <div style={styles.avatarSm}>{initials}</div>
+          <span style={styles.userPillName}>{role || 'Usuario'}</span>
         </div>
 
-        <button onClick={handleLogout} style={s.logoutIcon}>
-          ⇥
+        <button onClick={handleLogout} style={styles.logoutIcon}>
+          <LogOut size={18} color={COLORS.TextoSecundario} strokeWidth={1.5} />
         </button>
       </div>
     </header>
   );
 }
 
-const s = {
+const styles = {
   topbar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '12px 32px',
+    padding: '10px 28px',
     backgroundColor: '#fff',
-    borderBottom: '1px solid #eaecf0',
+    borderBottom: `1px solid ${COLORS.Borde}`,
+    position: 'sticky',
+    top: 0,
+    zIndex: 99,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
   },
-
   searchBox: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#f5f7fb',
-    borderRadius: 8,
-    padding: '8px 16px',
-    border: '1px solid #eaecf0',
-    width: 320,
-    color: '#aaa',
-    fontSize: 14,
+    backgroundColor: COLORS.Fondo,
+    borderRadius: 40,
+    padding: '6px 6px 6px 16px',
+    border: `1px solid ${COLORS.Borde}`,
+    minWidth: 320,
+    transition: 'all 0.2s ease',
   },
-
-  searchPlaceholder: {
-    color: '#aaa',
+  searchInput: {
+    flex: 1,
+    border: 'none',
+    outline: 'none',
+    backgroundColor: 'transparent',
+    fontSize: 13,
+    color: COLORS.Texto,
+    padding: '8px 0',
   },
-
+  clearBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: COLORS.TextoSecundario,
+    display: 'flex',
+    alignItems: 'center',
+    padding: 4,
+    borderRadius: 20,
+  },
+  searchSubmitBtn: {
+    background: COLORS.Primario,
+    border: 'none',
+    borderRadius: 30,
+    padding: '6px 14px',
+    cursor: 'pointer',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+  },
   topbarRight: {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
   },
-
   actionBtn: {
-    backgroundColor: '#4361ee',
+    backgroundColor: COLORS.Primario,
     color: '#fff',
     border: 'none',
-    padding: '10px 16px',
-    borderRadius: 8,
+    padding: '8px 18px',
+    borderRadius: 40,
     cursor: 'pointer',
     fontWeight: 600,
+    fontSize: 13,
+    transition: 'all 0.2s ease',
   },
-
-  notifBtn: {
-    // sustituido por el componente NotificationBell
-  },
-    userPill: {
+  userPill: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    border: '1px solid #eaecf0',
-    borderRadius: 8,
-    padding: '6px 12px',
+    border: `1px solid ${COLORS.Borde}`,
+    borderRadius: 40,
+    padding: '4px 12px 4px 4px',
     backgroundColor: '#fff',
   },
-
   avatarSm: {
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    backgroundColor: '#4361ee',
+    width: 32,
+    height: 32,
+    borderRadius: 20,
+    backgroundColor: COLORS.Primario,
     color: '#fff',
     display: 'flex',
     alignItems: 'center',
@@ -132,22 +199,49 @@ const s = {
     fontWeight: 700,
     fontSize: 12,
   },
-
   userPillName: {
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 500,
+    color: COLORS.Texto,
   },
-
   logoutIcon: {
     background: 'none',
-    border: '1px solid #eaecf0',
-    borderRadius: 8,
-    width: 36,
-    height: 36,
+    border: `1px solid ${COLORS.Borde}`,
+    borderRadius: 40,
+    width: 40,
+    height: 40,
     cursor: 'pointer',
-    fontSize: 18,
-    color: '#666',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+    backgroundColor: '#fff',
   },
 };
+
+// Añadir efectos hover con CSS
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  .search-box:focus-within {
+    border-color: ${COLORS.Primario};
+    box-shadow: 0 0 0 3px rgba(45, 106, 159, 0.1);
+  }
+  .action-btn:hover, .search-submit-btn:hover {
+    background-color: ${COLORS.PrimarioOscuro} !important;
+    transform: translateY(-1px);
+  }
+  .logout-icon:hover {
+    background-color: #fef2f2 !important;
+    border-color: #ef4444 !important;
+  }
+  .logout-icon:hover svg {
+    color: #ef4444 !important;
+  }
+  .user-pill:hover {
+    background-color: ${COLORS.PrimarioLight};
+    cursor: pointer;
+  }
+`;
+document.head.appendChild(styleSheet);
 
 export default Topbar;

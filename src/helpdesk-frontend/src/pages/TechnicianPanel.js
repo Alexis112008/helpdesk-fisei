@@ -1,5 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  RefreshCw, 
+  Inbox, 
+  User, 
+  CheckCircle, 
+  Settings, 
+  Search,
+  Filter,
+  AlertCircle,
+  Clock,
+  TrendingUp,
+  Wrench,
+  Briefcase,
+  Eye,
+  Check,
+  Flame
+} from 'lucide-react';
 import Layout from '../components/Layout';
 import { ticketAPI } from '../services/api';
 import { getConnection } from '../services/realtime';
@@ -148,6 +165,16 @@ function TechnicianPanel() {
     'Crítica': '#b71c1c',
   }[p] || '#333');
 
+  const getPriorityIcon = (priority) => {
+    switch(priority) {
+      case 'Baja': return <CheckCircle size={12} style={{ marginRight: 4 }} />;
+      case 'Media': return <Clock size={12} style={{ marginRight: 4 }} />;
+      case 'Alta': return <TrendingUp size={12} style={{ marginRight: 4 }} />;
+      case 'Crítica': return <Flame size={12} style={{ marginRight: 4 }} />;
+      default: return null;
+    }
+  };
+
   return (
     <Layout>
       <div style={s.page}>
@@ -155,10 +182,14 @@ function TechnicianPanel() {
           <div>
             <h1 style={s.title}>Bandeja de Entrada</h1>
             <p style={s.subtitle}>
+              <User size={12} style={{ marginRight: 4 }} />
               {fullName} — Rol: <b>{role}</b>
             </p>
           </div>
-          <button style={s.refreshBtn} onClick={loadAll}>↻ Actualizar</button>
+          <button style={s.refreshBtn} onClick={loadAll}>
+            <RefreshCw size={16} style={{ marginRight: 6 }} />
+            Actualizar
+          </button>
         </div>
 
         <div style={s.tabs}>
@@ -166,7 +197,8 @@ function TechnicianPanel() {
             style={{ ...s.tab, ...(tab === 'available' ? s.tabActive : {}) }}
             onClick={() => setTab('available')}
           >
-            📥 Disponibles
+            <Inbox size={16} style={{ marginRight: 8 }} />
+            Disponibles
             {available.length > 0 && (
               <span style={{
                 ...s.tabBadge,
@@ -182,7 +214,8 @@ function TechnicianPanel() {
             style={{ ...s.tab, ...(tab === 'mine' ? s.tabActive : {}) }}
             onClick={() => setTab('mine')}
           >
-            👤 Mis tickets
+            <Briefcase size={16} style={{ marginRight: 8 }} />
+            Mis tickets
             {mine.length > 0 && (
               <span style={{
                 ...s.tabBadge,
@@ -196,48 +229,62 @@ function TechnicianPanel() {
         </div>
 
         {actionError && (
-          <div style={s.errorBanner}>{actionError}</div>
+          <div style={s.errorBanner}>
+            <AlertCircle size={16} style={{ marginRight: 8 }} />
+            {actionError}
+          </div>
         )}
 
         <div style={s.toolbar}>
-          <input
-            style={s.search}
-            placeholder="Buscar por título o número..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div style={s.searchWrapper}>
+            <Search size={18} style={s.searchIcon} color="#9ca3af" />
+            <input
+              style={s.search}
+              placeholder="Buscar por título o número..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           {tab === 'mine' && (
             <>
-              <select
-                style={s.select}
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option>Todos</option>
-                <option>Abierto</option>
-                <option>En Proceso</option>
-                <option>Escalado</option>
-                <option>Resuelto</option>
-                <option>Vencido</option>
-              </select>
-              <select
-                style={s.select}
-                value={filterPriority}
-                onChange={(e) => setFilterPriority(e.target.value)}
-              >
-                <option>Todas</option>
-                <option>Baja</option>
-                <option>Media</option>
-                <option>Alta</option>
-                <option>Crítica</option>
-              </select>
+              <div style={s.filterWrapper}>
+                <Filter size={16} style={s.filterIcon} color="#6b7280" />
+                <select
+                  style={s.select}
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option>Todos</option>
+                  <option>En Proceso</option>
+                  <option>Escalado</option>
+                  <option>Resuelto</option>
+                  <option>Vencido</option>
+                </select>
+              </div>
+              <div style={s.filterWrapper}>
+                <AlertCircle size={16} style={s.filterIcon} color="#6b7280" />
+                <select
+                  style={s.select}
+                  value={filterPriority}
+                  onChange={(e) => setFilterPriority(e.target.value)}
+                >
+                  <option>Todas</option>
+                  <option>Baja</option>
+                  <option>Media</option>
+                  <option>Alta</option>
+                  <option>Crítica</option>
+                </select>
+              </div>
             </>
           )}
         </div>
 
         <div style={s.card}>
           {loading ? (
-            <div style={s.empty}>Cargando tickets...</div>
+            <div style={s.empty}>
+              <RefreshCw size={24} style={s.spinner} />
+              Cargando tickets...
+            </div>
           ) : filtered.length === 0 ? (
             <div style={s.empty}>
               {tab === 'available'
@@ -260,10 +307,13 @@ function TechnicianPanel() {
               <tbody>
                 {filtered.map((t) => (
                   <tr key={t.id} style={s.tr}>
-                    <td style={s.td}><span style={s.tno}>{t.ticketNumber}</span></td>
+                    <td style={s.td}>
+                      <span style={s.tno}>{t.ticketNumber}</span>
+                    </td>
                     <td style={s.td}>{t.title}</td>
                     <td style={s.td}>
                       <span style={{ ...s.badge, background: priorityColor(t.priority) }}>
+                        {getPriorityIcon(t.priority)}
                         {t.priority}
                       </span>
                     </td>
@@ -290,14 +340,16 @@ function TechnicianPanel() {
                           disabled={busyAcceptId === t.id}
                           onClick={() => handleAccept(t.id, t.ticketNumber)}
                         >
-                          {busyAcceptId === t.id ? 'Aceptando…' : '✓ Aceptar'}
+                          <Check size={14} style={{ marginRight: 6 }} />
+                          {busyAcceptId === t.id ? 'Aceptando…' : 'Aceptar'}
                         </button>
                       ) : (
                         <button
                           style={s.manageBtn}
                           onClick={() => navigate(`/tecnico/ticket/${t.id}`)}
                         >
-                          ⚙ Gestionar
+                          <Settings size={14} style={{ marginRight: 6 }} />
+                          Gestionar
                         </button>
                       )}
                     </td>
@@ -321,7 +373,13 @@ const s = {
     marginBottom: 20,
   },
   title: { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
-  subtitle: { fontSize: 13, color: '#6b7280', marginTop: 4 },
+  subtitle: { 
+    fontSize: 13, 
+    color: '#6b7280', 
+    marginTop: 4,
+    display: 'flex',
+    alignItems: 'center'
+  },
   refreshBtn: {
     background: '#fff',
     border: '1px solid #d1d5db',
@@ -331,6 +389,8 @@ const s = {
     cursor: 'pointer',
     fontSize: 13,
     fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
   },
   tabs: {
     display: 'flex',
@@ -370,6 +430,8 @@ const s = {
     borderRadius: 10,
     fontSize: 14,
     marginBottom: 16,
+    display: 'flex',
+    alignItems: 'center',
   },
   toolbar: {
     display: 'flex',
@@ -377,23 +439,46 @@ const s = {
     marginBottom: 16,
     flexWrap: 'wrap',
   },
-  search: {
+  searchWrapper: {
+    position: 'relative',
     flex: 1,
     minWidth: 220,
-    padding: '10px 14px',
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 12,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
+  },
+  search: {
+    width: '100%',
+    padding: '10px 14px 10px 38px',
     border: '1px solid #d1d5db',
     borderRadius: 10,
     fontSize: 14,
     outline: 'none',
   },
+  filterWrapper: {
+    position: 'relative',
+    minWidth: 150,
+  },
+  filterIcon: {
+    position: 'absolute',
+    left: 12,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
+  },
   select: {
-    padding: '10px 14px',
+    width: '100%',
+    padding: '10px 14px 10px 38px',
     border: '1px solid #d1d5db',
     borderRadius: 10,
     fontSize: 14,
     background: '#fff',
     outline: 'none',
-    minWidth: 150,
+    cursor: 'pointer',
   },
   card: {
     background: '#fff',
@@ -401,7 +486,18 @@ const s = {
     border: '1px solid #eaecf0',
     overflow: 'hidden',
   },
-  empty: { padding: 60, textAlign: 'center', color: '#6b7280' },
+  empty: { 
+    padding: 60, 
+    textAlign: 'center', 
+    color: '#6b7280',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12
+  },
+  spinner: {
+    animation: 'spin 1s linear infinite',
+  },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { background: '#f9fafb' },
   th: {
@@ -422,7 +518,8 @@ const s = {
     borderRadius: 16,
     fontSize: 11,
     fontWeight: 700,
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
   },
   acceptBtn: {
     background: '#16a34a',
@@ -433,6 +530,8 @@ const s = {
     cursor: 'pointer',
     fontSize: 12,
     fontWeight: 700,
+    display: 'inline-flex',
+    alignItems: 'center',
   },
   manageBtn: {
     background: '#4361ee',
@@ -443,7 +542,19 @@ const s = {
     cursor: 'pointer',
     fontSize: 12,
     fontWeight: 600,
+    display: 'inline-flex',
+    alignItems: 'center',
   },
 };
+
+// Añadir animación para el spinner
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(styleSheet);
 
 export default TechnicianPanel;
