@@ -1,19 +1,21 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Inbox, 
-  Users, 
-  Wrench, 
-  Briefcase, 
-  UserCog, 
-  TicketCheck, 
-  Ticket, 
-  PlusCircle, 
-  BookOpen, 
+import {
+  LayoutDashboard,
+  Inbox,
+  Users,
+  Wrench,
+  Briefcase,
+  UserCog,
+  TicketCheck,
+  Ticket,
+  PlusCircle,
+  BookOpen,
   User,
   GraduationCap,
-  ChevronRight
+  ChevronRight,
+  BarChart3,
+  Settings
 } from 'lucide-react';
 
 const COLORS = {
@@ -26,7 +28,7 @@ const COLORS = {
   FondoSidebar: '#fff',
 };
 
-function Sidebar() {
+function Sidebar({ onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,11 +49,12 @@ function Sidebar() {
     { label: 'Catálogo de Daños', icon: Wrench, path: '/admin/daños', adminOnly: true },
     { label: 'Catálogo de Servicios', icon: Briefcase, path: '/admin/servicios', adminOnly: true },
     { label: 'Asignaciones de Técnicos', icon: UserCog, path: '/admin/asignaciones', adminOnly: true },
-    { label: 'Seguimiento de Tickets', icon: TicketCheck, path: '/admin/tickets', adminOnly: true },
+    { label: 'Asignación de Tickets', icon: TicketCheck, path: '/admin/tickets', adminOnly: true },
     { label: 'Mis Tickets', icon: Ticket, path: '/tickets', hideForTech: true },
     { label: 'Nuevo Ticket', icon: PlusCircle, path: '/crear-ticket', hideForTech: true },
-    { label: 'Base de Conocimiento', icon: BookOpen, path: '/conocimiento' },
-    { label: 'Mi Perfil', icon: User, path: '/perfil' }, 
+    { label: 'Base de Conocimiento', icon: BookOpen, path: isTechnician ? '/conocimiento' : (role === 'Admin' ? '/admin/conocimiento' : '/conocimiento') },
+    { label: 'Mi Perfil', icon: User, path: '/perfil' },
+    { label: 'Configuración', icon: Settings, path: '/admin/configuracion', adminOnly: true },
   ];
 
   const visibleNav = navItems.filter((item) => {
@@ -60,6 +63,13 @@ function Sidebar() {
     if (item.hideForTech && isTechnician) return false;
     return true;
   });
+
+  const handleNavClick = (path) => {
+    navigate(path);
+    if (onClose) {
+      onClose(); // Cierra el sidebar en móvil
+    }
+  };
 
   return (
     <aside style={s.sidebar}>
@@ -99,15 +109,15 @@ function Sidebar() {
                   e.currentTarget.querySelectorAll('svg').forEach(el => el.style.color = COLORS.TextoSecundario);
                 }
               }}
-              onClick={() => navigate(item.path)}
+              onClick={() => handleNavClick(item.path)}
             >
-              <IconComponent 
-                size={20} 
+              <IconComponent
+                size={20}
                 style={s.navIcon}
                 color={active ? COLORS.Primario : COLORS.TextoSecundario}
                 strokeWidth={1.5}
               />
-              <span style={{ 
+              <span style={{
                 color: active ? COLORS.Primario : COLORS.TextoSecundario,
                 fontWeight: active ? 600 : 500
               }}>

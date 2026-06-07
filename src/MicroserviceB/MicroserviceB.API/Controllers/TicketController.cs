@@ -10,7 +10,6 @@ using MicroserviceB.API.Models.Entities;
 using MicroserviceB.API.Services;
 using Microsoft.AspNetCore.Http;
 
-
 namespace MicroserviceB.API.Controllers
 {
     [ApiController]
@@ -100,16 +99,32 @@ namespace MicroserviceB.API.Controllers
         };
 
         // ============================================================
-        // CRUD básico (existente)
+        // CRUD básico (existente) - MODIFICADO CON FILTROS
         // ============================================================
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll(
+            [FromQuery] DateTime? startDate,
+            [FromQuery] DateTime? endDate,
+            [FromQuery] int? technicianId)
         {
-            var tickets = await _context.Tickets
+            var query = _context.Tickets.AsQueryable();
+
+            // Aplicar filtros
+            if (startDate.HasValue)
+                query = query.Where(t => t.CreatedAt >= startDate.Value);
+            
+            if (endDate.HasValue)
+                query = query.Where(t => t.CreatedAt <= endDate.Value);
+            
+            if (technicianId.HasValue)
+                query = query.Where(t => t.AssignedTechnicianId == technicianId.Value);
+
+            var tickets = await query
                 .OrderByDescending(t => t.CreatedAt)
                 .Select(t => MapToDto(t))
                 .ToListAsync();
+
             return Ok(tickets);
         }
 
@@ -179,8 +194,6 @@ namespace MicroserviceB.API.Controllers
                 return Forbid();
 
             // 1. Pedir a Microservicio A los IDs de servicios que atiende este técnico.
-            //    Si no podemos consultarlos (servicio caído), mostramos TODOS los del nivel
-            //    para no bloquear al técnico.
             var serviceIds = await GetMyServiceIdsAsync(httpFactory, userId);
 
             var query = _context.Tickets
@@ -202,13 +215,6 @@ namespace MicroserviceB.API.Controllers
 
         /// <summary>
         /// HU5 — El técnico autenticado acepta un ticket disponible del pool.
-        /// Reglas:
-        ///   - El ticket debe estar sin asignar.
-        ///   - Debe estar en el mismo nivel que el rol del técnico.
-        ///   - Su estado debe ser "Abierto".
-        /// Al aceptar: se asigna al técnico, se cambia el estado a "En Proceso"
-        /// y se notifica al solicitante y al pool (para que el ticket desaparezca
-        /// de la bandeja de los demás técnicos del nivel).
         /// </summary>
         [Authorize]
         [HttpPost("{id}/accept")]
@@ -224,24 +230,14 @@ namespace MicroserviceB.API.Controllers
                 return NotFound(new { message = "Ticket no encontrado" });
 
             if (ticket.AssignedTechnicianId != null)
-                return UnprocessableEntity(new
-                {
-                    message = "Este ticket ya fue aceptado por otro técnico."
-                });
+                return UnprocessableEntity(new { message = "Este ticket ya fue aceptado por otro técnico." });
 
             if (ticket.CurrentLevel != level)
-                return UnprocessableEntity(new
-                {
-                    message = $"El ticket está en N{ticket.CurrentLevel} y tú eres N{level}."
-                });
+                return UnprocessableEntity(new { message = $"El ticket está en N{ticket.CurrentLevel} y tú eres N{level}." });
 
             if (ticket.Status != "Abierto")
-                return UnprocessableEntity(new
-                {
-                    message = $"Solo se pueden aceptar tickets en estado 'Abierto' (actual: {ticket.Status})."
-                });
+                return UnprocessableEntity(new { message = $"Solo se pueden aceptar tickets en estado 'Abierto' (actual: {ticket.Status})." });
 
-            // Asignar y pasar a "En Proceso"
             ticket.AssignedTechnicianId = userId;
             ticket.Status = "En Proceso";
             ticket.UpdatedAt = DateTime.UtcNow;
@@ -253,7 +249,6 @@ namespace MicroserviceB.API.Controllers
                 description: $"Ticket aceptado por {fullName}.",
                 fromValue: "Abierto", toValue: "En Proceso");
 
-            // Notificar al solicitante (le interesa saber que su ticket fue tomado)
             await _realtime.NotifyToUserAsync(
                 ticket.UserId,
                 "ticket-updated",
@@ -266,8 +261,6 @@ namespace MicroserviceB.API.Controllers
                     changedBy = fullName
                 });
 
-            // Notificar al pool: ticket ya no está disponible (los otros técnicos lo
-            // quitan de su bandeja de "Disponibles" automáticamente).
             await _realtime.NotifyToLevelAsync(
                 ticket.CurrentLevel,
                 "ticket-taken",
@@ -286,8 +279,7 @@ namespace MicroserviceB.API.Controllers
             });
         }
 
-        // Helper: obtiene los IDs de servicios que atiende un técnico,
-        // consultando a Microservicio A.
+        // Helper: obtiene los IDs de servicios que atiende un técnico
         private async Task<List<int>?> GetMyServiceIdsAsync(IHttpClientFactory httpFactory, int technicianId)
         {
             try
@@ -317,12 +309,52 @@ namespace MicroserviceB.API.Controllers
         }
 
         /// <summary>
+        /// ADMIN: Asignar ticket manualmente a un técnico
+        /// </summary>
+        [HttpPost("{id}/assign-to-technician")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AssignToTechnician(int id, [FromBody] AssignTicketDto dto)
+        {
+            var ticket = await _context.Tickets.FindAsync(id);
+            if (ticket == null)
+                return NotFound(new { message = "Ticket no encontrado" });
+
+            if (ticket.AssignedTechnicianId != null)
+                return BadRequest(new { message = "El ticket ya está asignado a un técnico" });
+
+            if (ticket.Status != "Abierto")
+                return BadRequest(new { message = "El ticket debe estar en estado 'Abierto' para ser asignado" });
+
+            ticket.AssignedTechnicianId = dto.TechnicianId;
+            ticket.Status = "En Proceso";
+            ticket.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            var (adminId, adminName, _) = GetCurrentUser();
+            await _actionService.RegisterActionAsync(
+                ticketId: id,
+                userId: adminId,
+                userFullName: adminName,
+                actionType: "Assigned",
+                description: $"Ticket asignado manualmente por administrador al técnico ID: {dto.TechnicianId}",
+                fromValue: "Abierto",
+                toValue: "En Proceso");
+
+            await _realtime.NotifyToUserAsync(
+                dto.TechnicianId,
+                "ticket-assigned",
+                new
+                {
+                    ticketId = ticket.Id,
+                    ticketNumber = ticket.TicketNumber,
+                    title = ticket.Title
+                });
+
+            return Ok(new { message = $"Ticket asignado correctamente al técnico ID: {dto.TechnicianId}" });
+        }
+
+        /// <summary>
         /// HU5 — T5.1: Detalle del ticket + historial de acciones.
-        /// Accesible para:
-        ///   - El solicitante (dueño del ticket)
-        ///   - El técnico asignado
-        ///   - Cualquier técnico de soporte (para ver tickets disponibles del pool)
-        ///   - Administradores
         /// </summary>
         [Authorize]
         [HttpGet("{id}/detail")]
@@ -351,15 +383,6 @@ namespace MicroserviceB.API.Controllers
 
         /// <summary>
         /// HU5 — T5.3: Registrar comentario/acción sobre un ticket.
-        ///
-        /// Pueden comentar:
-        ///   - El solicitante (dueño del ticket) — para responder al técnico
-        ///   - El técnico asignado — para preguntar/informar al solicitante
-        ///   - Admin
-        ///
-        /// Los usuarios regulares (no técnicos) SOLO pueden enviar acciones de tipo
-        /// "Comment". No pueden cambiar estados ni hacer otras acciones administrativas
-        /// para mantener la lógica de control del flujo en el técnico (RN-007, RN-008).
         /// </summary>
         [Authorize]
         [HttpPost("{id}/actions")]
@@ -376,15 +399,15 @@ namespace MicroserviceB.API.Controllers
             if (!isOwner && !isAssignedTech && !isAdmin)
                 return Forbid();
 
-            // El solicitante solo puede registrar comentarios, no cambios de estado.
             var requestedType = string.IsNullOrWhiteSpace(dto.ActionType) ? "Comment" : dto.ActionType;
-            if (isOwner && !isAssignedTech && !isAdmin && requestedType != "Comment")
-                return UnprocessableEntity(new { message = "Como solicitante solo puedes registrar comentarios." });
+            var allowedForOwner = new[] { "Comment", "Acceptance" };
+            
+            if (isOwner && !isAssignedTech && !isAdmin && !allowedForOwner.Contains(requestedType))
+                return UnprocessableEntity(new { message = "Como solicitante solo puedes registrar comentarios o aceptar la solución." });
 
             if (string.IsNullOrWhiteSpace(dto.Description))
                 return BadRequest(new { message = "La descripción del comentario es obligatoria." });
 
-            // No permitir comentar tickets cerrados
             if (ticket.Status == "Cerrado")
                 return UnprocessableEntity(new { message = "No se puede comentar un ticket cerrado." });
 
@@ -395,8 +418,6 @@ namespace MicroserviceB.API.Controllers
                 actionType: requestedType,
                 description: dto.Description);
 
-            // Notificar al solicitante y al técnico asignado (excluyendo al actor)
-            // para que vean el comentario en tiempo real.
             await _realtime.NotifyTicketUpdatedAsync(
                 ticketId: ticket.Id,
                 userId: ticket.UserId,
@@ -412,18 +433,11 @@ namespace MicroserviceB.API.Controllers
                 },
                 actorUserId: userId);
 
-            return Ok(new { message = "Comentario registrado", actionId = action.Id });
+            return Ok(new { message = "Acción registrada", actionId = action.Id });
         }
 
         /// <summary>
         /// HU5 — T5.2: Actualizar estado con validación de transiciones permitidas.
-        /// Transiciones válidas:
-        ///   Abierto      → En Proceso, Escalado
-        ///   En Proceso   → Escalado, Resuelto
-        ///   Escalado     → En Proceso, Resuelto
-        ///   Resuelto     → Cerrado, En Proceso (reapertura)
-        ///   Vencido      → En Proceso
-        ///   Cerrado      → (terminal)
         /// </summary>
         [Authorize]
         [HttpPatch("{id}/status")]
@@ -446,13 +460,11 @@ namespace MicroserviceB.API.Controllers
                 });
             }
 
-            // HU8 — RN: no se puede pasar a "Cerrado" sin artículo registrado.
-            // (Aquí sólo lo bloqueamos; el endpoint dedicado /close maneja el flujo correcto)
             if (to == "Cerrado")
             {
                 return UnprocessableEntity(new
                 {
-                    message = "Para cerrar el ticket use POST /api/ticket/{id}/close con la solución registrada."
+                    message = "Para cerrar el ticket use POST /api/ticket/{id}/close"
                 });
             }
 
@@ -466,7 +478,6 @@ namespace MicroserviceB.API.Controllers
                 description: $"Estado cambiado de '{from}' a '{to}'",
                 fromValue: from, toValue: to);
 
-            // Evento general de actualización
             var user = await _userLookup.GetByIdAsync(ticket.UserId);
             await _eventBus.PublishAsync(new TicketUpdatedEvent
             {
@@ -483,8 +494,6 @@ namespace MicroserviceB.API.Controllers
                 ChangedByName = fullName
             });
 
-            // Evento adicional cuando el estado nuevo es "Resuelto"
-            // (HU6: notificación específica de resolución al solicitante)
             if (to == "Resuelto")
             {
                 await _eventBus.PublishAsync(new TicketResolvedEvent
@@ -497,7 +506,7 @@ namespace MicroserviceB.API.Controllers
                     Title = ticket.Title,
                     AssignedTechnicianId = ticket.AssignedTechnicianId,
                     CurrentLevel = ticket.CurrentLevel,
-                    Solution = "Solución registrada por el técnico. Detalle disponible en el ticket.",
+                    Solution = "Solución registrada por el técnico.",
                     ResolvedByName = fullName
                 });
 
@@ -516,7 +525,6 @@ namespace MicroserviceB.API.Controllers
                     actorUserId: userId);
             }
 
-            // Tiempo real (cambio de estado general)
             await _realtime.NotifyTicketUpdatedAsync(
                 ticketId: ticket.Id,
                 userId: ticket.UserId,
@@ -534,6 +542,58 @@ namespace MicroserviceB.API.Controllers
                 actorUserId: userId);
 
             return Ok(new { message = "Estado actualizado", status = to });
+        }
+
+        /// <summary>
+        /// Cerrar un ticket (el usuario aceptó la solución)
+        /// </summary>
+        [HttpPost("{id}/close")]
+        [Authorize]
+        public async Task<IActionResult> Close(int id)
+        {
+            var ticket = await _context.Tickets.FindAsync(id);
+            if (ticket == null) return NotFound(new { message = "Ticket no encontrado" });
+
+            if (ticket.Status != "Resuelto")
+                return UnprocessableEntity(new { message = "Solo se pueden cerrar tickets en estado 'Resuelto'." });
+
+            var (userId, fullName, role) = GetCurrentUser();
+
+            var from = ticket.Status;
+            ticket.Status = "Cerrado";
+            ticket.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            await _actionService.RegisterActionAsync(
+                ticketId: id, userId: userId, userFullName: fullName,
+                actionType: "Closure",
+                description: "Ticket cerrado por el usuario.",
+                fromValue: from, toValue: "Cerrado");
+
+            var user = await _userLookup.GetByIdAsync(ticket.UserId);
+            await _eventBus.PublishAsync(new TicketClosedEvent
+            {
+                TicketId = ticket.Id,
+                TicketNumber = ticket.TicketNumber,
+                UserId = ticket.UserId,
+                UserEmail = user?.Email ?? "",
+                UserFullName = user?.FullName ?? "",
+                Title = ticket.Title,
+                AssignedTechnicianId = ticket.AssignedTechnicianId,
+                CurrentLevel = ticket.CurrentLevel,
+                Solution = "Ticket cerrado por el usuario"
+            });
+
+            await _realtime.NotifyTicketUpdatedAsync(
+                ticketId: ticket.Id,
+                userId: ticket.UserId,
+                technicianId: ticket.AssignedTechnicianId,
+                level: ticket.CurrentLevel,
+                eventType: "ticket-closed",
+                payload: new { ticketId = ticket.Id, ticketNumber = ticket.TicketNumber },
+                actorUserId: userId);
+
+            return Ok(new { message = "Ticket cerrado correctamente" });
         }
 
         private static bool IsTransitionAllowed(string from, string to)
@@ -576,7 +636,6 @@ namespace MicroserviceB.API.Controllers
             {
                 _logger.LogWarning("⚠️ NO se recibieron archivos en la petición");
             }
-            // ============================================================
 
             var count = await _context.Tickets.CountAsync();
             var ticketNumber = $"TKT-{DateTime.UtcNow:yyyyMMdd}-{(count + 1):D4}";
@@ -603,7 +662,6 @@ namespace MicroserviceB.API.Controllers
             await _context.SaveChangesAsync();
 
             _logger.LogInformation($"Ticket creado con ID: {ticket.Id}, Número: {ticket.TicketNumber}");
-
 
             if (files != null && files.Any())
             {
@@ -729,8 +787,19 @@ namespace MicroserviceB.API.Controllers
         {
             try
             {
-                var (_, fullName, _) = GetCurrentUser();
+                var (userId, fullName, _) = GetCurrentUser();
+                
+                var ticket = await _context.Tickets.FindAsync(id);
+                if (ticket == null)
+                    return NotFound(new { message = "Ticket no encontrado" });
+                
+                if (ticket.AssignedTechnicianId != userId)
+                    return UnprocessableEntity(new { message = "No tienes este ticket asignado" });
+                
+                ticket.AssignedTechnicianId = null;
+                
                 await _escalationService.ManualEscalateAsync(id, dto.Reason, fullName);
+                
                 return Ok(new { message = "Ticket escalado correctamente" });
             }
             catch (ArgumentException ex)
@@ -741,136 +810,6 @@ namespace MicroserviceB.API.Controllers
             {
                 return UnprocessableEntity(new { message = ex.Message });
             }
-        }
-
-        // ============================================================
-        // HU8 — Cierre con artículo obligatorio (gateway)
-        // ============================================================
-
-        /// <summary>
-        /// HU8 — Cerrar un ticket y guardar en Base de Conocimiento
-        /// </summary>
-        [HttpPost("{id}/close")]
-        [Authorize]
-        public async Task<IActionResult> Close(int id, [FromServices] IHttpClientFactory httpFactory)
-        {
-            var ticket = await _context.Tickets.FindAsync(id);
-            if (ticket == null) return NotFound(new { message = "Ticket no encontrado" });
-
-            if (ticket.Status != "Resuelto")
-                return UnprocessableEntity(new { message = "Solo se pueden cerrar tickets en estado 'Resuelto'." });
-
-            // ✅ DECLARAR userId y fullName AQUÍ (antes del try)
-            var (userId, fullName, role) = GetCurrentUser();
-
-            // Obtener la última acción de resolución (donde el técnico guardó la solución)
-            var resolutionAction = await _context.TicketActions
-                .Where(a => a.TicketId == id && a.ActionType == "Resolution")
-                .OrderByDescending(a => a.CreatedAt)
-                .FirstOrDefaultAsync();
-
-            if (resolutionAction == null)
-            {
-                return UnprocessableEntity(new
-                {
-                    message = "No se ha registrado una solución para este ticket. El técnico debe registrar una solución antes de cerrar."
-                });
-            }
-
-            // Extraer la solución de la descripción
-            var solutionText = resolutionAction.Description;
-            var problem = ExtractField(solutionText, "Problema");
-            var cause = ExtractField(solutionText, "Causa");
-            var solution = ExtractField(solutionText, "Solución");
-
-            // Crear el artículo en MicroserviceC
-            try
-            {
-                var client = httpFactory.CreateClient("CatalogClient");
-
-                var createDto = new
-                {
-                    Title = ticket.Title,
-                    Problem = problem ?? ticket.Description,
-                    Cause = cause ?? "No especificada",
-                    Solution = solution ?? "Solución aplicada",
-                    Category = "Software", // O categoría del ticket
-                    TicketId = ticket.Id,
-                    TicketNumber = ticket.TicketNumber,
-                    CreatedByUserId = userId,      // ✅ Ahora existe
-                    CreatedByName = fullName       // ✅ Ahora existe
-                };
-
-                var resp = await client.PostAsJsonAsync("/api/knowledge", createDto);
-                if (!resp.IsSuccessStatusCode)
-                {
-                    var error = await resp.Content.ReadAsStringAsync();
-                    return UnprocessableEntity(new
-                    {
-                        message = $"Error al guardar en base de conocimiento: {error}"
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return UnprocessableEntity(new
-                {
-                    message = $"No se pudo guardar la solución: {ex.Message}"
-                });
-            }
-
-            var from = ticket.Status;
-            ticket.Status = "Cerrado";
-            ticket.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            await _actionService.RegisterActionAsync(
-                ticketId: id, userId: userId, userFullName: fullName,
-                actionType: "Closure",
-                description: "Ticket cerrado con solución documentada.",
-                fromValue: from, toValue: "Cerrado");
-
-            var user = await _userLookup.GetByIdAsync(ticket.UserId);
-            await _eventBus.PublishAsync(new TicketClosedEvent
-            {
-                TicketId = ticket.Id,
-                TicketNumber = ticket.TicketNumber,
-                UserId = ticket.UserId,
-                UserEmail = user?.Email ?? "",
-                UserFullName = user?.FullName ?? "",
-                Title = ticket.Title,
-                AssignedTechnicianId = ticket.AssignedTechnicianId,
-                CurrentLevel = ticket.CurrentLevel,
-                Solution = solutionText
-            });
-
-            await _realtime.NotifyTicketUpdatedAsync(
-                ticketId: ticket.Id,
-                userId: ticket.UserId,
-                technicianId: ticket.AssignedTechnicianId,
-                level: ticket.CurrentLevel,
-                eventType: "ticket-closed",
-                payload: new { ticketId = ticket.Id, ticketNumber = ticket.TicketNumber },
-                actorUserId: userId);
-
-            return Ok(new { message = "Ticket cerrado y solución guardada en base de conocimiento" });
-        }
-
-        // Helper para extraer campos del texto
-        private string ExtractField(string text, string fieldName)
-        {
-            var pattern = $"{fieldName}:";
-            var index = text.IndexOf(pattern);
-            if (index == -1) return null;
-
-            var start = index + pattern.Length;
-            var nextField = new[] { "Problema:", "Causa:", "Solución:" }
-                .Select(f => text.IndexOf(f, start))
-                .Where(i => i > 0)
-                .DefaultIfEmpty(text.Length)
-                .Min();
-
-            return text.Substring(start, nextField - start).Trim();
         }
 
         // ============================================================
@@ -890,14 +829,12 @@ namespace MicroserviceB.API.Controllers
                 _logger.LogInformation($"TicketId: {ticketId}");
                 _logger.LogInformation($"Files count: {files?.Count ?? 0}");
 
-                // 1. Verificar ticket
                 var ticket = await _context.Tickets.FindAsync(ticketId);
                 if (ticket == null)
                 {
                     return NotFound(new { message = "Ticket no encontrado" });
                 }
 
-                // 2. Verificar permisos
                 var (userId, fullName, role) = GetCurrentUser();
                 bool isOwner = ticket.UserId == userId;
                 bool isAssignedTech = ticket.AssignedTechnicianId == userId;
@@ -908,14 +845,12 @@ namespace MicroserviceB.API.Controllers
                     return Forbid();
                 }
 
-                // 3. Verificar límite de archivos
                 var currentCount = await _context.TicketAttachments.CountAsync(a => a.TicketId == ticketId);
                 if (currentCount + files.Count > 5)
                 {
                     return BadRequest(new { message = $"Máximo 5 archivos por ticket. Actualmente tienes {currentCount}" });
                 }
 
-                // 4. Procesar cada archivo
                 var uploadedFiles = new List<object>();
                 var allowedTypes = new[] { "image/jpeg", "image/png", "image/jpg", "image/gif", "image/webp" };
 
@@ -933,12 +868,10 @@ namespace MicroserviceB.API.Controllers
                         continue;
                     }
 
-                    // Leer el archivo
                     using var memoryStream = new MemoryStream();
                     await file.CopyToAsync(memoryStream);
                     var fileData = memoryStream.ToArray();
 
-                    // Crear attachment DIRECTAMENTE con el TicketId correcto
                     var attachment = new TicketAttachment
                     {
                         TicketId = ticketId,
@@ -962,14 +895,10 @@ namespace MicroserviceB.API.Controllers
                     });
                 }
 
-                // ============================================================
-                // NUEVO: NOTIFICAR EN TIEMPO REAL
-                // ============================================================
                 if (uploadedFiles.Count > 0)
                 {
                     var actorName = isOwner ? "El solicitante" : fullName;
 
-                    // Registrar acción en el historial
                     await _actionService.RegisterActionAsync(
                         ticketId: ticket.Id,
                         userId: userId,
@@ -979,7 +908,6 @@ namespace MicroserviceB.API.Controllers
                         fromValue: null,
                         toValue: null);
 
-                    // Notificar en tiempo real
                     await _realtime.NotifyTicketUpdatedAsync(
                         ticketId: ticket.Id,
                         userId: ticket.UserId,
@@ -1037,7 +965,6 @@ namespace MicroserviceB.API.Controllers
         [HttpGet("attachments/{attachmentId}/download")]
         public async Task<IActionResult> DownloadAttachment(int attachmentId)
         {
-            // Usar el contexto directamente, no el servicio
             var attachment = await _context.TicketAttachments.FindAsync(attachmentId);
 
             if (attachment == null)
@@ -1046,7 +973,6 @@ namespace MicroserviceB.API.Controllers
             if (attachment.FileData == null || attachment.FileData.Length == 0)
                 return NotFound(new { message = "El archivo no contiene datos" });
 
-            // Verificar permisos
             var (userId, _, role) = GetCurrentUser();
             var ticket = await _context.Tickets.FindAsync(attachment.TicketId);
 
@@ -1076,7 +1002,6 @@ namespace MicroserviceB.API.Controllers
 
             var (userId, fullName, role) = GetCurrentUser();
 
-            // Solo puede eliminar quien subió la imagen o un admin
             bool isOwner = attachment.UserId == userId;
             bool isAdmin = role == "Admin";
 
@@ -1087,7 +1012,6 @@ namespace MicroserviceB.API.Controllers
             if (ticket == null)
                 return NotFound(new { message = "Ticket no encontrado" });
 
-            // Registrar acción en el historial
             await _actionService.RegisterActionAsync(
                 ticketId: ticket.Id,
                 userId: userId,
@@ -1100,7 +1024,6 @@ namespace MicroserviceB.API.Controllers
             _context.TicketAttachments.Remove(attachment);
             await _context.SaveChangesAsync();
 
-            // Notificar en tiempo real
             await _realtime.NotifyTicketUpdatedAsync(
                 ticketId: ticket.Id,
                 userId: ticket.UserId,
@@ -1121,48 +1044,76 @@ namespace MicroserviceB.API.Controllers
         }
 
         /// <summary>
-        /// Rechazar la solución de un ticket (solo usuarios)
+        /// Rechazar la solución de un ticket (solo usuarios - solicitantes)
         /// </summary>
         [HttpPost("{id}/reject-solution")]
         [Authorize]
         public async Task<IActionResult> RejectSolution(int id, [FromBody] RejectSolutionDto dto)
         {
-            // Buscar el ticket
             var ticket = await _context.Tickets.FindAsync(id);
             if (ticket == null)
                 return NotFound(new { message = "Ticket no encontrado" });
 
-            // Validar que el ticket esté en estado "Resuelto"
             if (ticket.Status != "Resuelto")
                 return BadRequest(new { message = "Solo se puede rechazar la solución de un ticket en estado 'Resuelto'" });
 
-            // Validar que el motivo no esté vacío
             if (string.IsNullOrWhiteSpace(dto.Reason))
                 return BadRequest(new { message = "Debes especificar el motivo del rechazo" });
 
-            // Obtener el usuario actual
             var (userId, fullName, role) = GetCurrentUser();
 
-            // Cambiar estado a "Abierto"
-            ticket.Status = "En Procesox|x|";
+            if (ticket.UserId != userId && role != "Admin")
+                return Forbid("Solo el solicitante puede rechazar la solución");
+
+            var fromStatus = ticket.Status;
+            ticket.Status = "En Proceso";
             ticket.UpdatedAt = DateTime.UtcNow;
-
-            // Registrar la acción con el motivo (incluyendo el nombre del usuario en la descripción)
-            var action = new TicketAction
-            {
-                TicketId = id,
-                ActionType = "ResolutionRejected",
-                Description = $"Solución rechazada por {fullName}. Motivo: {dto.Reason}",
-                CreatedAt = DateTime.UtcNow
-                // ✅ No usamos CreatedByUserId
-            };
-
-            _context.TicketActions.Add(action);
+            
             await _context.SaveChangesAsync();
+
+            await _actionService.RegisterActionAsync(
+                ticketId: id,
+                userId: userId,
+                userFullName: fullName,
+                actionType: "Rejection",
+                description: $"Solución rechazada por {fullName}. Motivo: {dto.Reason}",
+                fromValue: fromStatus,
+                toValue: "En Proceso");
+
+            if (ticket.AssignedTechnicianId.HasValue)
+            {
+                await _realtime.NotifyToUserAsync(
+                    ticket.AssignedTechnicianId.Value,
+                    "solution-rejected",
+                    new
+                    {
+                        ticketId = ticket.Id,
+                        ticketNumber = ticket.TicketNumber,
+                        reason = dto.Reason,
+                        rejectedBy = fullName
+                    });
+            }
+
+            await _realtime.NotifyTicketUpdatedAsync(
+                ticketId: ticket.Id,
+                userId: ticket.UserId,
+                technicianId: ticket.AssignedTechnicianId,
+                level: ticket.CurrentLevel,
+                eventType: "ticket-updated",
+                payload: new
+                {
+                    ticketId = ticket.Id,
+                    ticketNumber = ticket.TicketNumber,
+                    fromStatus = fromStatus,
+                    toStatus = "En Proceso",
+                    rejectionReason = dto.Reason,
+                    changedBy = fullName
+                },
+                actorUserId: userId);
 
             return Ok(new
             {
-                message = "Solución rechazada",
+                message = "Solución rechazada. El ticket vuelve a estado 'En Proceso'",
                 reason = dto.Reason,
                 ticketStatus = ticket.Status
             });
@@ -1176,18 +1127,16 @@ namespace MicroserviceB.API.Controllers
         public async Task<IActionResult> GetRejectionReason(int id)
         {
             var lastRejection = await _context.TicketActions
-                .Where(a => a.TicketId == id && a.ActionType == "ResolutionRejected")
+                .Where(a => a.TicketId == id && a.ActionType == "Rejection")
                 .OrderByDescending(a => a.CreatedAt)
                 .FirstOrDefaultAsync();
 
             if (lastRejection == null)
                 return Ok(new { hasRejection = false, reason = (string?)null });
 
-            // Extraer el motivo del Description
             string description = lastRejection.Description;
             string reason = "";
-
-            // Buscar después de "Motivo: "
+            
             var reasonIndex = description.IndexOf("Motivo: ");
             if (reasonIndex != -1)
             {
@@ -1195,7 +1144,6 @@ namespace MicroserviceB.API.Controllers
             }
             else
             {
-                // Si no encuentra el formato, devuelve la descripción completa
                 reason = description;
             }
 
@@ -1204,10 +1152,10 @@ namespace MicroserviceB.API.Controllers
                 hasRejection = true,
                 reason = reason,
                 rejectedAt = lastRejection.CreatedAt,
-                rejectedBy = description.Contains("por") ?
-                    description.Substring(0, description.IndexOf(".")) : "Usuario"
+                rejectedBy = description.Contains("por") ? 
+                    description.Substring(description.IndexOf("por") + 4, 
+                    description.IndexOf(".") - (description.IndexOf("por") + 4)) : "Usuario"
             });
         }
-
     }
 }

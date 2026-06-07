@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MicroserviceC.API.Data;
 using MicroserviceC.API.Models.DTOs;
 using MicroserviceC.API.Models.Entities;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MicroserviceC.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace MicroserviceC.API.Controllers
                     Description = s.Description,
                     Category = s.Category,
                     AttentionLevel = s.AttentionLevel,
-                    EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
+                    EstimatedTimeHours = s.EstimatedTimeHours,
                     IsActive = s.IsActive,
                     DamageCatalogId = s.DamageCatalogId,
                     DamageName = s.DamageCatalog.Name
@@ -53,7 +54,7 @@ namespace MicroserviceC.API.Controllers
                     Description = s.Description,
                     Category = s.Category,
                     AttentionLevel = s.AttentionLevel,
-                    EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
+                    EstimatedTimeHours = s.EstimatedTimeHours,
                     IsActive = s.IsActive,
                     DamageCatalogId = s.DamageCatalogId,
                     DamageName = s.DamageCatalog.Name
@@ -63,10 +64,6 @@ namespace MicroserviceC.API.Controllers
             return Ok(items);
         }
 
-        /// <summary>
-        /// GET /api/servicecatalog/{id} — obtener un servicio por su id.
-        /// Usado por el frontend para resolver nombres en el detalle de ticket.
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -84,7 +81,7 @@ namespace MicroserviceC.API.Controllers
                 Description = s.Description,
                 Category = s.Category,
                 AttentionLevel = s.AttentionLevel,
-                EstimatedTimeHours = s.EstimatedTimeHours,  // ← NUEVO
+                EstimatedTimeHours = s.EstimatedTimeHours,
                 IsActive = s.IsActive,
                 DamageCatalogId = s.DamageCatalogId,
                 DamageName = s.DamageCatalog?.Name ?? string.Empty
@@ -133,16 +130,26 @@ namespace MicroserviceC.API.Controllers
             return Ok(new { message = "Servicio actualizado" });
         }
 
+        // ✅ UN SOLO DELETE - Eliminación física (borra el registro)
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Deactivate(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var item = await _context.ServiceCatalogs.FindAsync(id);
-            if (item == null)
-                return NotFound(new { message = "Servicio no encontrado" });
-
-            item.IsActive = false;
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Servicio desactivado" });
+            try
+            {
+                var item = await _context.ServiceCatalogs.FindAsync(id);
+                if (item == null)
+                    return NotFound(new { message = "Servicio no encontrado" });
+                
+                _context.ServiceCatalogs.Remove(item);
+                await _context.SaveChangesAsync();
+                
+                return Ok(new { message = "Servicio eliminado correctamente" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al eliminar servicio {id}: {ex.Message}");
+                return StatusCode(500, new { message = $"Error interno: {ex.Message}" });
+            }
         }
     }
 }
