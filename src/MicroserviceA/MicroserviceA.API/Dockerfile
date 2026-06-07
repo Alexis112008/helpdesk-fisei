@@ -4,10 +4,14 @@ EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY ["MicroserviceA.API/MicroserviceA.API.csproj", "MicroserviceA.API/"]
+
+# Copiar el csproj desde la ubicación CORRECTA
+COPY ["src/MicroserviceA/MicroserviceA.API.csproj", "MicroserviceA.API/"]
 RUN dotnet restore "MicroserviceA.API/MicroserviceA.API.csproj"
+
+# Copiar todo el código
 COPY . .
-WORKDIR "/src/MicroserviceA.API"
+WORKDIR "/src/src/MicroserviceA"
 RUN dotnet build "MicroserviceA.API.csproj" -c Release -o /app/build
 
 FROM build AS publish
