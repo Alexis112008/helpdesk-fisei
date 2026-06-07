@@ -1,0 +1,116 @@
+/* Reset y base */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+/* ========== UTILIDADES RESPONSIVE ========== */
+
+/* Grid responsive - para usar en cualquier página */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* Formularios responsive */
+.responsive-form {
+  width: 100%;
+  max-width: 100%;
+}
+
+.responsive-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+/* Tablas responsive */
+.responsive-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.responsive-table table {
+  width: 100%;
+  min-width: 600px;
+}
+
+/* Tarjetas responsive */
+.responsive-card {
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #e4e7eb;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-bottom: 24px;
+}
+
+/* ========== MEDIA QUERIES ========== */
+
+/* Móviles (menos de 768px) */
+@media (max-width: 768px) {
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .responsive-card {
+    padding: 16px !important;
+    margin-bottom: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  /* Ajustar inputs para móvil (evita zoom en iOS) */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Botones más fáciles de tocar */
+  button {
+    min-height: 44px;
+  }
+
+  /* Headers más pequeños */
+  h1 {
+    font-size: 22px !important;
+  }
+
+  h2 {
+    font-size: 18px !important;
+  }
+
+  h3 {
+    font-size: 16px !important;
+  }
+
+  /* Espaciado general */
+  .p-4,
+  [style*="padding: 28px"] {
+    padding: 16px !important;
+  }
+}
+
+/* Tablets (768px a 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Desktop (más de 1024px) */
+@media (min-width: 1025px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
