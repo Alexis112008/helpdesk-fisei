@@ -30,6 +30,7 @@ namespace MicroserviceB.API.Models.DTOs
         public string Location { get; set; } = string.Empty;
         public string AssetCode { get; set; } = string.Empty;
         public int? AssignedTechnicianId { get; set; }  
+        public string? RejectionReason { get; set; }
     }
 
     public class UpdateTicketStatusDto
@@ -45,5 +46,10 @@ namespace MicroserviceB.API.Models.DTOs
     {
         public string Reason { get; set; } = string.Empty;
     }
+    // DTO para asignar ticket manualmente (Admin)
+public class AssignTicketDto
+{
+    public int TechnicianId { get; set; }
+}
 
 }

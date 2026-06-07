@@ -38,5 +38,6 @@ namespace MicroserviceC.API.Models.DTOs
         public int ViewCount { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+         public bool IsActive { get; set; }
     }
 }

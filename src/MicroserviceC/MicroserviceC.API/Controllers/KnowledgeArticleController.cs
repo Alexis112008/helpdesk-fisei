@@ -36,16 +36,21 @@ namespace MicroserviceC.API.Controllers
             CreatedByName = a.CreatedByName,
             ViewCount = a.ViewCount,
             CreatedAt = a.CreatedAt,
-            UpdatedAt = a.UpdatedAt
+            UpdatedAt = a.UpdatedAt,
+            IsActive = a.IsActive 
         };
 
         /// <summary>HU8 — T8.4: búsqueda por categoría o palabra clave.</summary>
         [HttpGet]
         public async Task<IActionResult> Search(
             [FromQuery] string? q,
-            [FromQuery] string? category)
+            [FromQuery] string? category,
+             [FromQuery] bool includeInactive = false) 
         {
             var query = _context.KnowledgeArticles.AsQueryable();
+
+            if (!includeInactive)
+                query = query.Where(a => a.IsActive);
 
             if (!string.IsNullOrWhiteSpace(category))
                 query = query.Where(a => a.Category == category);
@@ -167,16 +172,34 @@ namespace MicroserviceC.API.Controllers
             return Ok(Map(article));
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var article = await _context.KnowledgeArticles.FindAsync(id);
-            if (article == null) return NotFound(new { message = "Artículo no encontrado" });
+[HttpDelete("{id}")]
+[Authorize(Roles = "Admin")]
+public async Task<IActionResult> Delete(int id)
+{
+    var article = await _context.KnowledgeArticles.FindAsync(id);
+    if (article == null)
+        return NotFound(new { message = "Artículo no encontrado" });
 
-            _context.KnowledgeArticles.Remove(article);
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Artículo eliminado" });
-        }
+    // ✅ Soft delete: solo desactivar, no eliminar
+    article.IsActive = false;
+    await _context.SaveChangesAsync();
+
+    return Ok(new { message = "Artículo desactivado correctamente" });
+}
+
+[HttpPost("{id}/reactivate")]
+[Authorize(Roles = "Admin")]
+public async Task<IActionResult> Reactivate(int id)
+{
+    var article = await _context.KnowledgeArticles.FindAsync(id);
+    if (article == null)
+        return NotFound(new { message = "Artículo no encontrado" });
+
+    article.IsActive = true;
+    await _context.SaveChangesAsync();
+
+    return Ok(new { message = "Artículo reactivado correctamente" });
+}
 
         /// <summary>
         /// Subir imágenes asociadas a un artículo de conocimiento

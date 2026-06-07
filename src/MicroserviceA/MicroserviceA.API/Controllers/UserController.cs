@@ -69,30 +69,43 @@ namespace MicroserviceA.API.Controllers
             return Ok(new { total, page, pageSize, users });
         }
 
-        // GET: api/user
-        [HttpGet]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAll()
-        {
-            var users = await _context.Users
-                .Include(u => u.Role)
-                .Select(u => new UserResponseDto
-                {
-                    Id = u.Id,
-                    FullName = u.FullName,
-                    Email = u.Email,
-                    Phone = u.Phone,
-                    Cedula = u.Cedula,
-                    Department = u.Department,
-                    Specialty = u.Specialty,
-                    Role = u.Role.Name,
-                    IsActive = u.IsActive,
-                    CreatedAt = u.CreatedAt
-                })
-                .ToListAsync();
+// DELETE: api/user/5 - Eliminación física
+[HttpDelete("{id}")]
+[Authorize(Roles = "Admin")]
+public async Task<IActionResult> DeleteUser(int id)
+{
+    var user = await _context.Users
+        .Include(u => u.Role)
+        .FirstOrDefaultAsync(u => u.Id == id);
+    
+    if (user == null)
+        return NotFound(new { message = "Usuario no encontrado" });
 
-            return Ok(users);
-        }
+    // Prevenir eliminación del propio administrador (seguridad)
+    var currentUserIdClaim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+    if (currentUserIdClaim != null && int.Parse(currentUserIdClaim.Value) == id)
+        return BadRequest(new { message = "No puedes eliminar tu propio usuario" });
+
+    // ✅ Eliminación física (borrar de la base de datos)
+    _context.Users.Remove(user);
+    await _context.SaveChangesAsync();
+
+    return Ok(new { message = "Usuario eliminado permanentemente" });
+}
+
+// POST: api/user/{id}/reactivate - Reactivar usuario desactivado
+[HttpPost("{id}/reactivate")]
+[Authorize(Roles = "Admin")]
+public async Task<IActionResult> Reactivate(int id)
+{
+    var user = await _context.Users.FindAsync(id);
+    if (user == null)
+        return NotFound(new { message = "Usuario no encontrado" });
+
+    user.IsActive = true;
+    await _context.SaveChangesAsync();
+    return Ok(new { message = "Usuario reactivado correctamente" });
+}
 
         // GET: api/user/5
         [HttpGet("{id}")]
@@ -266,19 +279,6 @@ namespace MicroserviceA.API.Controllers
             return Ok(new { message = "Usuario actualizado correctamente" });
         }
 
-        // DELETE: api/user/5
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Deactivate(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-                return NotFound(new { message = "Usuario no encontrado" });
-
-            user.IsActive = false;
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Usuario desactivado correctamente" });
-        }
 
         // GET: api/user/roles
         [HttpGet("roles")]
