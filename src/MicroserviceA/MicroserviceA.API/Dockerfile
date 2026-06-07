@@ -5,15 +5,15 @@ EXPOSE 8080
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copiar el csproj
-COPY src/MicroserviceA/MicroserviceA.API.csproj .
-RUN dotnet restore MicroserviceA.API.csproj
+# Copiar el csproj (ahora está en la misma carpeta)
+COPY *.csproj .
+RUN dotnet restore
 
-# Copiar todo el código fuente
-COPY src/MicroserviceA/ .
+# Copiar todo el código
+COPY . .
 
-# Publicar la aplicación
-RUN dotnet publish MicroserviceA.API.csproj -c Release -o out
+# Publicar
+RUN dotnet publish -c Release -o out
 
 # Runtime
 FROM base AS final
