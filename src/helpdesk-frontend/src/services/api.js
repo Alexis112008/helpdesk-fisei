@@ -31,7 +31,7 @@ export const userAPI = {
 
 export const attachmentsAPI = {
   // Subir archivos adjuntos a un ticket
-  upload: (ticketId, formData, onProgress) => 
+  upload: (ticketId, formData, onProgress) =>
     ticketAPI.post(`/ticket/${ticketId}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {
@@ -43,34 +43,34 @@ export const attachmentsAPI = {
     }),
 
   // Obtener todos los archivos adjuntos de un ticket
-  getByTicket: (ticketId) => 
+  getByTicket: (ticketId) =>
     ticketAPI.get(`/ticket/${ticketId}/attachments`),
 
   // Descargar un archivo específico
-  download: (attachmentId) => 
-    ticketAPI.get(`/ticket/attachments/${attachmentId}/download`, { 
-      responseType: 'blob' 
+  download: (attachmentId) =>
+    ticketAPI.get(`/ticket/attachments/${attachmentId}/download`, {
+      responseType: 'blob'
     }),
 
   // Eliminar un archivo adjunto
-  delete: (attachmentId) => 
+  delete: (attachmentId) =>
     ticketAPI.delete(`/ticket/attachments/${attachmentId}`),
 };
 
 // También puedes agregar métodos directamente a ticketAPI si prefieres
-ticketAPI.uploadAttachments = (ticketId, formData, onProgress) => 
+ticketAPI.uploadAttachments = (ticketId, formData, onProgress) =>
   ticketAPI.post(`/ticket/${ticketId}/attachments`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: onProgress
   });
 
-ticketAPI.getAttachments = (ticketId) => 
+ticketAPI.getAttachments = (ticketId) =>
   ticketAPI.get(`/ticket/${ticketId}/attachments`);
 
-ticketAPI.downloadAttachment = (attachmentId) => 
+ticketAPI.downloadAttachment = (attachmentId) =>
   ticketAPI.get(`/ticket/attachments/${attachmentId}/download`, { responseType: 'blob' });
 
-ticketAPI.deleteAttachment = (attachmentId) => 
+ticketAPI.deleteAttachment = (attachmentId) =>
   ticketAPI.delete(`/ticket/attachments/${attachmentId}`);
 
 export { authAPI, ticketAPI, catalogAPI };

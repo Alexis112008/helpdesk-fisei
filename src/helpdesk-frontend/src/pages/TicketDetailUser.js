@@ -38,10 +38,11 @@ import {
   ClipboardList
 } from 'lucide-react';
 import Layout from '../components/Layout';
-import { ticketAPI, catalogAPI } from '../services/api';
+import { ticketAPI, catalogAPI, authAPI } from '../services/api';
 import { attachmentsAPI } from '../services/api';
-import { getConnection } from '../services/realtime';
+import { getConnection, joinUserGroup } from '../services/realtime';
 import { useNotifications } from '../components/NotificationProvider';
+import { exportTicketDetailToPDF } from '../services/exportService';
 
 // Colores unificados con el Dashboard
 const COLORS = {
@@ -106,6 +107,7 @@ function TicketDetailUser() {
   const [actions, setActions] = useState([]);
   const [serviceName, setServiceName] = useState('');
   const [damageName, setDamageName] = useState('');
+  const [technicianName, setTechnicianName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -132,6 +134,20 @@ function TicketDetailUser() {
   const [rejectReason, setRejectReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
 
+  const [hasMultipleSolutions, setHasMultipleSolutions] = useState(false);
+  const [solutionsCount, setSolutionsCount] = useState(0);
+
+  // Exportar detalle del ticket a PDF
+  const handleExportDetail = () => {
+    if (!ticket) return;
+    exportTicketDetailToPDF(ticket, actions, {
+      requesterName: ticket.userId?.toString(),
+      technicianName: technicianName,
+      serviceName: serviceName,
+      damageName: damageName,
+    });
+  };
+
   const canDeleteAttachment = (attachmentUserId) => {
     // Si el ticket está cerrado, nadie puede eliminar imágenes
     if (ticket?.status === 'Cerrado') return false;
@@ -139,50 +155,34 @@ function TicketDetailUser() {
     return attachmentUserId === myUserId;
   };
 
-  const loadSolution = useCallback(async (ticketActions, currentTicket) => {
+  // En TicketDetailUser.js, en la carga de la solución
+  const loadSolution = useCallback(async () => {
+    if (!id) return;
     try {
-      const response = await catalogAPI.get(`/knowledge/byticket/${id}`);
-      setSolutionData(response.data);
+      // Obtener el detalle completo
+      const response = await ticketAPI.get(`/ticket/${id}/detail`);
+      const actions = response.data.actions || [];
 
-      // Cargar imágenes asociadas a esta solución
-      if (response.data && response.data.id) {
-        try {
-          const imagesResponse = await catalogAPI.getSolutionAttachments(response.data.id);
+      // Buscar TODAS las acciones de tipo Resolution
+      const resolutionActions = actions
+        .filter(a => a.actionType === 'Resolution')
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); //  Más reciente primero
 
-          // Convertir cada imagen a URL de blob
-          const imagesWithUrls = await Promise.all(
-            imagesResponse.data.map(async (img) => {
-              try {
-                const blobResponse = await catalogAPI.downloadSolutionAttachment(img.id);
-                const url = URL.createObjectURL(blobResponse.data);
-                return { ...img, url };
-              } catch (err) {
-                console.error('Error cargando imagen:', err);
-                return { ...img, url: null };
-              }
-            })
-          );
-
-          setSolutionImages(imagesWithUrls || []);
-        } catch (err) {
-          console.error('Error cargando imágenes de la solución:', err);
-          setSolutionImages([]);
-        }
-      }
-    } catch (err) {
-      console.log('No hay solución disponible en base de conocimiento, buscando en historial');
-      const actionsToUse = ticketActions || [];
-      const closureAction = actionsToUse.find(a =>
-        a.actionType === 'Resolution' || a.actionType === 'Closure'
-      );
-
-      if (closureAction && closureAction.description) {
-        const parsed = parseSolutionDescription(closureAction.description, currentTicket);
+      if (resolutionActions.length > 0) {
+        const latestSolution = resolutionActions[0]; //  La más reciente
+        const parsed = parseSolutionDescription(latestSolution.description, response.data.ticket);
         setSolutionData(parsed);
+
+        // Si hay más de una solución, mostrar indicador
+        if (resolutionActions.length > 1) {
+          setHasMultipleSolutions(true);
+          setSolutionsCount(resolutionActions.length);
+        }
       } else {
         setSolutionData(null);
       }
-      setSolutionImages([]);
+    } catch (err) {
+      console.error('Error cargando solución:', err);
     }
   }, [id]);
 
@@ -200,8 +200,8 @@ function TicketDetailUser() {
         setSolution(closureAction.description);
       }
 
-      // Cargar la solución (pasando los datos recién cargados)
-      loadSolution(acts, res.data.ticket);
+      // ✅ CORREGIDO: No pasar parámetros
+      await loadSolution();  //  Así, sin parámetros
 
       if (res.data.ticket.serviceCatalogId) {
         try {
@@ -213,6 +213,12 @@ function TicketDetailUser() {
         try {
           const dmg = await catalogAPI.get(`/damagecatalog/${res.data.ticket.damageCatalogId}`);
           setDamageName(dmg.data.name);
+        } catch { }
+      }
+      if (res.data.ticket.assignedTechnicianId) {
+        try {
+          const userRes = await authAPI.get(`/user/${res.data.ticket.assignedTechnicianId}`);
+          setTechnicianName(userRes.data.fullName);
         } catch { }
       }
     } catch (err) {
@@ -312,16 +318,88 @@ function TicketDetailUser() {
 
     setConfirming(true);
     try {
-      // Cerrar el ticket (el backend se encargará de guardar en BD Conocimiento)
+      // 👇 1. Obtener la solución más reciente del historial
+      const detailResponse = await ticketAPI.get(`/ticket/${id}/detail`);
+      const resolutionActions = detailResponse.data.actions
+        ?.filter(a => a.actionType === 'Resolution')
+        ?.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      if (!resolutionActions || resolutionActions.length === 0) {
+        showToast({
+          type: 'error',
+          title: 'Error',
+          message: 'No se encontró ninguna solución registrada'
+        });
+        return;
+      }
+
+      const latestSolution = resolutionActions[0];
+      const parsed = parseSolutionDescription(latestSolution.description, detailResponse.data.ticket);
+
+      // 👇 2. Preparar datos del artículo
+      const articleData = {
+        title: ticket.title,
+        problem: parsed.problem,
+        cause: parsed.cause,
+        solution: parsed.solution,
+        category: damageName || 'Software',
+        ticketId: ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        createdByUserId: ticket.assignedTechnicianId || parseInt(localStorage.getItem('userId')),
+        createdByName: technicianName || localStorage.getItem('fullName') || 'Técnico'
+      };
+
+      // 👇 3. Buscar si ya existe un artículo para este ticket
+      let existingArticle = null;
+      try {
+        const existing = await catalogAPI.get(`/knowledge/byticket/${ticket.id}`);
+        existingArticle = existing.data;
+        console.log('📝 Artículo existente encontrado, se actualizará');
+      } catch (err) {
+        // 404 significa que no existe, está bien
+        if (err.response?.status === 404) {
+          console.log('📝 No existe artículo previo, se creará uno nuevo');
+        } else {
+          console.error('Error verificando artículo:', err);
+        }
+      }
+
+      // 👇 4. Si existe, ACTUALIZAR; si no, CREAR
+      if (existingArticle && existingArticle.id) {
+        await catalogAPI.put(`/knowledge/${existingArticle.id}`, articleData);
+        showToast({
+          type: 'success',
+          title: 'Solución actualizada',
+          message: 'La solución ha sido actualizada en la Base de Conocimiento.'
+        });
+      } else {
+        await catalogAPI.post('/knowledge', articleData);
+        showToast({
+          type: 'success',
+          title: 'Solución guardada',
+          message: 'La solución ha sido guardada en la Base de Conocimiento.'
+        });
+      }
+
+      // 👇 5. Registrar acción de aceptación en el historial
+      await ticketAPI.post(`/ticket/${id}/actions`, {
+        actionType: 'Acceptance',
+        description: 'El usuario aceptó la solución. Ticket cerrado.'
+      });
+
+      // 👇 6. Cerrar el ticket
       await ticketAPI.post(`/ticket/${id}/close`);
-      await load();
+
       showToast({
         type: 'success',
         title: 'Ticket cerrado',
         message: 'Gracias por confirmar la solución'
       });
+
+      await load();
       setTimeout(() => navigate('/tickets'), 1500);
     } catch (err) {
+      console.error('Error:', err.response?.data);
       showToast({
         type: 'error',
         title: 'Error',
@@ -440,9 +518,25 @@ function TicketDetailUser() {
     (async () => {
       try {
         conn = await getConnection();
-        conn.on('ticket-updated', load);
-        conn.on('ticket-resolved', load);
-        conn.on('ticket-closed', load);
+
+        // IMPORTANTE: Unirse al grupo del usuario para recibir notificaciones
+        await joinUserGroup(myUserId);
+        console.log(`[SignalR] Usuario ${myUserId} unido al grupo user:${myUserId}`);
+
+        conn.on('ticket-updated', () => {
+          console.log('Evento ticket-updated recibido');
+          load();
+          loadAttachments();
+          loadSolution();
+        });
+        conn.on('ticket-resolved', () => {
+          console.log('Ticket resuelto');
+          load();
+        });
+        conn.on('ticket-closed', () => {
+          console.log('Ticket cerrado');
+          load();
+        });
         conn.on('ticket-escalated', load);
         conn.on('ticket-action-added', load);
         conn.on('ticket-attachments-added', () => {
@@ -465,6 +559,7 @@ function TicketDetailUser() {
         console.error('Error conectando a SignalR:', err);
       }
     })();
+
     return () => {
       if (conn) {
         conn.off('ticket-updated', load);
@@ -476,7 +571,7 @@ function TicketDetailUser() {
         conn.off('ticket-attachment-deleted', loadAttachments);
       }
     };
-  }, [load, loadAttachments]);
+  }, [load, loadAttachments, loadSolution, myUserId]);
 
   if (loading) {
     return (
@@ -715,6 +810,12 @@ function TicketDetailUser() {
               <History size={16} style={{ marginRight: 8 }} />
               Ver historial del ticket
               <ChevronRight size={14} style={{ marginLeft: 8 }} />
+            </button>
+
+            {/* Botón exportar detalle a PDF */}
+            <button style={s.exportDetailBtn} onClick={handleExportDetail}>
+              <Download size={16} style={{ marginRight: 8 }} />
+              Exportar detalle (PDF)
             </button>
 
             {ticket.status === 'Resuelto' && (
@@ -1070,6 +1171,7 @@ const s = {
   uploadingText: { fontSize: 12, color: COLORS.Primario, fontStyle: 'italic' },
   actionButtons: { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8, flexDirection: 'column' },
   historyBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', background: COLORS.Blanco, border: `1px solid ${COLORS.Borde}`, borderRadius: 12, fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' },
+  exportDetailBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', background: '#fff', border: '1px solid #8b5cf6', borderRadius: 12, fontSize: 13, fontWeight: 600, color: '#8b5cf6', cursor: 'pointer', width: '100%' },
   resolvedSection: { display: 'flex', flexDirection: 'column', gap: 12, width: '100%' },
   viewSolutionBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', background: '#ecfdf5', border: `1px solid ${COLORS.Exito}40`, borderRadius: 12, fontSize: 13, fontWeight: 600, color: COLORS.Exito, cursor: 'pointer', width: '100%' },
   confirmButtons: { display: 'flex', gap: 12, width: '100%' },

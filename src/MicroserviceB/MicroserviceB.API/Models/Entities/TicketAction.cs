@@ -13,7 +13,7 @@ namespace MicroserviceB.API.Models.Entities
         public int UserId { get; set; }
         public string UserFullName { get; set; } = string.Empty;
 
-        // Tipo: StatusChange, Escalation, Comment, Resolution, Closure
+        // Tipo: StatusChange, Escalation, Comment, Resolution, Closure, Rejection
         public string ActionType { get; set; } = string.Empty;
 
         // Descripción legible
@@ -22,6 +22,9 @@ namespace MicroserviceB.API.Models.Entities
         // Para cambios de estado guardamos el "de → a"
         public string? FromValue { get; set; }
         public string? ToValue { get; set; }
+
+        // Para el motivo del rechazo
+        public string? RejectionReason { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

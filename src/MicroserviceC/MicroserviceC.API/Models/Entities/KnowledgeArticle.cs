@@ -27,6 +27,7 @@ namespace MicroserviceC.API.Models.Entities
         public string CreatedByName { get; set; } = string.Empty;
 
         public int ViewCount { get; set; } = 0;
+        public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }

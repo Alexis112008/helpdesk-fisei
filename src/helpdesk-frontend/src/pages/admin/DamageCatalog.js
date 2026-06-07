@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X, 
-  Package, 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Save,
+  X,
+  Package,
   Hash,
   FileText,
   CheckCircle,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Filter,
+  UserCheck,
+  UserX
 } from 'lucide-react';
 import { catalogAPI } from '../../services/api';
 import Layout from '../../components/Layout';
@@ -19,11 +22,16 @@ import Layout from '../../components/Layout';
 function DamageCatalogPage() {
   const [damages, setDamages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Filtros
   const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterCode, setFilterCode] = useState('');
 
   const [form, setForm] = useState({
     name: '',
@@ -44,14 +52,62 @@ function DamageCatalogPage() {
       .finally(() => setLoading(false));
   };
 
-  const filteredDamages = damages.filter((d) =>
-    search === '' ||
-    d.name.toLowerCase().includes(search.toLowerCase()) ||
-    d.code?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filtrado de daños
+  const filteredDamages = useMemo(() => {
+    return damages.filter((d) => {
+      const matchSearch =
+        search === '' ||
+        d.name.toLowerCase().includes(search.toLowerCase()) ||
+        d.code?.toLowerCase().includes(search.toLowerCase());
+      const matchStatus =
+        filterStatus === '' ||
+        (filterStatus === 'activo' && d.isActive) ||
+        (filterStatus === 'inactivo' && !d.isActive);
+      const matchCode =
+        filterCode === '' ||
+        d.code?.toLowerCase().includes(filterCode.toLowerCase());
+      return matchSearch && matchStatus && matchCode;
+    });
+  }, [damages, search, filterStatus, filterCode]);
+
+  const clearFilters = () => {
+    setSearch('');
+    setFilterStatus('');
+    setFilterCode('');
+  };
+
+  const hasFilters = search !== '' || filterStatus !== '' || filterCode !== '';
+
+  const openCreateModal = () => {
+    setEditItem(null);
+    setForm({ name: '', description: '', code: '' });
+    setError('');
+    setSuccess('');
+    setShowModal(true);
+  };
+
+  const openEditModal = (item) => {
+    setEditItem(item);
+    setForm({
+      name: item.name,
+      description: item.description || '',
+      code: item.code || '',
+    });
+    setError('');
+    setSuccess('');
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditItem(null);
+    setError('');
+    setSuccess('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
     setError('');
     setSuccess('');
 
@@ -72,34 +128,44 @@ function DamageCatalogPage() {
         setSuccess('Categoría creada correctamente');
       }
 
-      setShowForm(false);
-      setEditItem(null);
-      setForm({ name: '', description: '', code: '' });
-      loadDamages();
-    } catch {
-      setError('Error al guardar la categoría');
+      setTimeout(() => {
+        closeModal();
+        loadDamages();
+      }, 1500);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al guardar la categoría');
+      setSaving(false);
     }
   };
 
-  const handleEdit = (item) => {
-    setEditItem(item);
-    setForm({
-      name: item.name,
-      description: item.description,
-      code: item.code,
-    });
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Desactivar esta categoría?')) return;
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`¿Eliminar permanentemente la categoría "${name}"? Esta acción no se puede deshacer.`)) return;
     try {
       await catalogAPI.delete(`/damagecatalog/${id}`);
-      setSuccess('Categoría desactivada');
+      setSuccess('Categoría eliminada correctamente');
       loadDamages();
-    } catch {
-      setError('Error al desactivar');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al eliminar la categoría');
+      setTimeout(() => setError(''), 3000);
     }
+  };
+
+  const getStatusBadge = (isActive) => {
+    if (isActive) {
+      return {
+        bg: '#ecfdf5',
+        color: '#10b981',
+        icon: <CheckCircle size={12} style={{ marginRight: 4 }} />,
+        text: 'Activo'
+      };
+    }
+    return {
+      bg: '#fef2f2',
+      color: '#dc2626',
+      icon: <UserX size={12} style={{ marginRight: 4 }} />,
+      text: 'Inactivo'
+    };
   };
 
   return (
@@ -113,11 +179,7 @@ function DamageCatalogPage() {
             </h1>
             <p style={styles.subtitle}>Categorías de incidencias y averías</p>
           </div>
-          <button style={styles.newButton} onClick={() => {
-            setShowForm(true);
-            setEditItem(null);
-            setForm({ name: '', description: '', code: '' });
-          }}>
+          <button style={styles.newButton} onClick={openCreateModal}>
             <Plus size={16} style={{ marginRight: 6 }} />
             Nueva Categoría
           </button>
@@ -129,97 +191,20 @@ function DamageCatalogPage() {
             {success}
           </div>
         )}
-        {error && (
+        {error && !showModal && (
           <div style={styles.error}>
             <AlertCircle size={18} style={{ marginRight: 10 }} />
             {error}
           </div>
         )}
 
-        {showForm && (
-          <div style={styles.formCard}>
-            <h4 style={styles.formTitle}>
-              {editItem ? (
-                <>
-                  <Edit size={20} style={{ marginRight: 8 }} />
-                  Editar Categoría
-                </>
-              ) : (
-                <>
-                  <Plus size={20} style={{ marginRight: 8 }} />
-                  Nueva Categoría
-                </>
-              )}
-            </h4>
-            <form onSubmit={handleSubmit}>
-              <div style={styles.formGrid}>
-                <div style={styles.field}>
-                  <label style={styles.label}>
-                    <Package size={14} style={{ marginRight: 4 }} />
-                    Nombre *
-                  </label>
-                  <input
-                    style={styles.input}
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Ej: Hardware, Software, Redes"
-                    required
-                  />
-                </div>
-
-                <div style={styles.field}>
-                  <label style={styles.label}>
-                    <Hash size={14} style={{ marginRight: 4 }} />
-                    Código *
-                  </label>
-                  <input
-                    style={styles.input}
-                    value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                    placeholder="Ej: HW, SW, RED, CUEN"
-                    maxLength={10}
-                    required
-                  />
-                </div>
-
-                <div style={{ ...styles.field, gridColumn: '1 / -1' }}>
-                  <label style={styles.label}>
-                    <FileText size={14} style={{ marginRight: 4 }} />
-                    Descripción
-                  </label>
-                  <input
-                    style={styles.input}
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="Descripción de la categoría"
-                  />
-                </div>
-              </div>
-
-              <div style={styles.formButtons}>
-                <button type="submit" style={styles.saveBtn}>
-                  <Save size={14} style={{ marginRight: 6 }} />
-                  {editItem ? 'Guardar Cambios' : 'Crear Categoría'}
-                </button>
-                <button type="button" style={styles.cancelBtn} onClick={() => {
-                  setShowForm(false);
-                  setEditItem(null);
-                }}>
-                  <X size={14} style={{ marginRight: 6 }} />
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Barra de búsqueda */}
-        <div style={styles.searchBar}>
+        {/* Barra de filtros */}
+        <div style={styles.filtersBar}>
           <div style={styles.searchWrapper}>
             <Search size={18} color="#9ca3af" style={styles.searchIcon} />
             <input
               style={styles.searchInput}
-              placeholder="Buscar por nombre o código..."
+              placeholder="Buscar por nombre..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -229,6 +214,41 @@ function DamageCatalogPage() {
               </button>
             )}
           </div>
+
+          <div style={styles.filterWrapper}>
+            <Filter size={14} color="#6b7280" style={styles.filterIcon} />
+            <select
+              style={styles.filterSelect}
+              value={filterCode}
+              onChange={(e) => setFilterCode(e.target.value)}
+            >
+              <option value="">Todos los códigos</option>
+              {[...new Set(damages.map(d => d.code))].map(code => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={styles.filterWrapper}>
+            <UserCheck size={14} color="#6b7280" style={styles.filterIcon} />
+            <select
+              style={styles.filterSelect}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="">Todos los estados</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
+
+          {hasFilters && (
+            <button style={styles.clearBtn} onClick={clearFilters}>
+              <X size={13} style={{ marginRight: 4 }} />
+              Limpiar
+            </button>
+          )}
+
           <span style={styles.resultCount}>
             <Package size={12} style={{ marginRight: 4 }} />
             {filteredDamages.length} de {damages.length} categorías
@@ -243,7 +263,7 @@ function DamageCatalogPage() {
         ) : filteredDamages.length === 0 ? (
           <div style={styles.stateContainer}>
             <p style={styles.stateText}>
-              {search ? 'No hay categorías que coincidan con la búsqueda.' : 'No hay categorías registradas.'}
+              {hasFilters ? 'No hay categorías que coincidan con los filtros.' : 'No hay categorías registradas.'}
             </p>
           </div>
         ) : (
@@ -264,39 +284,156 @@ function DamageCatalogPage() {
                       <Hash size={12} style={{ marginRight: 4 }} />
                       Código
                     </th>
+                    <th style={styles.th}>
+                      <UserCheck size={12} style={{ marginRight: 4 }} />
+                      Estado
+                    </th>
                     <th style={styles.th}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDamages.map((d) => (
-                    <tr key={d.id} style={styles.tr}>
-                      <td style={styles.td}>
-                        <strong>{d.name}</strong>
-                      </td>
-                      <td style={styles.td}>
-                        {d.description || '—'}
-                      </td>
-                      <td style={styles.td}>
-                        <span style={styles.codeBadge}>{d.code}</span>
-                      </td>
-                      <td style={styles.td}>
-                        <button onClick={() => handleEdit(d)} style={styles.editBtn} title="Editar">
-                          <Edit size={14} style={{ marginRight: 4 }} />
-                          Editar
-                        </button>
-                        <button onClick={() => handleDelete(d.id)} style={styles.deleteBtn} title="Desactivar">
-                          <Trash2 size={14} style={{ marginRight: 4 }} />
-                          Desactivar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredDamages.map((d) => {
+                    const status = getStatusBadge(d.isActive);
+                    return (
+                      <tr key={d.id} style={styles.tr}>
+                        <td style={styles.td}>
+                          <strong>{d.name}</strong>
+                        </td>
+                        <td style={styles.td}>
+                          {d.description || '—'}
+                        </td>
+                        <td style={styles.td}>
+                          <span style={styles.codeBadge}>{d.code}</span>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={{ ...styles.statusBadge, backgroundColor: status.bg, color: status.color }}>
+                            {status.icon}
+                            {status.text}
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          <button onClick={() => openEditModal(d)} style={styles.editBtn} title="Editar">
+                            <Edit size={14} style={{ marginRight: 4 }} />
+                            Editar
+                          </button>
+                          <button onClick={() => handleDelete(d.id, d.name)} style={styles.deleteBtn} title="Eliminar">
+                            <Trash2 size={14} style={{ marginRight: 4 }} />
+                            Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
-               </table>
+              </table>
             </div>
           </div>
         )}
       </main>
+
+      {/* MODAL DE CREAR/EDITAR CATEGORÍA */}
+      {showModal && (
+        <div style={modalStyles.overlay} onClick={closeModal}>
+          <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={modalStyles.header}>
+              <div style={modalStyles.headerIcon}>
+                {editItem ? <Edit size={24} color="#fff" /> : <Plus size={24} color="#fff" />}
+              </div>
+              <div style={modalStyles.headerText}>
+                <h2 style={modalStyles.title}>
+                  {editItem ? 'Editar Categoría' : 'Nueva Categoría'}
+                </h2>
+                <p style={modalStyles.subtitle}>
+                  {editItem ? 'Modifica los datos de la categoría' : 'Completa los datos para crear una nueva categoría'}
+                </p>
+              </div>
+              <button style={modalStyles.closeBtn} onClick={closeModal}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div style={modalStyles.content}>
+                {error && (
+                  <div style={modalStyles.error}>
+                    <AlertCircle size={16} style={{ marginRight: 8 }} />
+                    {error}
+                  </div>
+                )}
+                {success && (
+                  <div style={modalStyles.success}>
+                    <CheckCircle size={16} style={{ marginRight: 8 }} />
+                    {success}
+                  </div>
+                )}
+
+                <div style={modalStyles.formGrid}>
+                  <div style={modalStyles.field}>
+                    <label style={modalStyles.label}>
+                      <Package size={14} style={{ marginRight: 6 }} />
+                      Nombre *
+                    </label>
+                    <input
+                      style={modalStyles.input}
+                      type="text"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="Ej: Hardware, Software, Redes"
+                      required
+                    />
+                  </div>
+
+                  <div style={modalStyles.field}>
+                    <label style={modalStyles.label}>
+                      <Hash size={14} style={{ marginRight: 6 }} />
+                      Código *
+                    </label>
+                    <input
+                      style={modalStyles.input}
+                      type="text"
+                      value={form.code}
+                      onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                      placeholder="Ej: HW, SW, RED"
+                      maxLength={10}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ ...modalStyles.field, gridColumn: '1 / -1' }}>
+                    <label style={modalStyles.label}>
+                      <FileText size={14} style={{ marginRight: 6 }} />
+                      Descripción
+                    </label>
+                    <textarea
+                      style={modalStyles.textarea}
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="Descripción de la categoría"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={modalStyles.footer}>
+                <button type="button" style={modalStyles.cancelBtn} onClick={closeModal}>
+                  Cancelar
+                </button>
+                <button type="submit" style={modalStyles.saveBtn} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8 }} />
+                      Guardando...
+                    </>
+                  ) : (
+                    editItem ? 'Guardar Cambios' : 'Crear Categoría'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
@@ -359,89 +496,21 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
   },
-  formCard: {
+  filtersBar: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 20,
+    flexWrap: 'wrap',
     backgroundColor: '#fff',
+    padding: '16px 20px',
     borderRadius: 16,
     border: '1px solid #eaecf0',
-    padding: 32,
-    marginBottom: 24,
-  },
-  formTitle: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: '#111827',
-    marginBottom: 24,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 20,
-  },
-  field: {
-    marginBottom: 20,
-  },
-  label: {
-    display: 'flex',
-    alignItems: 'center',
-    marginBottom: 8,
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#374151',
-  },
-  input: {
-    width: '100%',
-    padding: '12px 14px',
-    borderRadius: 10,
-    border: '1px solid #d0d5dd',
-    fontSize: 14,
-    boxSizing: 'border-box',
-    outline: 'none',
-    backgroundColor: '#fff',
-    transition: 'border-color 0.2s ease',
-  },
-  formButtons: {
-    display: 'flex',
-    gap: 12,
-    marginTop: 12,
-  },
-  saveBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#4361ee',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontWeight: 600,
-    display: 'inline-flex',
-    alignItems: 'center',
-    transition: 'background-color 0.2s ease',
-  },
-  cancelBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
-    border: 'none',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontWeight: 600,
-    display: 'inline-flex',
-    alignItems: 'center',
-    transition: 'background-color 0.2s ease',
-  },
-  searchBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    flexWrap: 'wrap',
-    gap: 12,
   },
   searchWrapper: {
     position: 'relative',
-    flex: '1 1 260px',
-    maxWidth: 400,
+    flex: '1 1 220px',
+    minWidth: 180,
   },
   searchIcon: {
     position: 'absolute',
@@ -452,12 +521,18 @@ const styles = {
   },
   searchInput: {
     width: '100%',
-    padding: '10px 32px 10px 38px',
-    borderRadius: 10,
-    border: '1px solid #d0d5dd',
+    padding: '10px 16px 10px 38px',
+    borderRadius: 12,
+    border: '1px solid #e4e7eb',
     fontSize: 14,
+    boxSizing: 'border-box',
     outline: 'none',
-    backgroundColor: '#fff',
+    backgroundColor: '#f9fafb',
+    transition: 'all 0.2s ease',
+    '&:focus': {
+      borderColor: '#4361ee',
+      boxShadow: '0 0 0 3px rgba(67, 97, 238, 0.1)',
+    }
   },
   clearSearchBtn: {
     position: 'absolute',
@@ -472,9 +547,47 @@ const styles = {
     alignItems: 'center',
     padding: 4,
   },
+  filterWrapper: {
+    position: 'relative',
+    minWidth: 140,
+  },
+  filterIcon: {
+    position: 'absolute',
+    left: 12,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
+  },
+  filterSelect: {
+    width: '100%',
+    padding: '10px 14px 10px 36px',
+    borderRadius: 10,
+    border: '1px solid #d0d5dd',
+    fontSize: 14,
+    backgroundColor: '#fff',
+    cursor: 'pointer',
+    outline: 'none',
+    appearance: 'none',
+    transition: 'all 0.2s ease',
+  },
+  clearBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '10px 16px',
+    borderRadius: 10,
+    border: '1px solid #e5e7eb',
+    backgroundColor: '#f9fafb',
+    color: '#374151',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
+    transition: 'all 0.2s ease',
+  },
   resultCount: {
     fontSize: 13,
     color: '#6b7280',
+    marginLeft: 'auto',
     display: 'flex',
     alignItems: 'center',
     backgroundColor: '#f9fafb',
@@ -526,6 +639,14 @@ const styles = {
     fontWeight: 600,
     fontFamily: 'monospace',
   },
+  statusBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '4px 10px',
+    borderRadius: 20,
+    fontSize: 11,
+    fontWeight: 600,
+  },
   editBtn: {
     backgroundColor: '#4361ee',
     color: '#fff',
@@ -568,14 +689,202 @@ const styles = {
   },
 };
 
-// Añadir animación para el spinner
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
+// Estilos del Modal
+const modalStyles = {
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '20px',
+  },
+  modal: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: 550,
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    animation: 'slideUp 0.3s ease',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+    padding: '20px 24px',
+    background: 'linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    position: 'relative',
+  },
+  headerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    background: 'rgba(255, 255, 255, 0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: '#fff',
+    margin: 0,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 4,
+  },
+  closeBtn: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: '#fff',
+    transition: 'all 0.2s',
+  },
+  content: {
+    padding: '24px',
+  },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 20,
+  },
+  field: {
+    marginBottom: 8,
+  },
+  label: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    width: '100%',
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: '1px solid #d1d5db',
+    fontSize: 14,
+    outline: 'none',
+    transition: 'all 0.2s',
+    boxSizing: 'border-box',
+  },
+  textarea: {
+    width: '100%',
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: '1px solid #d1d5db',
+    fontSize: 14,
+    outline: 'none',
+    transition: 'all 0.2s',
+    boxSizing: 'border-box',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+  },
+  error: {
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    padding: '12px 16px',
+    borderRadius: 10,
+    fontSize: 13,
+    marginBottom: 20,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  success: {
+    backgroundColor: '#ecfdf5',
+    color: '#10b981',
+    padding: '12px 16px',
+    borderRadius: 10,
+    fontSize: 13,
+    marginBottom: 20,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  footer: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 12,
+    padding: '16px 24px',
+    borderTop: '1px solid #eaecf0',
+    backgroundColor: '#f9fafb',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  cancelBtn: {
+    padding: '10px 20px',
+    background: '#fff',
+    border: '1px solid #d1d5db',
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#374151',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  saveBtn: {
+    padding: '10px 24px',
+    background: '#4361ee',
+    border: 'none',
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#fff',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+  },
+};
+
+// Agregar animaciones
+const styleSheetModal = document.createElement("style");
+styleSheetModal.textContent = `
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .modal-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+  .modal-cancel-btn:hover {
+    background-color: #f3f4f6;
+  }
+  .modal-save-btn:hover {
+    background-color: #1e3a5f;
+  }
 `;
-document.head.appendChild(styleSheet);
+document.head.appendChild(styleSheetModal);
 
 export default DamageCatalogPage;

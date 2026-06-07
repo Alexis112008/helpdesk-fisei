@@ -11,6 +11,7 @@ import TechnicianAssignments from './pages/admin/TechnicianAssignments';
 import Register from './pages/Register';
 import AdminTickets from './pages/admin/AdminTickets';
 import Profile from './pages/Profile';
+import SystemConfig from './pages/admin/SystemConfig';
 
 // ----- Sprint 2 -----
 import TechnicianPanel from './pages/TechnicianPanel';
@@ -18,6 +19,7 @@ import TicketDetailTech from './pages/TicketDetailTech';
 import TicketDetailUser from './pages/TicketDetailUser';
 import KnowledgeSearch from './pages/KnowledgeSearch';
 import { NotificationProvider } from './components/NotificationProvider';
+import AdminKnowledge from './pages/admin/AdminKnowledge';
 
 const TECH_ROLES = ['TecnicoN1', 'TecnicoN2', 'DITIC', 'Proveedor'];
 
@@ -55,6 +57,7 @@ function App() {
           <Route path="/crear-ticket" element={
             <PrivateRoute><CreateTicket /></PrivateRoute>
           } />
+
           {/* HU5 - Panel del tecnico */}
           <Route path="/tecnico/panel" element={
             <PrivateRoute techOnly><TechnicianPanel /></PrivateRoute>
@@ -63,26 +66,39 @@ function App() {
             <PrivateRoute techOnly><TicketDetailTech /></PrivateRoute>
           } />
 
-          {/* HU8 - Base de conocimiento */}
+          {/* HU8 - Base de conocimiento (usuario y técnico) */}
           <Route path="/conocimiento" element={
             <PrivateRoute><KnowledgeSearch /></PrivateRoute>
           } />
 
+          {/* Admin - Gestión de Base de Conocimiento */}
+          <Route path="/admin/conocimiento" element={
+            <PrivateRoute adminOnly><AdminKnowledge /></PrivateRoute>
+          } />
+
+          {/* Admin - Gestión de usuarios */}
           <Route path="/admin/usuarios" element={
             <PrivateRoute adminOnly><UserManagement /></PrivateRoute>
           } />
+
+          {/* Admin - Catálogos */}
           <Route path="/admin/servicios" element={
             <PrivateRoute adminOnly><ServiceCatalogPage /></PrivateRoute>
           } />
           <Route path="/admin/daños" element={
             <PrivateRoute adminOnly><DamageCatalogPage /></PrivateRoute>
           } />
+
+          {/* Admin - Asignaciones */}
           <Route path="/admin/asignaciones" element={
             <PrivateRoute adminOnly><TechnicianAssignments /></PrivateRoute>
           } />
+
+          {/* Admin - Tickets */}
           <Route path="/admin/tickets" element={
             <PrivateRoute adminOnly><AdminTickets /></PrivateRoute>
           } />
+          <Route path="/admin/configuracion" element={<PrivateRoute adminOnly><SystemConfig /></PrivateRoute>} />
         </Routes>
       </NotificationProvider>
     </BrowserRouter>

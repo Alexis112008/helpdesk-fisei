@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MicroserviceC.API.Data;
 using MicroserviceC.API.Models.DTOs;
 using MicroserviceC.API.Models.Entities;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MicroserviceC.API.Controllers
 {
@@ -17,7 +18,6 @@ namespace MicroserviceC.API.Controllers
         public async Task<IActionResult> GetAll()
         {
             var items = await _context.DamageCatalogs
-                .Where(d => d.IsActive)
                 .Select(d => new DamageCatalogDto
                 {
                     Id = d.Id,
@@ -47,6 +47,7 @@ namespace MicroserviceC.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateDamageDto dto)
         {
             // Verificar código único
@@ -68,11 +69,18 @@ namespace MicroserviceC.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] CreateDamageDto dto)
         {
             var item = await _context.DamageCatalogs.FindAsync(id);
             if (item == null)
                 return NotFound(new { message = "Categoría no encontrada" });
+
+            // Verificar código único (excepto el actual)
+            bool codeExists = await _context.DamageCatalogs
+                .AnyAsync(d => d.Code == dto.Code.ToUpper() && d.Id != id);
+            if (codeExists)
+                return BadRequest(new { message = "Ya existe otra categoría con ese código" });
 
             item.Code = dto.Code.ToUpper().Trim();
             item.Name = dto.Name;
@@ -81,15 +89,31 @@ namespace MicroserviceC.API.Controllers
             return Ok(new { message = "Categoría actualizada" });
         }
 
+        // DELETE: api/damagecatalog/5 - Eliminación física
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Deactivate(int id)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
         {
             var item = await _context.DamageCatalogs.FindAsync(id);
             if (item == null)
                 return NotFound(new { message = "Categoría no encontrada" });
-            item.IsActive = false;
+
+            // ✅ Eliminación física (borrar de la base de datos)
+            _context.DamageCatalogs.Remove(item);
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Categoría desactivada" });
+
+            return Ok(new { message = "Categoría eliminada permanentemente" });
+        }
+
+        // GET: api/damagecatalog/active - Solo activos (para selects)
+        [HttpGet("active")]
+        public async Task<IActionResult> GetActive()
+        {
+            var items = await _context.DamageCatalogs
+                .Where(d => d.IsActive)
+                .Select(d => new { d.Id, d.Name, d.Code })
+                .ToListAsync();
+            return Ok(items);
         }
     }
 }
