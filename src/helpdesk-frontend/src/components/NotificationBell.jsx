@@ -17,6 +17,13 @@ function NotificationBell() {
 
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Cerrar al hacer clic fuera
   useEffect(() => {
@@ -31,8 +38,6 @@ function NotificationBell() {
 
   const togglePanel = () => {
     if (!open && unreadCount > 0) {
-      // Si abre el panel y hay no leídas, las marcamos como leídas
-      // después de un pequeño delay (para que se vea el badge primero)
       setTimeout(() => markAllRead(), 1000);
     }
     setOpen(!open);
@@ -59,14 +64,14 @@ function NotificationBell() {
   };
 
   return (
-    <div ref={rootRef} style={s.root}>
+    <div ref={rootRef} className="notification-bell-root" style={s.root}>
       <button
         style={s.bellBtn}
         onClick={togglePanel}
         title="Notificaciones"
         aria-label="Ver notificaciones"
       >
-        <Bell size={18} color="#374151" strokeWidth={1.5} />
+        <Bell size={isMobile ? 16 : 18} color="#374151" strokeWidth={1.5} />
         {unreadCount > 0 && (
           <span style={s.badge}>
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -75,16 +80,15 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div style={s.panel}>
+        <div className="notification-bell-panel" style={s.panel}>
           <div style={s.panelHeader}>
             <div>
               <div style={s.panelTitle}>Notificaciones</div>
               <div style={s.panelSubtitle}>
                 {notifications.length === 0
                   ? 'Sin notificaciones'
-                  : `${notifications.length} ${
-                      notifications.length === 1 ? 'mensaje' : 'mensajes'
-                    } reciente${notifications.length === 1 ? '' : 's'}`}
+                  : `${notifications.length} ${notifications.length === 1 ? 'mensaje' : 'mensajes'
+                  } reciente${notifications.length === 1 ? '' : 's'}`}
               </div>
             </div>
             <button
@@ -92,14 +96,14 @@ function NotificationBell() {
               onClick={() => setOpen(false)}
               aria-label="Cerrar"
             >
-              <X size={16} color="#6b7280" strokeWidth={1.5} />
+              <X size={isMobile ? 14 : 16} color="#6b7280" strokeWidth={1.5} />
             </button>
           </div>
 
           {notifications.length > 0 && (
             <div style={s.toolbar}>
               <button style={s.toolBtn} onClick={markAllRead}>
-                <Check size={12} strokeWidth={2} /> Marcar todas como leídas
+                <Check size={12} strokeWidth={2} /> Marcar todas
               </button>
               <button
                 style={{ ...s.toolBtn, color: '#b91c1c' }}
@@ -114,7 +118,7 @@ function NotificationBell() {
             </div>
           )}
 
-          <div style={s.list}>
+          <div className="notification-bell-list" style={s.list}>
             {notifications.length === 0 ? (
               <div style={s.empty}>
                 <Bell size={32} color="#d1d5db" strokeWidth={1.5} />
@@ -130,7 +134,7 @@ function NotificationBell() {
               notifications.map((n) => {
                 const palette = typeColors[n.type] || typeColors.info;
                 const IconComponent = palette.icon;
-                
+
                 return (
                   <div
                     key={n.id}
@@ -147,7 +151,7 @@ function NotificationBell() {
                         color: palette.color,
                       }}
                     >
-                      <IconComponent size={16} strokeWidth={2} />
+                      <IconComponent size={isMobile ? 14 : 16} strokeWidth={2} />
                     </div>
 
                     <div style={s.itemBody}>
@@ -169,6 +173,24 @@ function NotificationBell() {
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .notification-bell-panel {
+            position: fixed !important;
+            top: 60px !important;
+            left: 12px !important;
+            right: 12px !important;
+            width: auto !important;
+            max-width: none !important;
+            max-height: 70vh !important;
+          }
+          
+          .notification-bell-list {
+            max-height: 50vh !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -317,7 +339,10 @@ const s = {
     justifyContent: 'center',
     flexShrink: 0,
   },
-  itemBody: { flex: 1, minWidth: 0 },
+  itemBody: {
+    flex: 1,
+    minWidth: 0
+  },
   itemHeader: {
     display: 'flex',
     justifyContent: 'space-between',

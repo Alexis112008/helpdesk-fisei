@@ -27,8 +27,9 @@ function DamageCatalogPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Filtros
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCode, setFilterCode] = useState('');
@@ -38,6 +39,12 @@ function DamageCatalogPage() {
     description: '',
     code: '',
   });
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadDamages();
@@ -52,7 +59,6 @@ function DamageCatalogPage() {
       .finally(() => setLoading(false));
   };
 
-  // Filtrado de daños
   const filteredDamages = useMemo(() => {
     return damages.filter((d) => {
       const matchSearch =
@@ -170,156 +176,148 @@ function DamageCatalogPage() {
 
   return (
     <Layout>
-      <main style={styles.content}>
-        <div style={styles.header}>
+      <div className="damage-catalog-page">
+        <div className="damage-catalog-header">
           <div>
-            <h1 style={styles.title}>
-              <Package size={28} style={{ marginRight: 12, color: '#4361ee', verticalAlign: 'middle' }} />
+            <h1 className="damage-catalog-title">
+              <Package size={isMobile ? 24 : 28} />
               Catálogo de Daños
             </h1>
-            <p style={styles.subtitle}>Categorías de incidencias y averías</p>
+            <p className="damage-catalog-subtitle">Categorías de incidencias y averías</p>
           </div>
-          <button style={styles.newButton} onClick={openCreateModal}>
-            <Plus size={16} style={{ marginRight: 6 }} />
+          <button className="damage-catalog-new-btn" onClick={openCreateModal}>
+            <Plus size={16} />
             Nueva Categoría
           </button>
         </div>
 
         {success && (
-          <div style={styles.success}>
-            <CheckCircle size={18} style={{ marginRight: 10 }} />
+          <div className="damage-catalog-success">
+            <CheckCircle size={18} />
             {success}
           </div>
         )}
         {error && !showModal && (
-          <div style={styles.error}>
-            <AlertCircle size={18} style={{ marginRight: 10 }} />
+          <div className="damage-catalog-error">
+            <AlertCircle size={18} />
             {error}
           </div>
         )}
 
         {/* Barra de filtros */}
-        <div style={styles.filtersBar}>
-          <div style={styles.searchWrapper}>
-            <Search size={18} color="#9ca3af" style={styles.searchIcon} />
-            <input
-              style={styles.searchInput}
-              placeholder="Buscar por nombre..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button style={styles.clearSearchBtn} onClick={() => setSearch('')}>
+        <div className="damage-catalog-filters-card">
+          <div className="damage-catalog-search-bar">
+            <div className="damage-catalog-search-wrapper">
+              <Search size={16} className="damage-catalog-search-icon" />
+              <input
+                className="damage-catalog-search-input"
+                placeholder={isMobile ? "Buscar..." : "Buscar por nombre..."}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="damage-catalog-clear-search" onClick={() => setSearch('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button className="damage-catalog-filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+              <Filter size={14} />
+              Filtros
+            </button>
+          </div>
+
+          <div className={`damage-catalog-filters ${showFilters ? 'damage-catalog-filters-open' : ''}`}>
+            <div className="damage-catalog-filter-group">
+              <label className="damage-catalog-filter-label">Código</label>
+              <select
+                className="damage-catalog-filter-select"
+                value={filterCode}
+                onChange={(e) => setFilterCode(e.target.value)}
+              >
+                <option value="">Todos los códigos</option>
+                {[...new Set(damages.map(d => d.code).filter(Boolean))].map(code => (
+                  <option key={code} value={code}>{code}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="damage-catalog-filter-group">
+              <label className="damage-catalog-filter-label">Estado</label>
+              <select
+                className="damage-catalog-filter-select"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="">Todos los estados</option>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </select>
+            </div>
+
+            <div className="damage-catalog-stats">
+              <Package size={12} />
+              {filteredDamages.length} de {damages.length} categorías
+            </div>
+
+            {hasFilters && (
+              <button className="damage-catalog-clear-filters" onClick={clearFilters}>
                 <X size={14} />
+                Limpiar
               </button>
             )}
           </div>
-
-          <div style={styles.filterWrapper}>
-            <Filter size={14} color="#6b7280" style={styles.filterIcon} />
-            <select
-              style={styles.filterSelect}
-              value={filterCode}
-              onChange={(e) => setFilterCode(e.target.value)}
-            >
-              <option value="">Todos los códigos</option>
-              {[...new Set(damages.map(d => d.code))].map(code => (
-                <option key={code} value={code}>{code}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.filterWrapper}>
-            <UserCheck size={14} color="#6b7280" style={styles.filterIcon} />
-            <select
-              style={styles.filterSelect}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="">Todos los estados</option>
-              <option value="activo">Activo</option>
-              <option value="inactivo">Inactivo</option>
-            </select>
-          </div>
-
-          {hasFilters && (
-            <button style={styles.clearBtn} onClick={clearFilters}>
-              <X size={13} style={{ marginRight: 4 }} />
-              Limpiar
-            </button>
-          )}
-
-          <span style={styles.resultCount}>
-            <Package size={12} style={{ marginRight: 4 }} />
-            {filteredDamages.length} de {damages.length} categorías
-          </span>
         </div>
 
         {loading ? (
-          <div style={styles.stateContainer}>
-            <RefreshCw size={24} style={styles.spinner} />
-            <p style={styles.stateText}>Cargando categorías...</p>
+          <div className="damage-catalog-loading">
+            <RefreshCw size={24} className="damage-catalog-spinner" />
+            <p>Cargando categorías...</p>
           </div>
         ) : filteredDamages.length === 0 ? (
-          <div style={styles.stateContainer}>
-            <p style={styles.stateText}>
-              {hasFilters ? 'No hay categorías que coincidan con los filtros.' : 'No hay categorías registradas.'}
-            </p>
+          <div className="damage-catalog-empty">
+            <p>{hasFilters ? 'No hay categorías que coincidan con los filtros.' : 'No hay categorías registradas.'}</p>
           </div>
         ) : (
-          <div style={styles.tableCard}>
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
+          <div className="damage-catalog-table-card">
+            <div className="damage-catalog-table-wrapper">
+              <table className="damage-catalog-table">
                 <thead>
-                  <tr style={styles.thead}>
-                    <th style={styles.th}>
-                      <Package size={12} style={{ marginRight: 4 }} />
-                      Categoría
-                    </th>
-                    <th style={styles.th}>
-                      <FileText size={12} style={{ marginRight: 4 }} />
-                      Descripción
-                    </th>
-                    <th style={styles.th}>
-                      <Hash size={12} style={{ marginRight: 4 }} />
-                      Código
-                    </th>
-                    <th style={styles.th}>
-                      <UserCheck size={12} style={{ marginRight: 4 }} />
-                      Estado
-                    </th>
-                    <th style={styles.th}>Acciones</th>
+                  <tr>
+                    <th>Categoría</th>
+                    <th>Descripción</th>
+                    <th>Código</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredDamages.map((d) => {
                     const status = getStatusBadge(d.isActive);
                     return (
-                      <tr key={d.id} style={styles.tr}>
-                        <td style={styles.td}>
+                      <tr key={d.id}>
+                        <td className="damage-catalog-name">
                           <strong>{d.name}</strong>
                         </td>
-                        <td style={styles.td}>
-                          {d.description || '—'}
-                        </td>
-                        <td style={styles.td}>
-                          <span style={styles.codeBadge}>{d.code}</span>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={{ ...styles.statusBadge, backgroundColor: status.bg, color: status.color }}>
+                        <td>{d.description || '—'}</td>
+                        <td><span className="damage-catalog-code-badge">{d.code || '—'}</span></td>
+                        <td>
+                          <span className="damage-catalog-status-badge" style={{ backgroundColor: status.bg, color: status.color }}>
                             {status.icon}
                             {status.text}
                           </span>
                         </td>
-                        <td style={styles.td}>
-                          <button onClick={() => openEditModal(d)} style={styles.editBtn} title="Editar">
-                            <Edit size={14} style={{ marginRight: 4 }} />
-                            Editar
-                          </button>
-                          <button onClick={() => handleDelete(d.id, d.name)} style={styles.deleteBtn} title="Eliminar">
-                            <Trash2 size={14} style={{ marginRight: 4 }} />
-                            Eliminar
-                          </button>
+                        <td>
+                          <div className="damage-catalog-actions">
+                            <button onClick={() => openEditModal(d)} className="damage-catalog-edit-btn" title="Editar">
+                              <Edit size={14} />
+                              Editar
+                            </button>
+                            <button onClick={() => handleDelete(d.id, d.name)} className="damage-catalog-delete-btn" title="Eliminar">
+                              <Trash2 size={14} />
+                              Eliminar
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -329,562 +327,700 @@ function DamageCatalogPage() {
             </div>
           </div>
         )}
-      </main>
+      </div>
 
-      {/* MODAL DE CREAR/EDITAR CATEGORÍA */}
+      {/* MODAL DE CREAR/EDITAR CATEGORÍA RESPONSIVE */}
       {showModal && (
-        <div style={modalStyles.overlay} onClick={closeModal}>
-          <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={modalStyles.header}>
-              <div style={modalStyles.headerIcon}>
+        <div className="damage-catalog-modal-overlay" onClick={closeModal}>
+          <div className="damage-catalog-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="damage-catalog-modal-header">
+              <div className="damage-catalog-modal-header-icon">
                 {editItem ? <Edit size={24} color="#fff" /> : <Plus size={24} color="#fff" />}
               </div>
-              <div style={modalStyles.headerText}>
-                <h2 style={modalStyles.title}>
-                  {editItem ? 'Editar Categoría' : 'Nueva Categoría'}
-                </h2>
-                <p style={modalStyles.subtitle}>
-                  {editItem ? 'Modifica los datos de la categoría' : 'Completa los datos para crear una nueva categoría'}
-                </p>
+              <div className="damage-catalog-modal-header-text">
+                <h2>{editItem ? 'Editar Categoría' : 'Nueva Categoría'}</h2>
+                <p>{editItem ? 'Modifica los datos de la categoría' : 'Completa los datos para crear una nueva categoría'}</p>
               </div>
-              <button style={modalStyles.closeBtn} onClick={closeModal}>
+              <button className="damage-catalog-modal-close" onClick={closeModal}>
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div style={modalStyles.content}>
+              <div className="damage-catalog-modal-body">
                 {error && (
-                  <div style={modalStyles.error}>
-                    <AlertCircle size={16} style={{ marginRight: 8 }} />
+                  <div className="damage-catalog-modal-error">
+                    <AlertCircle size={16} />
                     {error}
                   </div>
                 )}
-                {success && (
-                  <div style={modalStyles.success}>
-                    <CheckCircle size={16} style={{ marginRight: 8 }} />
-                    {success}
-                  </div>
-                )}
 
-                <div style={modalStyles.formGrid}>
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Package size={14} style={{ marginRight: 6 }} />
-                      Nombre *
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="text"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      placeholder="Ej: Hardware, Software, Redes"
-                      required
-                    />
-                  </div>
+                <div className="damage-catalog-modal-field">
+                  <label>Nombre *</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Ej: Hardware, Software, Redes"
+                    required
+                  />
+                </div>
 
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Hash size={14} style={{ marginRight: 6 }} />
-                      Código *
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="text"
-                      value={form.code}
-                      onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                      placeholder="Ej: HW, SW, RED"
-                      maxLength={10}
-                      required
-                    />
-                  </div>
+                <div className="damage-catalog-modal-field">
+                  <label>Código *</label>
+                  <input
+                    type="text"
+                    value={form.code}
+                    onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                    placeholder="Ej: HW, SW, RED"
+                    maxLength={10}
+                    required
+                  />
+                </div>
 
-                  <div style={{ ...modalStyles.field, gridColumn: '1 / -1' }}>
-                    <label style={modalStyles.label}>
-                      <FileText size={14} style={{ marginRight: 6 }} />
-                      Descripción
-                    </label>
-                    <textarea
-                      style={modalStyles.textarea}
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      placeholder="Descripción de la categoría"
-                      rows={3}
-                    />
-                  </div>
+                <div className="damage-catalog-modal-field full-width">
+                  <label>Descripción</label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="Descripción de la categoría"
+                    rows={3}
+                  />
                 </div>
               </div>
 
-              <div style={modalStyles.footer}>
-                <button type="button" style={modalStyles.cancelBtn} onClick={closeModal}>
+              <div className="damage-catalog-modal-footer">
+                <button type="button" className="damage-catalog-modal-cancel" onClick={closeModal}>
                   Cancelar
                 </button>
-                <button type="submit" style={modalStyles.saveBtn} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8 }} />
-                      Guardando...
-                    </>
-                  ) : (
-                    editItem ? 'Guardar Cambios' : 'Crear Categoría'
-                  )}
+                <button type="submit" className="damage-catalog-modal-save" disabled={saving}>
+                  {saving ? 'Guardando...' : (editItem ? 'Guardar Cambios' : 'Crear Categoría')}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <style>{`
+        .damage-catalog-page {
+          padding: 28px 32px;
+          flex: 1;
+          min-height: 100vh;
+          background-color: #f5f7fa;
+        }
+
+        .damage-catalog-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .damage-catalog-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #111827;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .damage-catalog-subtitle {
+          font-size: 14px;
+          color: #6b7280;
+        }
+
+        .damage-catalog-new-btn {
+          background-color: #4361ee;
+          color: #fff;
+          border: none;
+          padding: 12px 18px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .damage-catalog-success {
+          background-color: #ecfdf3;
+          color: #027a48;
+          padding: 14px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .damage-catalog-error {
+          background-color: #fef3f2;
+          color: #b42318;
+          padding: 14px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .damage-catalog-filters-card {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          padding: 16px 20px;
+          margin-bottom: 24px;
+        }
+
+        .damage-catalog-search-bar {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .damage-catalog-search-wrapper {
+          position: relative;
+          flex: 1;
+          min-width: 200px;
+        }
+
+        .damage-catalog-search-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #9ca3af;
+        }
+
+        .damage-catalog-search-input {
+          width: 100%;
+          padding: 10px 16px 10px 38px;
+          border-radius: 12px;
+          border: 1px solid #e4e7eb;
+          font-size: 14px;
+          outline: none;
+          background: #f9fafb;
+        }
+
+        .damage-catalog-search-input:focus {
+          border-color: #4361ee;
+          box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .damage-catalog-clear-search {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #9ca3af;
+        }
+
+        .damage-catalog-filter-toggle {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          background: #f9fafb;
+          border: 1px solid #eaecf0;
+          border-radius: 10px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .damage-catalog-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          align-items: center;
+          margin-top: 16px;
+        }
+
+        .damage-catalog-filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 150px;
+        }
+
+        .damage-catalog-filter-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .damage-catalog-filter-select {
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #d0d5dd;
+          font-size: 14px;
+          background: #fff;
+          cursor: pointer;
+        }
+
+        .damage-catalog-filter-select:focus {
+          border-color: #4361ee;
+          outline: none;
+        }
+
+        .damage-catalog-stats {
+          font-size: 13px;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f9fafb;
+          padding: 8px 14px;
+          border-radius: 10px;
+          margin-left: auto;
+        }
+
+        .damage-catalog-clear-filters {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 10px;
+          background: #f3f4f6;
+          border: 1px solid #d1d5db;
+          color: #374151;
+          cursor: pointer;
+          font-size: 13px;
+        }
+
+        .damage-catalog-clear-filters:hover {
+          background: #fee2e2;
+          border-color: #fecaca;
+          color: #dc2626;
+        }
+
+        .damage-catalog-table-card {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          overflow: hidden;
+        }
+
+        .damage-catalog-table-wrapper {
+          overflow-x: auto;
+        }
+
+        .damage-catalog-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 650px;
+        }
+
+        .damage-catalog-table th {
+          padding: 16px 20px;
+          text-align: left;
+          font-size: 12px;
+          font-weight: 700;
+          color: #667085;
+          background: #f9fafb;
+          border-bottom: 1px solid #eaecf0;
+        }
+
+        .damage-catalog-table td {
+          padding: 18px 20px;
+          font-size: 14px;
+          color: #344054;
+          border-bottom: 1px solid #f1f3f5;
+        }
+
+        .damage-catalog-table tr:hover td {
+          background-color: #f9fafb;
+        }
+
+        .damage-catalog-name {
+          font-weight: 600;
+        }
+
+        .damage-catalog-code-badge {
+          background: #eef2ff;
+          color: #4361ee;
+          padding: 4px 10px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 600;
+          font-family: monospace;
+          display: inline-block;
+        }
+
+        .damage-catalog-status-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .damage-catalog-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .damage-catalog-edit-btn {
+          background: #4361ee;
+          color: #fff;
+          border: none;
+          padding: 8px 14px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.2s;
+        }
+
+        .damage-catalog-edit-btn:hover {
+          background: #304ffe;
+          transform: translateY(-1px);
+        }
+
+        .damage-catalog-delete-btn {
+          background: #dc2626;
+          color: #fff;
+          border: none;
+          padding: 8px 14px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.2s;
+        }
+
+        .damage-catalog-delete-btn:hover {
+          background: #b91c1c;
+          transform: translateY(-1px);
+        }
+
+        .damage-catalog-loading, .damage-catalog-empty {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          padding: 60px 20px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .damage-catalog-spinner {
+          animation: spin 1s linear infinite;
+        }
+
+        /* Modal Responsive */
+        .damage-catalog-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+        }
+
+        .damage-catalog-modal {
+          background: #fff;
+          border-radius: 24px;
+          width: 100%;
+          max-width: 550px;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+
+        .damage-catalog-modal-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 20px 24px;
+          background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%);
+          border-top-left-radius: 24px;
+          border-top-right-radius: 24px;
+          position: sticky;
+          top: 0;
+        }
+
+        .damage-catalog-modal-header-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 24px;
+          background: rgba(255,255,255,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .damage-catalog-modal-header-text {
+          flex: 1;
+        }
+
+        .damage-catalog-modal-header-text h2 {
+          font-size: 20px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0;
+        }
+
+        .damage-catalog-modal-header-text p {
+          font-size: 13px;
+          color: rgba(255,255,255,0.8);
+          margin-top: 4px;
+        }
+
+        .damage-catalog-modal-close {
+          background: rgba(255,255,255,0.2);
+          border: none;
+          border-radius: 20px;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #fff;
+          transition: background 0.2s;
+        }
+
+        .damage-catalog-modal-close:hover {
+          background: rgba(255,255,255,0.3);
+        }
+
+        .damage-catalog-modal-body {
+          padding: 24px;
+        }
+
+        .damage-catalog-modal-field {
+          margin-bottom: 20px;
+        }
+
+        .damage-catalog-modal-field.full-width {
+          grid-column: 1 / -1;
+        }
+
+        .damage-catalog-modal-field label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 8px;
+        }
+
+        .damage-catalog-modal-field input,
+        .damage-catalog-modal-field select,
+        .damage-catalog-modal-field textarea {
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #d1d5db;
+          font-size: 14px;
+          outline: none;
+          font-family: inherit;
+          transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        .damage-catalog-modal-field input:focus,
+        .damage-catalog-modal-field select:focus,
+        .damage-catalog-modal-field textarea:focus {
+          border-color: #4361ee;
+          box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .damage-catalog-modal-field textarea {
+          resize: vertical;
+        }
+
+        .damage-catalog-modal-error {
+          background: #fef2f2;
+          color: #dc2626;
+          padding: 12px 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .damage-catalog-modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          padding: 16px 24px;
+          border-top: 1px solid #eaecf0;
+          background: #f9fafb;
+          border-bottom-left-radius: 24px;
+          border-bottom-right-radius: 24px;
+          position: sticky;
+          bottom: 0;
+        }
+
+        .damage-catalog-modal-cancel {
+          padding: 10px 20px;
+          background: #fff;
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .damage-catalog-modal-cancel:hover {
+          background: #f3f4f6;
+        }
+
+        .damage-catalog-modal-save {
+          padding: 10px 24px;
+          background: #4361ee;
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #fff;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .damage-catalog-modal-save:hover {
+          background: #304ffe;
+          transform: translateY(-1px);
+        }
+
+        .damage-catalog-modal-save:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+          .damage-catalog-page {
+            padding: 70px 12px 20px 12px;
+          }
+
+          .damage-catalog-title {
+            font-size: 22px;
+          }
+
+          .damage-catalog-subtitle {
+            font-size: 12px;
+          }
+
+          .damage-catalog-filter-toggle {
+            display: flex;
+          }
+
+          .damage-catalog-filters {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+          }
+
+          .damage-catalog-filters-open {
+            display: flex;
+          }
+
+          .damage-catalog-filter-group {
+            width: 100%;
+          }
+
+          .damage-catalog-filter-select {
+            width: 100%;
+          }
+
+          .damage-catalog-stats {
+            margin-left: 0;
+            justify-content: center;
+            width: 100%;
+          }
+
+          .damage-catalog-clear-filters {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .damage-catalog-actions {
+            flex-direction: column;
+          }
+
+          .damage-catalog-edit-btn,
+          .damage-catalog-delete-btn {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .damage-catalog-table th,
+          .damage-catalog-table td {
+            padding: 12px 16px;
+          }
+
+          .damage-catalog-modal {
+            max-width: 95%;
+          }
+
+          .damage-catalog-modal-header {
+            padding: 16px 20px;
+          }
+
+          .damage-catalog-modal-header-icon {
+            width: 40px;
+            height: 40px;
+          }
+
+          .damage-catalog-modal-header-text h2 {
+            font-size: 16px;
+          }
+
+          .damage-catalog-modal-body {
+            padding: 20px;
+          }
+
+          .damage-catalog-modal-footer {
+            flex-direction: column;
+          }
+
+          .damage-catalog-modal-cancel,
+          .damage-catalog-modal-save {
+            width: 100%;
+            text-align: center;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
-
-const styles = {
-  content: {
-    padding: '32px',
-    flex: 1,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: '#111827',
-    marginBottom: 8,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  newButton: {
-    backgroundColor: '#4361ee',
-    color: '#fff',
-    border: 'none',
-    padding: '12px 18px',
-    borderRadius: 12,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    transition: 'background-color 0.2s ease',
-  },
-  success: {
-    backgroundColor: '#ecfdf3',
-    color: '#027a48',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 20,
-    fontSize: 14,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  error: {
-    backgroundColor: '#fef3f2',
-    color: '#b42318',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 20,
-    fontSize: 14,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  filtersBar: {
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-    flexWrap: 'wrap',
-    backgroundColor: '#fff',
-    padding: '16px 20px',
-    borderRadius: 16,
-    border: '1px solid #eaecf0',
-  },
-  searchWrapper: {
-    position: 'relative',
-    flex: '1 1 220px',
-    minWidth: 180,
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 12,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
-  },
-  searchInput: {
-    width: '100%',
-    padding: '10px 16px 10px 38px',
-    borderRadius: 12,
-    border: '1px solid #e4e7eb',
-    fontSize: 14,
-    boxSizing: 'border-box',
-    outline: 'none',
-    backgroundColor: '#f9fafb',
-    transition: 'all 0.2s ease',
-    '&:focus': {
-      borderColor: '#4361ee',
-      boxShadow: '0 0 0 3px rgba(67, 97, 238, 0.1)',
-    }
-  },
-  clearSearchBtn: {
-    position: 'absolute',
-    right: 8,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#9ca3af',
-    display: 'flex',
-    alignItems: 'center',
-    padding: 4,
-  },
-  filterWrapper: {
-    position: 'relative',
-    minWidth: 140,
-  },
-  filterIcon: {
-    position: 'absolute',
-    left: 12,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
-  },
-  filterSelect: {
-    width: '100%',
-    padding: '10px 14px 10px 36px',
-    borderRadius: 10,
-    border: '1px solid #d0d5dd',
-    fontSize: 14,
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-    outline: 'none',
-    appearance: 'none',
-    transition: 'all 0.2s ease',
-  },
-  clearBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '10px 16px',
-    borderRadius: 10,
-    border: '1px solid #e5e7eb',
-    backgroundColor: '#f9fafb',
-    color: '#374151',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 500,
-    transition: 'all 0.2s ease',
-  },
-  resultCount: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginLeft: 'auto',
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    padding: '8px 14px',
-    borderRadius: 10,
-  },
-  tableCard: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    border: '1px solid #eaecf0',
-    overflow: 'hidden',
-  },
-  tableWrapper: {
-    overflowX: 'auto',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  thead: {
-    backgroundColor: '#f9fafb',
-  },
-  th: {
-    padding: '16px 20px',
-    textAlign: 'left',
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#667085',
-    borderBottom: '1px solid #eaecf0',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  tr: {
-    borderBottom: '1px solid #f1f3f5',
-    transition: 'background-color 0.2s ease',
-  },
-  td: {
-    padding: '18px 20px',
-    fontSize: 14,
-    color: '#344054',
-  },
-  codeBadge: {
-    backgroundColor: '#eef2ff',
-    color: '#4361ee',
-    padding: '4px 10px',
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: 600,
-    fontFamily: 'monospace',
-  },
-  statusBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '4px 10px',
-    borderRadius: 20,
-    fontSize: 11,
-    fontWeight: 600,
-  },
-  editBtn: {
-    backgroundColor: '#4361ee',
-    color: '#fff',
-    border: 'none',
-    padding: '8px 14px',
-    borderRadius: 8,
-    cursor: 'pointer',
-    fontSize: 12,
-    marginRight: 8,
-    display: 'inline-flex',
-    alignItems: 'center',
-    transition: 'background-color 0.2s ease',
-  },
-  deleteBtn: {
-    backgroundColor: '#dc2626',
-    color: '#fff',
-    border: 'none',
-    padding: '8px 14px',
-    borderRadius: 8,
-    cursor: 'pointer',
-    fontSize: 12,
-    display: 'inline-flex',
-    alignItems: 'center',
-    transition: 'background-color 0.2s ease',
-  },
-  stateContainer: {
-    padding: '60px 20px',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 12,
-  },
-  stateText: {
-    color: '#6b7280',
-    fontSize: 15,
-  },
-  spinner: {
-    animation: 'spin 1s linear infinite',
-  },
-};
-
-// Estilos del Modal
-const modalStyles = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '20px',
-  },
-  modal: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    width: '100%',
-    maxWidth: 550,
-    maxHeight: '90vh',
-    overflowY: 'auto',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-    animation: 'slideUp 0.3s ease',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    padding: '20px 24px',
-    background: 'linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%)',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    position: 'relative',
-  },
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    background: 'rgba(255, 255, 255, 0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#fff',
-    margin: 0,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-  },
-  closeBtn: {
-    background: 'rgba(255, 255, 255, 0.2)',
-    border: 'none',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    color: '#fff',
-    transition: 'all 0.2s',
-  },
-  content: {
-    padding: '24px',
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 20,
-  },
-  field: {
-    marginBottom: 8,
-  },
-  label: {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-    outline: 'none',
-    transition: 'all 0.2s',
-    boxSizing: 'border-box',
-  },
-  textarea: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-    outline: 'none',
-    transition: 'all 0.2s',
-    boxSizing: 'border-box',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  error: {
-    backgroundColor: '#fef2f2',
-    color: '#dc2626',
-    padding: '12px 16px',
-    borderRadius: 10,
-    fontSize: 13,
-    marginBottom: 20,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  success: {
-    backgroundColor: '#ecfdf5',
-    color: '#10b981',
-    padding: '12px 16px',
-    borderRadius: 10,
-    fontSize: 13,
-    marginBottom: 20,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  footer: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: 12,
-    padding: '16px 24px',
-    borderTop: '1px solid #eaecf0',
-    backgroundColor: '#f9fafb',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  cancelBtn: {
-    padding: '10px 20px',
-    background: '#fff',
-    border: '1px solid #d1d5db',
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#374151',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  saveBtn: {
-    padding: '10px 24px',
-    background: '#4361ee',
-    border: 'none',
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#fff',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-  },
-};
-
-// Agregar animaciones
-const styleSheetModal = document.createElement("style");
-styleSheetModal.textContent = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .modal-close-btn:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-  }
-  .modal-cancel-btn:hover {
-    background-color: #f3f4f6;
-  }
-  .modal-save-btn:hover {
-    background-color: #1e3a5f;
-  }
-`;
-document.head.appendChild(styleSheetModal);
 
 export default DamageCatalogPage;

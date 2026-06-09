@@ -148,7 +148,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://192.168.1.3:3000", "capacitor://localhost", "http://localhost")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials(); // necesario para SignalR

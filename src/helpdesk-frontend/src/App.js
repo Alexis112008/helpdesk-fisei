@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateTicket from './pages/CreateTicket';
@@ -12,8 +12,6 @@ import Register from './pages/Register';
 import AdminTickets from './pages/admin/AdminTickets';
 import Profile from './pages/Profile';
 import SystemConfig from './pages/admin/SystemConfig';
-
-// ----- Sprint 2 -----
 import TechnicianPanel from './pages/TechnicianPanel';
 import TicketDetailTech from './pages/TicketDetailTech';
 import TicketDetailUser from './pages/TicketDetailUser';
@@ -33,73 +31,38 @@ function PrivateRoute({ children, adminOnly, techOnly }) {
   return children;
 }
 
+// Componente separado para usar useLocation
+function AppRoutes() {
+  const location = useLocation();
+
+  return (
+    <Routes location={location} key={location.pathname}>
+      <Route path="/" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      <Route path="/tickets" element={<PrivateRoute><TicketList /></PrivateRoute>} />
+      <Route path="/perfil" element={<Profile />} />
+      <Route path="/tickets/:id" element={<PrivateRoute><TicketDetailUser /></PrivateRoute>} />
+      <Route path="/crear-ticket" element={<PrivateRoute><CreateTicket /></PrivateRoute>} />
+      <Route path="/tecnico/panel" element={<PrivateRoute techOnly><TechnicianPanel /></PrivateRoute>} />
+      <Route path="/tecnico/ticket/:id" element={<PrivateRoute techOnly><TicketDetailTech /></PrivateRoute>} />
+      <Route path="/conocimiento" element={<PrivateRoute><KnowledgeSearch /></PrivateRoute>} />
+      <Route path="/admin/conocimiento" element={<PrivateRoute adminOnly><AdminKnowledge /></PrivateRoute>} />
+      <Route path="/admin/usuarios" element={<PrivateRoute adminOnly><UserManagement /></PrivateRoute>} />
+      <Route path="/admin/servicios" element={<PrivateRoute adminOnly><ServiceCatalogPage /></PrivateRoute>} />
+      <Route path="/admin/daños" element={<PrivateRoute adminOnly><DamageCatalogPage /></PrivateRoute>} />
+      <Route path="/admin/asignaciones" element={<PrivateRoute adminOnly><TechnicianAssignments /></PrivateRoute>} />
+      <Route path="/admin/tickets" element={<PrivateRoute adminOnly><AdminTickets /></PrivateRoute>} />
+      <Route path="/admin/configuracion" element={<PrivateRoute adminOnly><SystemConfig /></PrivateRoute>} />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <NotificationProvider>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          <Route path="/dashboard" element={
-            <PrivateRoute><Dashboard /></PrivateRoute>
-          } />
-
-          <Route path="/tickets" element={
-            <PrivateRoute><TicketList /></PrivateRoute>
-          } />
-          <Route path="/perfil" element={
-            <Profile />
-          } />
-          <Route path="/tickets/:id" element={
-            <PrivateRoute><TicketDetailUser /></PrivateRoute>
-          } />
-          <Route path="/crear-ticket" element={
-            <PrivateRoute><CreateTicket /></PrivateRoute>
-          } />
-
-          {/* HU5 - Panel del tecnico */}
-          <Route path="/tecnico/panel" element={
-            <PrivateRoute techOnly><TechnicianPanel /></PrivateRoute>
-          } />
-          <Route path="/tecnico/ticket/:id" element={
-            <PrivateRoute techOnly><TicketDetailTech /></PrivateRoute>
-          } />
-
-          {/* HU8 - Base de conocimiento (usuario y técnico) */}
-          <Route path="/conocimiento" element={
-            <PrivateRoute><KnowledgeSearch /></PrivateRoute>
-          } />
-
-          {/* Admin - Gestión de Base de Conocimiento */}
-          <Route path="/admin/conocimiento" element={
-            <PrivateRoute adminOnly><AdminKnowledge /></PrivateRoute>
-          } />
-
-          {/* Admin - Gestión de usuarios */}
-          <Route path="/admin/usuarios" element={
-            <PrivateRoute adminOnly><UserManagement /></PrivateRoute>
-          } />
-
-          {/* Admin - Catálogos */}
-          <Route path="/admin/servicios" element={
-            <PrivateRoute adminOnly><ServiceCatalogPage /></PrivateRoute>
-          } />
-          <Route path="/admin/daños" element={
-            <PrivateRoute adminOnly><DamageCatalogPage /></PrivateRoute>
-          } />
-
-          {/* Admin - Asignaciones */}
-          <Route path="/admin/asignaciones" element={
-            <PrivateRoute adminOnly><TechnicianAssignments /></PrivateRoute>
-          } />
-
-          {/* Admin - Tickets */}
-          <Route path="/admin/tickets" element={
-            <PrivateRoute adminOnly><AdminTickets /></PrivateRoute>
-          } />
-          <Route path="/admin/configuracion" element={<PrivateRoute adminOnly><SystemConfig /></PrivateRoute>} />
-        </Routes>
+        <AppRoutes />
       </NotificationProvider>
     </BrowserRouter>
   );

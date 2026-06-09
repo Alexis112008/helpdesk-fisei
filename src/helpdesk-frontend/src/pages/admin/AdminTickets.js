@@ -33,6 +33,14 @@ function AdminTickets() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [selectedTechs, setSelectedTechs] = useState({});
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -78,7 +86,6 @@ function AdminTickets() {
 
     setAssigning(true);
     try {
-      // ✅ Usar el nuevo endpoint de admin (NO /accept)
       await ticketAPI.post(`/ticket/${ticketId}/assign-to-technician`, {
         technicianId: technicianId
       });
@@ -148,69 +155,59 @@ function AdminTickets() {
 
   return (
     <Layout>
-      <div style={{ padding: '32px', flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="admin-tickets-page">
+        <div className="admin-tickets-header">
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Asignación de Tickets</h1>
-            <p style={{ fontSize: 14, color: '#6b7280', display: 'flex', alignItems: 'center' }}>
-              <UserCheck size={14} style={{ marginRight: 6 }} />
+            <h1 className="admin-tickets-title">Asignación de Tickets</h1>
+            <p className="admin-tickets-subtitle">
+              <UserCheck size={14} />
               Asigna tickets manualmente a los técnicos según su nivel
             </p>
           </div>
-          <button onClick={loadData} style={{
-            background: '#fff',
-            border: '1px solid #d1d5db',
-            color: '#374151',
-            padding: '10px 18px',
-            borderRadius: 12,
-            cursor: 'pointer',
-            fontSize: 13,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-          }}>
-            <RefreshCw size={16} style={{ marginRight: 6 }} />
+          <button className="admin-tickets-refresh-btn" onClick={loadData}>
+            <RefreshCw size={16} />
             Actualizar
           </button>
         </div>
 
         {success && (
-          <div style={{ backgroundColor: '#ecfdf3', color: '#027a48', padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 14, display: 'flex', alignItems: 'center' }}>
-            <CheckCircle size={18} style={{ marginRight: 10 }} />
+          <div className="admin-tickets-success">
+            <CheckCircle size={18} />
             {success}
           </div>
         )}
         {error && (
-          <div style={{ backgroundColor: '#fef3f2', color: '#b42318', padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 14, display: 'flex', alignItems: 'center' }}>
-            <AlertCircle size={18} style={{ marginRight: 10 }} />
+          <div className="admin-tickets-error">
+            <AlertCircle size={18} />
             {error}
           </div>
         )}
 
         {/* Filtros */}
-        <div style={{
-          display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap',
-          backgroundColor: '#fff', padding: '16px 20px', borderRadius: 16, border: '1px solid #eaecf0'
-        }}>
-          <div style={{ position: 'relative', flex: '1 1 260px', minWidth: 220 }}>
-            <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} color="#9ca3af" />
-            <input
-              style={{ width: '100%', padding: '10px 32px 10px 38px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, outline: 'none', backgroundColor: '#fff' }}
-              placeholder="Buscar por título o número..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', padding: 4 }}>
-                <X size={14} />
-              </button>
-            )}
+        <div className="admin-tickets-filters-card">
+          <div className="admin-tickets-search-bar">
+            <div className="admin-tickets-search-wrapper">
+              <Search size={16} className="admin-tickets-search-icon" />
+              <input
+                className="admin-tickets-search-input"
+                placeholder={isMobile ? "Buscar..." : "Buscar por título o número..."}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="admin-tickets-clear-search" onClick={() => setSearch('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button className="admin-tickets-filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+              <Filter size={14} />
+              Filtros
+            </button>
           </div>
 
-          <div style={{ position: 'relative', minWidth: 160 }}>
-            <Filter size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} color="#6b7280" />
-            <select style={{ width: '100%', padding: '10px 14px 10px 38px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, backgroundColor: '#fff', outline: 'none', cursor: 'pointer', appearance: 'none' }}
-              value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <div className={`admin-tickets-filters ${showFilters ? 'admin-tickets-filters-open' : ''}`}>
+            <select className="admin-tickets-filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
               <option value="">Todos los estados</option>
               <option value="Abierto">Abierto</option>
               <option value="En Proceso">En Proceso</option>
@@ -219,114 +216,99 @@ function AdminTickets() {
               <option value="Cerrado">Cerrado</option>
               <option value="Vencido">Vencido</option>
             </select>
-          </div>
 
-          <div style={{ position: 'relative', minWidth: 160 }}>
-            <AlertCircle size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} color="#6b7280" />
-            <select style={{ width: '100%', padding: '10px 14px 10px 38px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, backgroundColor: '#fff', outline: 'none', cursor: 'pointer', appearance: 'none' }}
-              value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
+            <select className="admin-tickets-filter-select" value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
               <option value="">Todas las prioridades</option>
               <option value="Baja">Baja</option>
               <option value="Media">Media</option>
               <option value="Alta">Alta</option>
               <option value="Crítica">Crítica</option>
             </select>
-          </div>
 
-          <div style={{ position: 'relative', minWidth: 160 }}>
-            <Users size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} color="#6b7280" />
-            <select style={{ width: '100%', padding: '10px 14px 10px 38px', borderRadius: 10, border: '1px solid #d0d5dd', fontSize: 14, backgroundColor: '#fff', outline: 'none', cursor: 'pointer', appearance: 'none' }}
-              value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
+            <select className="admin-tickets-filter-select" value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
               <option value="">Todos los niveles</option>
               <option value="1">Nivel 1</option>
               <option value="2">Nivel 2</option>
               <option value="3">Nivel 3</option>
               <option value="4">Nivel 4</option>
             </select>
-          </div>
 
-          <div style={{ fontSize: 13, color: '#6b7280', marginLeft: 'auto', display: 'flex', alignItems: 'center', backgroundColor: '#f9fafb', padding: '8px 14px', borderRadius: 10 }}>
-            <Ticket size={14} style={{ marginRight: 4 }} />
-            {unassignedTickets.length} sin asignar | {assignedTickets.length} asignados
-          </div>
+            <div className="admin-tickets-stats">
+              <Ticket size={14} />
+              {unassignedTickets.length} sin asignar | {assignedTickets.length} asignados
+            </div>
 
-          {hasActiveFilters && (
-            <button onClick={clearFilters} style={{ background: '#f3f4f6', border: '1px solid #d1d5db', color: '#374151', padding: '8px 14px', borderRadius: 10, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-              <X size={14} style={{ marginRight: 4 }} />
-              Limpiar filtros
-            </button>
-          )}
+            {hasActiveFilters && (
+              <button className="admin-tickets-clear-filters" onClick={clearFilters}>
+                <X size={14} />
+                Limpiar filtros
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tickets sin asignar */}
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a2e', display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-          <Ticket size={18} style={{ marginRight: 8 }} />
+        <h3 className="admin-tickets-section-title">
+          <Ticket size={18} />
           Tickets pendientes de asignación ({unassignedTickets.length})
         </h3>
 
         {loading ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-            <RefreshCw size={24} style={{ animation: 'spin 1s linear infinite' }} />
-            <p style={{ color: '#6b7280', fontSize: 15, marginTop: 12 }}>Cargando tickets...</p>
+          <div className="admin-tickets-loading">
+            <RefreshCw size={24} className="admin-tickets-spinner" />
+            <p>Cargando tickets...</p>
           </div>
         ) : unassignedTickets.length === 0 ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-            <p style={{ color: '#6b7280', fontSize: 15 }}>
-              {hasActiveFilters ? 'No hay tickets que coincidan con los filtros.' : 'No hay tickets pendientes de asignación.'}
-            </p>
+          <div className="admin-tickets-empty">
+            <p>{hasActiveFilters ? 'No hay tickets que coincidan con los filtros.' : 'No hay tickets pendientes de asignación.'}</p>
           </div>
         ) : (
-          <div style={{ width: '100%', backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', overflow: 'hidden', marginBottom: 24 }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="admin-tickets-table-card">
+            <div className="admin-tickets-table-wrapper">
+              <table className="admin-tickets-table">
                 <thead>
-                  <tr style={{ backgroundColor: '#f9fafb' }}>
-                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>N° Ticket</th>
-                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Título</th>
-                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Prioridad</th>
-                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Nivel</th>
-                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Usuario</th>
-                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Fecha</th>
-                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Asignar a</th>
-                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Acción</th>
+                  <tr>
+                    <th>N° Ticket</th>
+                    <th>Título</th>
+                    <th>Prioridad</th>
+                    <th>Nivel</th>
+                    <th>Usuario</th>
+                    <th>Fecha</th>
+                    <th>Asignar a</th>
+                    <th>Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {unassignedTickets.map((t) => {
                     const availableTechs = getAvailableTechnicians(t.currentLevel);
                     return (
-                      <tr key={t.id} style={{ borderBottom: '1px solid #f1f3f5' }}>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <span style={{ fontWeight: 700, color: '#4361ee', display: 'inline-flex', alignItems: 'center' }}>
-                            <Ticket size={12} style={{ marginRight: 4 }} />
-                            {t.ticketNumber}
-                          </span>
-                        </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>{t.title}</td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <span style={{ color: '#fff', padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', backgroundColor: priorityColor(t.priority) }}>
+                      <tr key={t.id}>
+                        <td className="admin-tickets-ticket-number">{t.ticketNumber}</td>
+                        <td className="admin-tickets-ticket-title">{t.title}</td>
+                        <td>
+                          <span className="admin-tickets-priority-badge" style={{ backgroundColor: priorityColor(t.priority) }}>
                             {getPriorityIcon(t.priority)}
                             {t.priority}
                           </span>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <span style={{ background: '#f3f4f6', color: '#374151', padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, display: 'inline-block' }}>{t.levelName}</span>
+                        <td>
+                          <span className="admin-tickets-level-badge">{t.levelName}</span>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <User size={12} color="#6b7280" />
+                        <td>
+                          <div className="admin-tickets-user-cell">
+                            <User size={12} />
                             <span>{t.userId}</span>
                           </div>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Calendar size={12} color="#9ca3af" />
+                        <td>
+                          <div className="admin-tickets-date-cell">
+                            <Calendar size={12} />
                             <span>{new Date(t.createdAt).toLocaleDateString('es-EC')}</span>
                           </div>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
+                        <td>
                           <select
-                            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d0d5dd', fontSize: 12, backgroundColor: '#fff', width: '100%', minWidth: 150 }}
+                            className="admin-tickets-select"
                             onChange={(e) => setSelectedTechs(prev => ({ ...prev, [t.id]: e.target.value }))}
                             value={selectedTechs[t.id] || ''}
                           >
@@ -338,11 +320,12 @@ function AdminTickets() {
                             ))}
                           </select>
                           {availableTechs.length === 0 && (
-                            <span style={{ fontSize: 11, color: '#dc2626', display: 'block', marginTop: 4 }}>No hay técnicos disponibles</span>
+                            <span className="admin-tickets-no-tech">No hay técnicos disponibles</span>
                           )}
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
+                        <td>
                           <button
+                            className="admin-tickets-assign-btn"
                             onClick={() => {
                               const techId = selectedTechs[t.id];
                               const tech = availableTechs.find(tech => tech.id === parseInt(techId));
@@ -354,9 +337,8 @@ function AdminTickets() {
                               }
                             }}
                             disabled={!selectedTechs[t.id] || assigning}
-                            style={{ background: '#10b981', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', opacity: !selectedTechs[t.id] || assigning ? 0.6 : 1 }}
                           >
-                            <UserCheck size={14} style={{ marginRight: 6 }} />
+                            <UserCheck size={14} />
                             Asignar
                           </button>
                         </td>
@@ -372,68 +354,63 @@ function AdminTickets() {
         {/* Tickets asignados */}
         {assignedTickets.length > 0 && (
           <>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a2e', display: 'flex', alignItems: 'center', marginTop: 32, marginBottom: 16 }}>
-              <CheckCircle size={18} style={{ marginRight: 8, color: '#10b981' }} />
+            <h3 className="admin-tickets-section-title admin-tickets-assigned-title">
+              <CheckCircle size={18} />
               Tickets asignados ({assignedTickets.length})
             </h3>
 
-            <div style={{ width: '100%', backgroundColor: '#fff', borderRadius: 16, border: '1px solid #eaecf0', overflow: 'hidden' }}>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div className="admin-tickets-table-card">
+              <div className="admin-tickets-table-wrapper">
+                <table className="admin-tickets-table">
                   <thead>
-                    <tr style={{ backgroundColor: '#f9fafb' }}>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>N° Ticket</th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Título</th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Prioridad</th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Estado</th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Nivel</th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Técnico</th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Fecha</th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#667085', borderBottom: '1px solid #eaecf0' }}>Acciones</th>
+                    <tr>
+                      <th>N° Ticket</th>
+                      <th>Título</th>
+                      <th>Prioridad</th>
+                      <th>Estado</th>
+                      <th>Nivel</th>
+                      <th>Técnico</th>
+                      <th>Fecha</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {assignedTickets.map((t) => (
-                      <tr key={t.id} style={{ borderBottom: '1px solid #f1f3f5' }}>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <span style={{ fontWeight: 700, color: '#4361ee', display: 'inline-flex', alignItems: 'center' }}>
-                            <Ticket size={12} style={{ marginRight: 4 }} />
-                            {t.ticketNumber}
-                          </span>
-                        </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>{t.title}</td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <span style={{ color: '#fff', padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', backgroundColor: priorityColor(t.priority) }}>
+                      <tr key={t.id}>
+                        <td className="admin-tickets-ticket-number">{t.ticketNumber}</td>
+                        <td className="admin-tickets-ticket-title">{t.title}</td>
+                        <td>
+                          <span className="admin-tickets-priority-badge" style={{ backgroundColor: priorityColor(t.priority) }}>
                             {getPriorityIcon(t.priority)}
                             {t.priority}
                           </span>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <span style={{ color: '#fff', padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', backgroundColor: statusColor(t.status) }}>
+                        <td>
+                          <span className="admin-tickets-status-badge" style={{ backgroundColor: statusColor(t.status) }}>
                             {t.status}
                           </span>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <span style={{ background: '#f3f4f6', color: '#374151', padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, display: 'inline-block' }}>{t.levelName}</span>
+                        <td>
+                          <span className="admin-tickets-level-badge">{t.levelName}</span>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <span style={{ background: '#eef2ff', color: '#4361ee', padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}>
-                            <User size={12} style={{ marginRight: 4 }} />
+                        <td>
+                          <span className="admin-tickets-tech-badge">
+                            <User size={12} />
                             {t.assignedTechnicianId || 'No asignado'}
                           </span>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Calendar size={12} color="#9ca3af" />
+                        <td>
+                          <div className="admin-tickets-date-cell">
+                            <Calendar size={12} />
                             <span>{new Date(t.createdAt).toLocaleDateString('es-EC')}</span>
                           </div>
                         </td>
-                        <td style={{ padding: '18px 20px', fontSize: 13, color: '#344054' }}>
+                        <td>
                           <button
+                            className="admin-tickets-view-btn"
                             onClick={() => navigate(`/tickets/${t.id}`, { state: { from: '/admin/tickets' } })}
-                            style={{ background: '#4361ee', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}
                           >
-                            <Eye size={14} style={{ marginRight: 6 }} />
+                            <Eye size={14} />
                             Ver detalle
                           </button>
                         </td>
@@ -446,18 +423,403 @@ function AdminTickets() {
           </>
         )}
       </div>
+
+      <style>{`
+        .admin-tickets-page {
+          padding: 28px 32px;
+          flex: 1;
+          min-height: 100vh;
+          background-color: #f5f7fa;
+        }
+
+        .admin-tickets-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .admin-tickets-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #111827;
+          margin-bottom: 8px;
+        }
+
+        .admin-tickets-subtitle {
+          font-size: 14px;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .admin-tickets-refresh-btn {
+          background: #fff;
+          border: 1px solid #d1d5db;
+          color: #374151;
+          padding: 10px 18px;
+          border-radius: 12px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .admin-tickets-success {
+          background-color: #ecfdf3;
+          color: #027a48;
+          padding: 14px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .admin-tickets-error {
+          background-color: #fef3f2;
+          color: #b42318;
+          padding: 14px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .admin-tickets-filters-card {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          padding: 16px 20px;
+          margin-bottom: 24px;
+        }
+
+        .admin-tickets-search-bar {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .admin-tickets-search-wrapper {
+          position: relative;
+          flex: 1;
+          min-width: 200px;
+        }
+
+        .admin-tickets-search-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #9ca3af;
+        }
+
+        .admin-tickets-search-input {
+          width: 100%;
+          padding: 10px 16px 10px 38px;
+          border-radius: 10px;
+          border: 1px solid #d0d5dd;
+          font-size: 14px;
+          outline: none;
+          background: #fff;
+        }
+
+        .admin-tickets-clear-search {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #9ca3af;
+        }
+
+        .admin-tickets-filter-toggle {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          background: #f9fafb;
+          border: 1px solid #eaecf0;
+          border-radius: 10px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .admin-tickets-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          align-items: center;
+          margin-top: 16px;
+        }
+
+        .admin-tickets-filter-select {
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #d0d5dd;
+          font-size: 14px;
+          background: #fff;
+          min-width: 150px;
+        }
+
+        .admin-tickets-stats {
+          font-size: 13px;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f9fafb;
+          padding: 8px 14px;
+          border-radius: 10px;
+          margin-left: auto;
+        }
+
+        .admin-tickets-clear-filters {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f3f4f6;
+          border: 1px solid #d1d5db;
+          color: #374151;
+          padding: 8px 14px;
+          border-radius: 10px;
+          cursor: pointer;
+        }
+
+        .admin-tickets-section-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #1a1a2e;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .admin-tickets-assigned-title {
+          margin-top: 32px;
+        }
+
+        .admin-tickets-loading, .admin-tickets-empty {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          padding: 60px 20px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .admin-tickets-spinner {
+          animation: spin 1s linear infinite;
+        }
+
+        .admin-tickets-table-card {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          overflow: hidden;
+          margin-bottom: 24px;
+        }
+
+        .admin-tickets-table-wrapper {
+          overflow-x: auto;
+        }
+
+        .admin-tickets-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 900px;
+        }
+
+        .admin-tickets-table th {
+          padding: 16px 20px;
+          text-align: left;
+          font-size: 12px;
+          font-weight: 700;
+          color: #667085;
+          background: #f9fafb;
+          border-bottom: 1px solid #eaecf0;
+        }
+
+        .admin-tickets-table td {
+          padding: 18px 20px;
+          font-size: 13px;
+          color: #344054;
+          border-bottom: 1px solid #f1f3f5;
+        }
+
+        .admin-tickets-ticket-number {
+          font-weight: 700;
+          color: #4361ee;
+          font-family: monospace;
+        }
+
+        .admin-tickets-ticket-title {
+          max-width: 200px;
+        }
+
+        .admin-tickets-priority-badge, .admin-tickets-status-badge {
+          color: #fff;
+          padding: 5px 12px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .admin-tickets-level-badge {
+          background: #f3f4f6;
+          color: #374151;
+          padding: 4px 10px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .admin-tickets-tech-badge {
+          background: #eef2ff;
+          color: #4361ee;
+          padding: 4px 10px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .admin-tickets-user-cell, .admin-tickets-date-cell {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .admin-tickets-select {
+          padding: 8px 12px;
+          border-radius: 8px;
+          border: 1px solid #d0d5dd;
+          font-size: 12px;
+          background: #fff;
+          width: 100%;
+          min-width: 150px;
+        }
+
+        .admin-tickets-no-tech {
+          font-size: 11px;
+          color: #dc2626;
+          display: block;
+          margin-top: 4px;
+        }
+
+        .admin-tickets-assign-btn {
+          background: #10b981;
+          color: #fff;
+          border: none;
+          padding: 8px 14px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .admin-tickets-assign-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .admin-tickets-view-btn {
+          background: #4361ee;
+          color: #fff;
+          border: none;
+          padding: 7px 14px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+          .admin-tickets-page {
+            padding: 70px 12px 20px 12px;
+          }
+
+          .admin-tickets-title {
+            font-size: 22px;
+          }
+
+          .admin-tickets-subtitle {
+            font-size: 12px;
+          }
+
+          .admin-tickets-filter-toggle {
+            display: flex;
+          }
+
+          .admin-tickets-filters {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+          }
+
+          .admin-tickets-filters-open {
+            display: flex;
+          }
+
+          .admin-tickets-filter-select {
+            width: 100%;
+          }
+
+          .admin-tickets-stats {
+            margin-left: 0;
+            justify-content: center;
+          }
+
+          .admin-tickets-clear-filters {
+            justify-content: center;
+          }
+
+          .admin-tickets-table th, 
+          .admin-tickets-table td {
+            padding: 12px 16px;
+          }
+
+          .admin-tickets-ticket-title {
+            max-width: 150px;
+          }
+
+          .admin-tickets-select {
+            min-width: 120px;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
-
-// Añadir animación para el spinner
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default AdminTickets;

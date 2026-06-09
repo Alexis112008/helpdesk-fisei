@@ -9,79 +9,56 @@ body {
   background-color: #f0f2f5;
 }
 
-/* ========== UTILIDADES RESPONSIVE ========== */
-
-/* Grid responsive - para usar en cualquier página */
-.responsive-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-}
-
-/* Formularios responsive */
-.responsive-form {
-  width: 100%;
-  max-width: 100%;
-}
-
-.responsive-input {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
-  font-size: 14px;
-}
-
-/* Tablas responsive */
-.responsive-table {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.responsive-table table {
-  width: 100%;
-  min-width: 600px;
-}
-
-/* Tarjetas responsive */
-.responsive-card {
-  background: #fff;
-  border-radius: 20px;
-  border: 1px solid #e4e7eb;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  margin-bottom: 24px;
-}
-
-/* ========== MEDIA QUERIES ========== */
+/* ========== RESPONSIVE GLOBAL ========== */
 
 /* Móviles (menos de 768px) */
 @media (max-width: 768px) {
-  .responsive-grid {
-    grid-template-columns: 1fr !important;
-    gap: 16px !important;
+
+  /* Ajuste principal del contenido */
+  .main-content-area {
+    padding: 70px 12px 20px 12px !important;
   }
 
-  .responsive-card {
+  /* Tarjetas y contenedores */
+  .create-ticket-container,
+  [class*="container"] {
+    margin: 0 12px !important;
     padding: 16px !important;
-    margin-bottom: 16px !important;
-    border-radius: 16px !important;
   }
 
-  /* Ajustar inputs para móvil (evita zoom en iOS) */
+  /* Forzar grids a 1 columna */
+  [style*="display: grid"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Forzar filas flex a columna */
+  .responsive-row,
+  [style*="display: flex"][style*="gap: 16px"],
+  [style*="display: flex"][style*="gap: 20px"] {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  /* Inputs, selects, textareas */
   input,
   select,
-  textarea {
+  textarea,
+  .responsive-input,
+  .responsive-select,
+  .responsive-textarea {
     font-size: 16px !important;
+    padding: 12px !important;
+    width: 100% !important;
   }
 
-  /* Botones más fáciles de tocar */
+  /* Botones */
   button {
-    min-height: 44px;
+    min-height: 44px !important;
+    padding: 10px 16px !important;
   }
 
-  /* Headers más pequeños */
+  /* Títulos */
   h1 {
     font-size: 22px !important;
   }
@@ -94,23 +71,91 @@ body {
     font-size: 16px !important;
   }
 
-  /* Espaciado general */
-  .p-4,
-  [style*="padding: 28px"] {
-    padding: 16px !important;
+  /* Formularios */
+  form,
+  form>div {
+    width: 100% !important;
+  }
+
+  /* Grid de preview de imágenes */
+  [style*="grid-template-columns: repeat(auto-fill, minmax(80px, 1fr))"] {
+    grid-template-columns: repeat(3, 1fr) !important;
   }
 }
 
 /* Tablets (768px a 1024px) */
 @media (min-width: 769px) and (max-width: 1024px) {
-  .responsive-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
+  .responsive-row {
+    flex-direction: row !important;
   }
 }
 
-/* Desktop (más de 1024px) */
-@media (min-width: 1025px) {
-  .responsive-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
+/* Utility classes */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.responsive-card {
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #e4e7eb;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-bottom: 24px;
+}
+
+/* ============================================ */
+/* CORRECCIÓN ADICIONAL PARA MÓVIL              */
+/* ============================================ */
+
+/* Asegurar que el contenedor principal tenga el padding correcto */
+@media (max-width: 768px) {
+
+  /* Para cualquier página que no tenga clase específica */
+  .main-content-area>div:first-child {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Ajuste para el Dashboard */
+  .dashboard-container,
+  [class*="dashboard"] {
+    padding: 70px 12px 20px 12px !important;
+  }
+
+  /* Ajuste para la página de tickets */
+  .ticket-list-page,
+  [class*="ticket-list"] {
+    padding: 70px 12px 20px 12px !important;
+  }
+
+  /* Ajuste para el detalle de ticket */
+  .ticket-detail-page,
+  [class*="tech-detail-page"] {
+    padding: 70px 12px 20px 12px !important;
+  }
+
+  /* Ajuste para la bandeja del técnico */
+  .tech-panel,
+  [class*="tech-panel"] {
+    padding: 70px 12px 20px 12px !important;
+  }
+
+  /* Ajuste para la configuración */
+  .config-container,
+  [class*="SystemConfig"] {
+    padding: 70px 12px 20px 12px !important;
+  }
+
+  /* Ajuste para el perfil */
+  .profile-content {
+    padding: 70px 12px 20px 12px !important;
+  }
+
+  /* Ajuste para el conocimiento */
+  .knowledge-content {
+    padding: 70px 12px 20px 12px !important;
   }
 }

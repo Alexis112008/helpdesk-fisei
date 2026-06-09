@@ -28,7 +28,6 @@ import Layout from '../components/Layout';
 import { ticketAPI } from '../services/api';
 import { getConnection, joinTechnicianGroup, joinUserGroup } from '../services/realtime';
 
-// Colores profesionales
 const COLORS = {
   Primario: '#2d6a9f',
   PrimarioOscuro: '#1e3a5f',
@@ -59,6 +58,7 @@ function TechnicianPanel() {
   const role = localStorage.getItem('role');
   const fullName = localStorage.getItem('fullName');
   const userId = parseInt(localStorage.getItem('userId') || '0');
+  const [showFilters, setShowFilters] = useState(false);
 
   const [tab, setTab] = useState('available');
   const [available, setAvailable] = useState([]);
@@ -75,10 +75,8 @@ function TechnicianPanel() {
   const [dateRangePreset, setDateRangePreset] = useState('todos');
   const [urgentOnly, setUrgentOnly] = useState(false);
 
-  // Niveles disponibles
   const levels = ['Todos', 'Técnico Básico', 'Técnico Profesional', 'DITIC', 'Proveedor Externo'];
 
-  // Métricas
   const [metrics, setMetrics] = useState({
     totalAvailable: 0,
     totalMine: 0,
@@ -88,7 +86,6 @@ function TechnicianPanel() {
     byStatus: { EnProceso: 0, Escalado: 0, Resuelto: 0, Vencido: 0 }
   });
 
-  // Calcular rango de fechas según preset
   const getDateRangeFromPreset = (preset) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -123,7 +120,6 @@ function TechnicianPanel() {
     }
   };
 
-  // Cargas
   const loadAvailable = useCallback(async () => {
     try {
       const res = await ticketAPI.get('/ticket/available');
@@ -174,7 +170,6 @@ function TechnicianPanel() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // SignalR
   useEffect(() => {
     let conn;
     (async () => {
@@ -182,7 +177,6 @@ function TechnicianPanel() {
         conn = await getConnection();
         await joinUserGroup(userId);
         await joinTechnicianGroup(userId);
-        console.log(`[SignalR] Técnico ${userId} unido a grupos`);
 
         conn.on('ticket-available', loadAvailable);
         conn.on('ticket-taken', loadAvailable);
@@ -228,11 +222,9 @@ function TechnicianPanel() {
     }
   };
 
-  // Filtrado y ordenamiento
   const filteredAndSorted = useMemo(() => {
     let list = tab === 'available' ? available : mine;
 
-    // Búsqueda
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(t =>
@@ -242,27 +234,22 @@ function TechnicianPanel() {
       );
     }
 
-    // Filtro por prioridad
     if (filterPriority !== 'Todas') {
       list = list.filter(t => t.priority === filterPriority);
     }
 
-    // Filtro por estado (solo en Mis tickets)
     if (tab === 'mine' && filterStatus !== 'Todos') {
       list = list.filter(t => t.status === filterStatus);
     }
 
-    // Filtro por nivel
     if (filterLevel !== 'Todos') {
       list = list.filter(t => t.levelName === filterLevel);
     }
 
-    // Solo urgentes
     if (urgentOnly) {
       list = list.filter(t => t.priority === 'Crítica' || t.priority === 'Alta');
     }
 
-    // Filtro por rango de fechas
     const dateRange = getDateRangeFromPreset(dateRangePreset);
     if (dateRange.start) {
       list = list.filter(t => new Date(t.createdAt) >= dateRange.start);
@@ -271,7 +258,6 @@ function TechnicianPanel() {
       list = list.filter(t => new Date(t.createdAt) <= dateRange.end);
     }
 
-    // Ordenamiento
     list = [...list].sort((a, b) => {
       let valA, valB;
       switch (sortBy) {
@@ -349,7 +335,7 @@ function TechnicianPanel() {
 
     if (diffHours < 1) return 'Hace unos minutos';
     if (diffHours < 24) return `Hace ${diffHours} horas`;
-    return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short' });
   };
 
   const getPriorityColor = (p) => ({
@@ -361,196 +347,161 @@ function TechnicianPanel() {
 
   const hasActiveFilters = filterPriority !== 'Todas' || filterStatus !== 'Todos' || filterLevel !== 'Todos' || urgentOnly || dateRangePreset !== 'todos' || search;
 
-  const cardStyle = {
-    background: '#fff',
-    borderRadius: 20,
-    border: '1px solid #e4e7eb',
-    padding: '20px 24px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-  };
-
   return (
     <Layout>
-      <div style={styles.page}>
+      <div className="tech-panel">
         {/* Header */}
-        <div style={styles.header}>
+        <div className="tech-header">
           <div>
-            <h1 style={styles.title}>Bandeja de Entrada</h1>
-            <p style={styles.subtitle}>
-              <User size={12} style={{ marginRight: 4 }} />
+            <h1 className="tech-title">Bandeja de Entrada</h1>
+            <p className="tech-subtitle">
+              <User size={12} />
               {fullName} — Rol: <b>{role}</b>
             </p>
           </div>
-          <button style={styles.refreshBtn} onClick={loadAll}>
-            <RefreshCw size={16} style={{ marginRight: 6 }} />
+          <button className="tech-refresh-btn" onClick={loadAll}>
+            <RefreshCw size={16} />
             Actualizar
           </button>
         </div>
 
         {/* Tarjetas de métricas */}
-        <div style={styles.metricsGrid}>
-          <div style={{ ...cardStyle, padding: '16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Inbox size={22} color={COLORS.Primario} />
-              </div>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.Primario }}>{metrics.totalAvailable}</div>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>Disponibles</div>
-              </div>
+        <div className="tech-metrics">
+          <div className="tech-metric-card">
+            <div className="tech-metric-icon tech-metric-icon-primary">
+              <Inbox size={22} />
+            </div>
+            <div>
+              <div className="tech-metric-value">{metrics.totalAvailable}</div>
+              <div className="tech-metric-label">Disponibles</div>
             </div>
           </div>
 
-          <div style={{ ...cardStyle, padding: '16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Briefcase size={22} color={COLORS.Resuelto} />
-              </div>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.Resuelto }}>{metrics.totalMine}</div>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>Mis tickets</div>
-              </div>
+          <div className="tech-metric-card">
+            <div className="tech-metric-icon tech-metric-icon-success">
+              <Briefcase size={22} />
+            </div>
+            <div>
+              <div className="tech-metric-value">{metrics.totalMine}</div>
+              <div className="tech-metric-label">Mis tickets</div>
             </div>
           </div>
 
-          <div style={{ ...cardStyle, padding: '16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Flame size={22} color={COLORS.Critica} />
-              </div>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.Critica }}>{metrics.urgentAvailable + metrics.urgentMine}</div>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>Urgentes</div>
-              </div>
+          <div className="tech-metric-card">
+            <div className="tech-metric-icon tech-metric-icon-danger">
+              <Flame size={22} />
+            </div>
+            <div>
+              <div className="tech-metric-value">{metrics.urgentAvailable + metrics.urgentMine}</div>
+              <div className="tech-metric-label">Urgentes</div>
             </div>
           </div>
 
-          <div style={{ ...cardStyle, padding: '16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Target size={22} color={COLORS.Media} />
-              </div>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.Media }}>{metrics.avgPriority}</div>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>Prioridad promedio</div>
-              </div>
+          <div className="tech-metric-card">
+            <div className="tech-metric-icon tech-metric-icon-warning">
+              <Target size={22} />
+            </div>
+            <div>
+              <div className="tech-metric-value">{metrics.avgPriority}</div>
+              <div className="tech-metric-label">Prioridad promedio</div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div style={styles.tabs}>
+        <div className="tech-tabs">
           <button
-            style={{ ...styles.tab, ...(tab === 'available' ? styles.tabActive : {}) }}
+            className={`tech-tab ${tab === 'available' ? 'tech-tab-active' : ''}`}
             onClick={() => setTab('available')}
           >
-            <Inbox size={16} style={{ marginRight: 8 }} />
+            <Inbox size={16} />
             Disponibles
             {metrics.totalAvailable > 0 && (
-              <span style={styles.tabBadge}>{metrics.totalAvailable}</span>
+              <span className="tech-tab-badge">{metrics.totalAvailable}</span>
             )}
           </button>
 
           <button
-            style={{ ...styles.tab, ...(tab === 'mine' ? styles.tabActive : {}) }}
+            className={`tech-tab ${tab === 'mine' ? 'tech-tab-active' : ''}`}
             onClick={() => setTab('mine')}
           >
-            <Briefcase size={16} style={{ marginRight: 8 }} />
+            <Briefcase size={16} />
             Mis tickets
             {metrics.totalMine > 0 && (
-              <span style={styles.tabBadge}>{metrics.totalMine}</span>
+              <span className="tech-tab-badge">{metrics.totalMine}</span>
             )}
           </button>
 
-          {/* Mini badges de estado en la pestaña */}
           {tab === 'mine' && metrics.totalMine > 0 && (
-            <div style={styles.miniStatusBadges}>
-              {metrics.byStatus.EnProceso > 0 && <span style={{ ...styles.miniBadge, background: '#fffbeb', color: '#f59e0b' }}>📋 {metrics.byStatus.EnProceso}</span>}
-              {metrics.byStatus.Escalado > 0 && <span style={{ ...styles.miniBadge, background: '#f3e8ff', color: '#8b5cf6' }}>📈 {metrics.byStatus.Escalado}</span>}
-              {metrics.byStatus.Resuelto > 0 && <span style={{ ...styles.miniBadge, background: '#ecfdf5', color: '#10b981' }}>✅ {metrics.byStatus.Resuelto}</span>}
-              {metrics.byStatus.Vencido > 0 && <span style={{ ...styles.miniBadge, background: '#fef2f2', color: '#ef4444' }}>⏰ {metrics.byStatus.Vencido}</span>}
+            <div className="tech-mini-badges">
+              {metrics.byStatus.EnProceso > 0 && <span className="tech-mini-badge tech-mini-badge-proceso">📋 {metrics.byStatus.EnProceso}</span>}
+              {metrics.byStatus.Escalado > 0 && <span className="tech-mini-badge tech-mini-badge-escalado">📈 {metrics.byStatus.Escalado}</span>}
+              {metrics.byStatus.Resuelto > 0 && <span className="tech-mini-badge tech-mini-badge-resuelto">✅ {metrics.byStatus.Resuelto}</span>}
+              {metrics.byStatus.Vencido > 0 && <span className="tech-mini-badge tech-mini-badge-vencido">⏰ {metrics.byStatus.Vencido}</span>}
             </div>
           )}
         </div>
 
         {actionError && (
-          <div style={styles.errorBanner}>
-            <AlertCircle size={16} style={{ marginRight: 8 }} />
+          <div className="tech-error">
+            <AlertCircle size={16} />
             {actionError}
           </div>
         )}
 
-        {/* Barra de filtros - TODOS VISIBLES */}
-        <div style={styles.filterBar}>
-          {/* Búsqueda */}
-          <div style={styles.searchWrapper}>
-            <Search size={18} style={styles.searchIcon} />
+        {/* Barra de filtros */}
+        <div className="tech-filter-bar">
+          <div className="tech-search-wrapper">
+            <Search size={18} className="tech-search-icon" />
             <input
-              style={styles.search}
+              className="tech-search"
               placeholder="Buscar por título, número o descripción..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
-              <button style={styles.clearSearch} onClick={() => setSearch('')}>
+              <button className="tech-clear-search" onClick={() => setSearch('')}>
                 <X size={14} />
               </button>
             )}
           </div>
 
-          {/* Filtro de prioridad */}
-          <div style={styles.filterItem}>
-            <select style={styles.filterSelect} value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
+          <button className="tech-filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+            <Filter size={16} />
+            Filtros
+          </button>
+
+          <div className={`tech-filters ${showFilters ? 'tech-filters-open' : ''}`}>
+            <select className="tech-filter-select" value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
               <option value="Todas"> Todas prioridades</option>
               <option value="Crítica"> Crítica</option>
               <option value="Alta"> Alta</option>
               <option value="Media"> Media</option>
               <option value="Baja"> Baja</option>
             </select>
-          </div>
 
-          {/* Filtro de estado (solo en Mis tickets) */}
-          {tab === 'mine' && (
-            <div style={styles.filterItem}>
-              <select style={styles.filterSelect} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            {tab === 'mine' && (
+              <select className="tech-filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                 <option value="Todos"> Todos estados</option>
                 <option value="En Proceso"> En Proceso</option>
                 <option value="Escalado"> Escalado</option>
                 <option value="Resuelto"> Resuelto</option>
                 <option value="Vencido"> Vencido</option>
               </select>
-            </div>
-          )}
+            )}
 
-          {/* Filtro de nivel */}
-          <div style={styles.filterItem}>
-            <select style={styles.filterSelect} value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
+            <select className="tech-filter-select" value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
               {levels.map(level => (
                 <option key={level} value={level}>{level === 'Todos' ? ' Todos niveles' : level}</option>
               ))}
             </select>
-          </div>
 
-          {/* Filtro de urgentes */}
-          <div style={styles.filterItem}>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={urgentOnly}
-                onChange={(e) => setUrgentOnly(e.target.checked)}
-                style={styles.checkbox}
-              />
+            <label className="tech-checkbox-label">
+              <input type="checkbox" checked={urgentOnly} onChange={(e) => setUrgentOnly(e.target.checked)} />
               Solo urgentes
             </label>
-          </div>
 
-          {/* Filtro de rango de fechas - UN SOLO COMBOBOX */}
-          <div style={styles.filterItem}>
-            <select
-              style={styles.filterSelect}
-              value={dateRangePreset}
-              onChange={(e) => setDateRangePreset(e.target.value)}
-            >
+            <select className="tech-filter-select" value={dateRangePreset} onChange={(e) => setDateRangePreset(e.target.value)}>
               <option value="todos"> Todas las fechas</option>
               <option value="hoy"> Hoy</option>
               <option value="ultimos5"> Últimos 5 días</option>
@@ -558,117 +509,110 @@ function TechnicianPanel() {
               <option value="ultimos15"> Últimos 15 días</option>
               <option value="ultimos30"> Últimos 30 días</option>
             </select>
-          </div>
 
-          {/* Botón limpiar filtros */}
-          {hasActiveFilters && (
-            <button style={styles.clearFiltersBtn} onClick={clearAllFilters}>
-              <X size={14} style={{ marginRight: 4 }} />
-              Limpiar filtros
-            </button>
-          )}
+            {hasActiveFilters && (
+              <button className="tech-clear-filters" onClick={clearAllFilters}>
+                <X size={14} />
+                Limpiar
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tabla de tickets */}
-        <div style={styles.card}>
+        <div className="tech-card">
           {loading ? (
-            <div style={styles.empty}>
-              <RefreshCw size={32} style={styles.spinner} />
+            <div className="tech-empty">
+              <RefreshCw size={32} className="tech-spinner" />
               <p>Cargando tickets...</p>
             </div>
           ) : filteredAndSorted.length === 0 ? (
-            <div style={styles.empty}>
+            <div className="tech-empty">
               <Inbox size={48} color="#d1d5db" />
-              <p style={{ marginTop: 12, color: '#6b7280' }}>
+              <p>
                 {tab === 'available'
                   ? 'No hay tickets disponibles en tu nivel'
                   : 'No tienes tickets asignados que coincidan con los filtros'}
               </p>
               {hasActiveFilters && (
-                <button style={styles.clearFiltersEmptyBtn} onClick={clearAllFilters}>
+                <button className="tech-clear-filters-empty" onClick={clearAllFilters}>
                   Limpiar filtros
                 </button>
               )}
             </div>
           ) : (
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
+            <div className="tech-table-container">
+              <table className="tech-table">
                 <thead>
-                  <tr style={styles.theadRow}>
-                    <th style={styles.th} onClick={() => toggleSort('ticketNumber')}>
-                      <div style={styles.thContent}>
-                        ID <ArrowUpDown size={12} />
-                      </div>
+                  <tr>
+                    <th onClick={() => toggleSort('ticketNumber')}>ID <ArrowUpDown size={12} /></th>
+                    <th>Título</th>
+                    <th onClick={() => toggleSort('priority')}>Prioridad <ArrowUpDown size={12} /></th>
+                    {tab === 'mine' && <th>Estado</th>}
+                    <th>Nivel</th>
+                    <th onClick={() => toggleSort(tab === 'available' ? 'createdAt' : 'updatedAt')}>
+                      {tab === 'available' ? 'Creado' : 'Actualizado'} <ArrowUpDown size={12} />
                     </th>
-                    <th style={styles.th}>Título</th>
-                    <th style={styles.th} onClick={() => toggleSort('priority')}>
-                      <div style={styles.thContent}>
-                        Prioridad <ArrowUpDown size={12} />
-                      </div>
-                    </th>
-                    {tab === 'mine' && <th style={styles.th}>Estado</th>}
-                    <th style={styles.th}>Nivel</th>
-                    <th style={styles.th} onClick={() => toggleSort(tab === 'available' ? 'createdAt' : 'updatedAt')}>
-                      <div style={styles.thContent}>
-                        {tab === 'available' ? 'Creado' : 'Actualizado'} <ArrowUpDown size={12} />
-                      </div>
-                    </th>
-                    <th style={styles.th}>Acciones</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAndSorted.map((t) => (
-                    <tr key={t.id} style={styles.tr} onClick={() => navigate(tab === 'available' ? `/tecnico/ticket/${t.id}` : `/tecnico/ticket/${t.id}`)}>
-                      <td style={styles.td}>
-                        <span style={styles.tno}>{t.ticketNumber}</span>
+                    <tr key={t.id} onClick={() => {
+                      // Forzar que el menú se cierre ANTES de navegar
+                      setTimeout(() => {
+                        navigate(`/tecnico/ticket/${t.id}`);
+                      }, 50);
+                    }}>
+                      <td className="tech-ticket-number">{t.ticketNumber}</td>
+                      <td>
+                        <div className="tech-ticket-title">{t.title}</div>
+                        <div className="tech-ticket-desc">{t.description?.substring(0, 60)}...</div>
                       </td>
-                      <td style={styles.td}>
-                        <span style={{ fontWeight: 500 }}>{t.title}</span>
-                        <span style={styles.tdSub}>{t.description?.substring(0, 60)}...</span>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={{ ...styles.priorityBadge, backgroundColor: getPriorityColor(t.priority) + '15', color: getPriorityColor(t.priority) }}>
+                      <td>
+                        <span className="tech-priority-badge" style={{ backgroundColor: getPriorityColor(t.priority) + '15', color: getPriorityColor(t.priority) }}>
                           {getPriorityIcon(t.priority)}
-                          <span style={{ marginLeft: 4 }}>{t.priority}</span>
+                          {t.priority}
                         </span>
                       </td>
                       {tab === 'mine' && (
-                        <td style={styles.td}>
-                          <span style={{ ...styles.statusBadge, backgroundColor: statusColor(t.status) + '15', color: statusColor(t.status) }}>
+                        <td>
+                          <span className="tech-status-badge" style={{ backgroundColor: statusColor(t.status) + '15', color: statusColor(t.status) }}>
                             {getStatusIcon(t.status)}
-                            <span style={{ marginLeft: 4 }}>{t.status}</span>
+                            {t.status}
                           </span>
                         </td>
                       )}
-                      <td style={styles.td}>
-                        <span style={styles.levelBadge}>{t.levelName}</span>
-                      </td>
-                      <td style={{ ...styles.td, fontSize: 12, color: '#6b7280' }}>
-                        <Calendar size={12} style={{ marginRight: 4, display: 'inline', verticalAlign: 'middle' }} />
+                      <td><span className="tech-level-badge">{t.levelName}</span></td>
+                      <td className="tech-date">
+                        <Calendar size={12} />
                         {formatDate(tab === 'available' ? t.createdAt : t.updatedAt)}
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         {tab === 'available' ? (
                           <button
-                            style={{ ...styles.acceptBtn, opacity: busyAcceptId === t.id ? 0.6 : 1 }}
+                            className="tech-accept-btn"
                             disabled={busyAcceptId === t.id}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleAccept(t.id, t.ticketNumber);
                             }}
                           >
-                            <Check size={14} style={{ marginRight: 6 }} />
+                            <Check size={14} />
                             {busyAcceptId === t.id ? 'Aceptando…' : 'Aceptar'}
                           </button>
                         ) : (
                           <button
-                            style={styles.manageBtn}
+                            className="tech-manage-btn"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/tecnico/ticket/${t.id}`);
+                              window.dispatchEvent(new CustomEvent('close-sidebar'));
+                              setTimeout(() => {
+                                navigate(`/tecnico/ticket/${t.id}`);
+                              }, 50);
                             }}
                           >
-                            <Eye size={14} style={{ marginRight: 6 }} />
+                            <Eye size={14} />
                             Gestionar
                           </button>
                         )}
@@ -681,187 +625,458 @@ function TechnicianPanel() {
           )}
         </div>
       </div>
+
+      <style>{`
+        .tech-panel {
+          padding: 24px 32px;
+          background-color: #f5f7fa;
+          min-height: 100vh;
+        }
+
+        .tech-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .tech-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #1a1a2e;
+          margin: 0;
+        }
+
+        .tech-subtitle {
+          font-size: 13px;
+          color: #6b7280;
+          margin-top: 6px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .tech-refresh-btn {
+          background: #fff;
+          border: 1px solid #e4e7eb;
+          color: #374151;
+          padding: 10px 18px;
+          border-radius: 12px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.2s;
+        }
+
+        .tech-refresh-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .tech-metrics {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+
+        .tech-metric-card {
+          background: #fff;
+          border-radius: 20px;
+          border: 1px solid #e4e7eb;
+          padding: 16px 20px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .tech-metric-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .tech-metric-icon-primary { background: #eef2ff; color: #2d6a9f; }
+        .tech-metric-icon-success { background: #ecfdf5; color: #10b981; }
+        .tech-metric-icon-danger { background: #fef2f2; color: #ef4444; }
+        .tech-metric-icon-warning { background: #fffbeb; color: #f59e0b; }
+
+        .tech-metric-value {
+          font-size: 24px;
+          font-weight: 800;
+        }
+
+        .tech-metric-label {
+          font-size: 12px;
+          color: #6b7280;
+        }
+
+        .tech-tabs {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 20px;
+          border-bottom: 1px solid #eaecf0;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .tech-tab {
+          background: transparent;
+          border: none;
+          padding: 12px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+          cursor: pointer;
+          border-bottom: 2px solid transparent;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.2s;
+        }
+
+        .tech-tab-active {
+          color: #2d6a9f;
+          border-bottom-color: #2d6a9f;
+        }
+
+        .tech-tab-badge {
+          padding: 2px 8px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 700;
+          background: #eef2ff;
+          color: #2d6a9f;
+        }
+
+        .tech-mini-badges {
+          display: flex;
+          gap: 6px;
+          margin-left: auto;
+        }
+
+        .tech-mini-badge {
+          padding: 4px 8px;
+          border-radius: 20px;
+          font-size: 10px;
+          font-weight: 600;
+        }
+
+        .tech-mini-badge-proceso { background: #fffbeb; color: #f59e0b; }
+        .tech-mini-badge-escalado { background: #f3e8ff; color: #8b5cf6; }
+        .tech-mini-badge-resuelto { background: #ecfdf5; color: #10b981; }
+        .tech-mini-badge-vencido { background: #fef2f2; color: #ef4444; }
+
+        .tech-error {
+          background: #fef2f2;
+          color: #dc2626;
+          padding: 12px 16px;
+          border-radius: 12px;
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+        }
+
+        .tech-filter-bar {
+          margin-bottom: 20px;
+        }
+
+        .tech-search-wrapper {
+          position: relative;
+          margin-bottom: 12px;
+        }
+
+        .tech-search-icon {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #9ca3af;
+        }
+
+        .tech-search {
+          width: 100%;
+          padding: 12px 16px 12px 42px;
+          border: 1px solid #e4e7eb;
+          border-radius: 12px;
+          font-size: 14px;
+          outline: none;
+          background: #fff;
+        }
+
+        .tech-clear-search {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #9ca3af;
+        }
+
+        .tech-filter-toggle {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: 100%;
+          background: #fff;
+          border: 1px solid #e4e7eb;
+          border-radius: 12px;
+          padding: 10px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+          margin-bottom: 12px;
+        }
+
+        .tech-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .tech-filter-select {
+          padding: 10px 14px;
+          border: 1px solid #e4e7eb;
+          border-radius: 12px;
+          font-size: 13px;
+          background: #fff;
+          cursor: pointer;
+          min-width: 140px;
+        }
+
+        .tech-checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 14px;
+          border: 1px solid #e4e7eb;
+          border-radius: 12px;
+          font-size: 13px;
+          cursor: pointer;
+          background: #fff;
+          white-space: nowrap;
+        }
+
+        .tech-checkbox-label input {
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+          accent-color: #2d6a9f;
+        }
+
+        .tech-clear-filters {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 10px 16px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 12px;
+          color: #dc2626;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+        }
+
+        .tech-clear-filters-empty {
+          margin-top: 16px;
+          padding: 8px 20px;
+          background: #2d6a9f;
+          color: #fff;
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          cursor: pointer;
+        }
+
+        .tech-card {
+          background: #fff;
+          border-radius: 20px;
+          border: 1px solid #e4e7eb;
+          overflow: hidden;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .tech-table-container {
+          overflow-x: auto;
+        }
+
+        .tech-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 700px;
+        }
+
+        .tech-table th {
+          padding: 14px 18px;
+          text-align: left;
+          font-size: 12px;
+          font-weight: 700;
+          color: #6b7280;
+          cursor: pointer;
+          background: #f9fafb;
+          border-bottom: 1px solid #eaecf0;
+        }
+
+        .tech-table td {
+          padding: 16px 18px;
+          font-size: 13px;
+          color: #1a1a2e;
+          border-bottom: 1px solid #f1f3f5;
+          cursor: pointer;
+        }
+
+        .tech-table tr:hover td {
+          background-color: #f9fafb;
+        }
+
+        .tech-ticket-number {
+          font-weight: 700;
+          color: #2d6a9f;
+          font-family: monospace;
+        }
+
+        .tech-ticket-title {
+          font-weight: 500;
+        }
+
+        .tech-ticket-desc {
+          font-size: 11px;
+          color: #9ca3af;
+          margin-top: 4px;
+        }
+
+        .tech-priority-badge, .tech-status-badge, .tech-level-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .tech-level-badge {
+          background: #f3f4f6;
+          color: #374151;
+        }
+
+        .tech-date {
+          font-size: 12px;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .tech-accept-btn, .tech-manage-btn {
+          border: none;
+          padding: 7px 16px;
+          border-radius: 10px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .tech-accept-btn {
+          background: #10b981;
+          color: #fff;
+        }
+
+        .tech-manage-btn {
+          background: #2d6a9f;
+          color: #fff;
+        }
+
+        .tech-empty {
+          padding: 60px;
+          text-align: center;
+          color: #6b7280;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .tech-spinner {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+          .tech-panel {
+            padding: 70px 12px 20px 12px;
+          }
+
+          .tech-title {
+            font-size: 22px;
+          }
+
+          .tech-subtitle {
+            font-size: 11px;
+          }
+
+          .tech-metrics {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .tech-metric-card {
+            padding: 12px 16px;
+          }
+
+          .tech-metric-value {
+            font-size: 20px;
+          }
+
+          .tech-filter-toggle {
+            display: flex;
+          }
+
+          .tech-filters {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+          }
+
+          .tech-filters-open {
+            display: flex;
+          }
+
+          .tech-filter-select, .tech-checkbox-label, .tech-clear-filters {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .tech-mini-badges {
+            margin-left: 0;
+            flex-wrap: wrap;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
-
-const styles = {
-  page: { padding: '24px 32px', backgroundColor: '#f5f7fa', minHeight: '100vh' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: 0 },
-  subtitle: { fontSize: 13, color: '#6b7280', marginTop: 6, display: 'flex', alignItems: 'center' },
-  refreshBtn: {
-    background: '#fff',
-    border: '1px solid #e4e7eb',
-    color: '#374151',
-    padding: '10px 18px',
-    borderRadius: 12,
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'all 0.2s',
-  },
-  metricsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: 16,
-    marginBottom: 24,
-  },
-  tabs: { display: 'flex', gap: 8, marginBottom: 20, borderBottom: '1px solid #eaecf0', alignItems: 'center', flexWrap: 'wrap' },
-  tab: {
-    background: 'transparent',
-    border: 'none',
-    padding: '12px 20px',
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#6b7280',
-    cursor: 'pointer',
-    borderBottom: '2px solid transparent',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    transition: 'all 0.2s',
-  },
-  tabActive: { color: '#2d6a9f', borderBottomColor: '#2d6a9f' },
-  tabBadge: {
-    padding: '2px 8px',
-    borderRadius: 20,
-    fontSize: 11,
-    fontWeight: 700,
-    background: '#eef2ff',
-    color: '#2d6a9f',
-    marginLeft: 6,
-  },
-  miniStatusBadges: { display: 'flex', gap: 6, marginLeft: 'auto' },
-  miniBadge: { padding: '4px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600 },
-  errorBanner: { background: '#fef2f2', color: '#dc2626', padding: '12px 16px', borderRadius: 12, marginBottom: 16, display: 'flex', alignItems: 'center', fontSize: 13 },
-  filterBar: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  searchWrapper: {
-    position: 'relative',
-    flex: 2,
-    minWidth: 250,
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 14,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    color: '#9ca3af',
-  },
-  search: {
-    width: '100%',
-    padding: '10px 16px 10px 42px',
-    border: '1px solid #e4e7eb',
-    borderRadius: 12,
-    fontSize: 13,
-    outline: 'none',
-    background: '#fff',
-    transition: 'all 0.2s',
-  },
-  clearSearch: {
-    position: 'absolute',
-    right: 12,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#9ca3af',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  filterItem: {
-    position: 'relative',
-  },
-  filterSelect: {
-    padding: '10px 14px',
-    border: '1px solid #e4e7eb',
-    borderRadius: 12,
-    fontSize: 13,
-    background: '#fff',
-    cursor: 'pointer',
-    outline: 'none',
-    minWidth: 140,
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '10px 14px',
-    border: '1px solid #e4e7eb',
-    borderRadius: 12,
-    fontSize: 13,
-    cursor: 'pointer',
-    background: '#fff',
-    whiteSpace: 'nowrap',
-  },
-  checkbox: {
-    width: 16,
-    height: 16,
-    cursor: 'pointer',
-    accentColor: '#2d6a9f',
-  },
-  clearFiltersBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '10px 16px',
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 12,
-    color: '#dc2626',
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  clearFiltersEmptyBtn: {
-    marginTop: 16,
-    padding: '8px 20px',
-    background: '#2d6a9f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  card: { background: '#fff', borderRadius: 20, border: '1px solid #e4e7eb', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
-  tableContainer: { overflowX: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  theadRow: { background: '#f9fafb', borderBottom: '1px solid #eaecf0' },
-  th: { padding: '14px 18px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#6b7280', cursor: 'pointer' },
-  thContent: { display: 'flex', alignItems: 'center', gap: 6 },
-  tr: { borderBottom: '1px solid #f1f3f5', transition: 'background 0.2s', cursor: 'pointer' },
-  td: { padding: '16px 18px', fontSize: 13, color: '#1a1a2e' },
-  tdSub: { display: 'block', fontSize: 11, color: '#9ca3af', marginTop: 4 },
-  tno: { fontWeight: 700, color: '#2d6a9f', fontFamily: 'monospace' },
-  priorityBadge: { display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 },
-  statusBadge: { display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 },
-  levelBadge: { padding: '4px 10px', background: '#f3f4f6', borderRadius: 20, fontSize: 11, fontWeight: 500, color: '#374151' },
-  acceptBtn: { background: '#10b981', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center' },
-  manageBtn: { background: '#2d6a9f', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center' },
-  empty: { padding: '60px', textAlign: 'center', color: '#6b7280', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
-  spinner: { animation: 'spin 1s linear infinite' },
-};
-
-// Añadir animación
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  tr:hover { background-color: #f9fafb; }
-  button:hover { transform: translateY(-1px); transition: all 0.2s; }
-`;
-document.head.appendChild(styleSheet);
 
 export default TechnicianPanel;

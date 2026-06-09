@@ -396,7 +396,9 @@ namespace MicroserviceB.API.Controllers
             var isAssignedTech = ticket.AssignedTechnicianId == userId;
             var isAdmin = role == "Admin";
 
-            if (!isOwner && !isAssignedTech && !isAdmin)
+            bool isTechnicianViewingAvailableTicket = RoleToLevel(role) != null && ticket.AssignedTechnicianId == null && ticket.CurrentLevel == RoleToLevel(role);
+
+            if (!isOwner && !isAssignedTech && !isAdmin && !isTechnicianViewingAvailableTicket)
                 return Forbid();
 
             var requestedType = string.IsNullOrWhiteSpace(dto.ActionType) ? "Comment" : dto.ActionType;
@@ -961,11 +963,14 @@ namespace MicroserviceB.API.Controllers
         /// <summary>
         /// Descargar un archivo adjunto
         /// </summary>
-        [Authorize]
+    
         [HttpGet("attachments/{attachmentId}/download")]
+        [Authorize]
         public async Task<IActionResult> DownloadAttachment(int attachmentId)
         {
-            var attachment = await _context.TicketAttachments.FindAsync(attachmentId);
+            var attachment = await _context.TicketAttachments
+                .Include(a => a.Ticket)
+                .FirstOrDefaultAsync(a => a.Id == attachmentId);
 
             if (attachment == null)
                 return NotFound(new { message = "Archivo no encontrado" });
@@ -974,17 +979,28 @@ namespace MicroserviceB.API.Controllers
                 return NotFound(new { message = "El archivo no contiene datos" });
 
             var (userId, _, role) = GetCurrentUser();
-            var ticket = await _context.Tickets.FindAsync(attachment.TicketId);
+            var ticket = attachment.Ticket;
 
-            if (ticket != null)
+            if (ticket == null)
+                return NotFound(new { message = "Ticket no encontrado" });
+
+            
+            bool isOwner = ticket.UserId == userId;
+            bool isAssignedTech = ticket.AssignedTechnicianId == userId;
+            bool isAdmin = role == "Admin";
+            bool isTechnicianViewingAvailableTicket = false;
+
+            // Verificar si es un técnico viendo un ticket disponible de su nivel
+            var technicianLevel = RoleToLevel(role);
+            if (technicianLevel != null && ticket.AssignedTechnicianId == null && ticket.CurrentLevel == technicianLevel)
             {
-                bool isOwner = ticket.UserId == userId;
-                bool isAssignedTech = ticket.AssignedTechnicianId == userId;
-                bool isAdmin = role == "Admin";
-
-                if (!isOwner && !isAssignedTech && !isAdmin)
-                    return Forbid();
+                isTechnicianViewingAvailableTicket = true;
             }
+
+            _logger.LogInformation($"DownloadAttachment - UserId: {userId}, Role: {role}, TicketId: {ticket.Id}, Owner: {isOwner}, AssignedTech: {isAssignedTech}, IsAdmin: {isAdmin}, TechnicianViewingAvailable: {isTechnicianViewingAvailableTicket}");
+
+            if (!isOwner && !isAssignedTech && !isAdmin && !isTechnicianViewingAvailableTicket)
+                return Forbid();
 
             return File(attachment.FileData, attachment.FileType, attachment.FileName);
         }

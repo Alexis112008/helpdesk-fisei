@@ -14,7 +14,6 @@ import {
   User,
   GraduationCap,
   ChevronRight,
-  BarChart3,
   Settings
 } from 'lucide-react';
 
@@ -64,11 +63,10 @@ function Sidebar({ onClose }) {
     return true;
   });
 
+  // ✅ CORREGIDO: Solo navega, NO cierra el menú aquí (Layout lo hace automáticamente)
   const handleNavClick = (path) => {
     navigate(path);
-    if (onClose) {
-      onClose(); // Cierra el sidebar en móvil
-    }
+    // El onClose se maneja en Layout mediante useEffect con location.pathname
   };
 
   return (
@@ -98,15 +96,19 @@ function Sidebar({ onClose }) {
               onMouseEnter={e => {
                 if (!active) {
                   e.currentTarget.style.backgroundColor = '#b2cdf0';
-                  e.currentTarget.querySelectorAll('span').forEach(el => el.style.color = '#1a1a2e');
-                  e.currentTarget.querySelectorAll('svg').forEach(el => el.style.color = '#1a1a2e');
+                  const spans = e.currentTarget.querySelectorAll('span');
+                  const svgs = e.currentTarget.querySelectorAll('svg');
+                  spans.forEach(el => el.style.color = '#1a1a2e');
+                  svgs.forEach(el => el.style.color = '#1a1a2e');
                 }
               }}
               onMouseLeave={e => {
                 if (!active) {
                   e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.querySelectorAll('span').forEach(el => el.style.color = COLORS.TextoSecundario);
-                  e.currentTarget.querySelectorAll('svg').forEach(el => el.style.color = COLORS.TextoSecundario);
+                  const spans = e.currentTarget.querySelectorAll('span');
+                  const svgs = e.currentTarget.querySelectorAll('svg');
+                  spans.forEach(el => el.style.color = COLORS.TextoSecundario);
+                  svgs.forEach(el => el.style.color = COLORS.TextoSecundario);
                 }
               }}
               onClick={() => handleNavClick(item.path)}

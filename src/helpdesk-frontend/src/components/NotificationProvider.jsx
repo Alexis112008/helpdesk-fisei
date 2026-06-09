@@ -19,13 +19,13 @@ import {
  * - Escucha automáticamente los eventos del hub y muestra toasts.
  */
 const NotificationContext = createContext({
-  showToast: () => {},
+  showToast: () => { },
   toasts: [],
   notifications: [],
   unreadCount: 0,
-  markAllRead: () => {},
-  markOneRead: () => {},
-  clearAll: () => {},
+  markAllRead: () => { },
+  markOneRead: () => { },
+  clearAll: () => { },
 });
 
 export function useNotifications() {
@@ -52,7 +52,6 @@ function loadFromStorage() {
 
 function saveToStorage(notifications) {
   try {
-    // Solo guardamos los últimos 50 para no llenar localStorage
     const trimmed = notifications.slice(0, 50);
     localStorage.setItem(getStorageKey(), JSON.stringify(trimmed));
   } catch {
@@ -64,7 +63,6 @@ export function NotificationProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [notifications, setNotifications] = useState(() => loadFromStorage());
 
-  // Persistir notificaciones cuando cambien
   useEffect(() => {
     saveToStorage(notifications);
   }, [notifications]);
@@ -76,20 +74,19 @@ export function NotificationProvider({ children }) {
     const t = { id, type: 'info', duration: 5000, ...toast };
     setToasts((prev) => [...prev, t]);
 
-    // Cada toast también va al historial de la campanita
-setNotifications((prev) => [
-  {
-    id,
-    type: t.type,
-    title: t.title || '',
-    message: t.message || '',
-    ticketNumber: t.ticketNumber || null,
-    ticketId: t.ticketId || null,
-    createdAt: new Date().toISOString(),
-    read: false,
-  },
-  ...prev,
-]);
+    setNotifications((prev) => [
+      {
+        id,
+        type: t.type,
+        title: t.title || '',
+        message: t.message || '',
+        ticketNumber: t.ticketNumber || null,
+        ticketId: t.ticketId || null,
+        createdAt: new Date().toISOString(),
+        read: false,
+      },
+      ...prev,
+    ]);
 
     if (t.duration > 0) {
       setTimeout(() => {
@@ -115,17 +112,10 @@ setNotifications((prev) => [
     setNotifications([]);
   }, []);
 
-  // Conexión SignalR + suscripción a grupos según rol.
-  // Estado interno para detectar logout/login en la misma pestaña: cuando
-  // el userId cambia, desconectamos y reconectamos para que los grupos
-  // se renueven (un técnico no puede quedar suscrito al level de su sesión
-  // anterior cuando entra como usuario regular).
   const [authKey, setAuthKey] = useState(
     `${localStorage.getItem('userId') || ''}|${localStorage.getItem('role') || ''}`
   );
 
-  // Vigilar cambios en localStorage (cuando se hace logout/login en la
-  // misma pestaña el evento "storage" no dispara, así que revisamos en intervalos)
   useEffect(() => {
     const check = () => {
       const newKey = `${localStorage.getItem('userId') || ''}|${localStorage.getItem('role') || ''}`;
@@ -139,8 +129,6 @@ setNotifications((prev) => [
     };
   }, [authKey]);
 
-  // Cuando cambia el usuario logueado, recargar el historial desde
-  // SU propio storage (es per-usuario para evitar mezcla de sesiones).
   useEffect(() => {
     setNotifications(loadFromStorage());
   }, [authKey]);
@@ -151,8 +139,7 @@ setNotifications((prev) => [
     const token = localStorage.getItem('token');
 
     if (!userId || !token) {
-      // Sin sesión: asegurar que no quede conexión colgada
-      disconnect().catch(() => {});
+      disconnect().catch(() => { });
       return;
     }
 
@@ -162,16 +149,12 @@ setNotifications((prev) => [
 
     async function setup() {
       try {
-        // Forzar desconexión previa para que la nueva conexión re-haga JoinGroup
-        // limpios desde cero. Es la única forma confiable de "olvidar" los grupos
-        // del usuario anterior cuando se cambia de sesión en la misma pestaña.
         await disconnect();
 
         const conn = await getConnection();
         if (!mounted) return;
         activeConn = conn;
 
-        // Suscribir a grupos relevantes
         await joinUserGroup(userId);
         if (isTechnician(role)) {
           await joinTechnicianGroup(userId);
@@ -182,7 +165,6 @@ setNotifications((prev) => [
           await joinAdminsGroup();
         }
 
-        // Listeners de eventos — guardamos referencia para poder limpiarlos
         handlers['ticket-created'] = (payload) => {
           if (!payload?.ticketNumber) return;
           showToast({
@@ -257,9 +239,6 @@ setNotifications((prev) => [
         };
 
         handlers['ticket-action-added'] = (payload) => {
-          // Avisar discretamente que hay un nuevo comentario en un ticket.
-          // El backend ya excluye al actor, así que si llega es porque
-          // alguien distinto comentó en un ticket que nos involucra.
           if (!payload?.ticketNumber) return;
           const who = payload.fromUser === 'solicitante' ? 'El solicitante' : 'El técnico';
           showToast({
@@ -271,7 +250,6 @@ setNotifications((prev) => [
           });
         };
 
-        // Pool de tickets — solo técnicos
         handlers['ticket-available'] = (payload) => {
           if (!payload?.ticketNumber) return;
           if (!isTechnician(role)) return;
@@ -297,10 +275,9 @@ setNotifications((prev) => [
     setup();
     return () => {
       mounted = false;
-      // Quitar handlers para esta sesión
       if (activeConn) {
         for (const [evt, fn] of Object.entries(handlers)) {
-          try { activeConn.off(evt, fn); } catch {}
+          try { activeConn.off(evt, fn); } catch { }
         }
       }
     };
@@ -323,28 +300,60 @@ setNotifications((prev) => [
 }
 
 function ToastContainer({ toasts, onRemove }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <div style={styles.container}>
+    <div className="toast-container" style={{
+      ...styles.container,
+      ...(isMobile && styles.containerMobile),
+    }}>
       {toasts.map((t) => (
         <Toast key={t.id} toast={t} onClose={() => onRemove(t.id)} />
       ))}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .toast-container {
+            top: auto !important;
+            bottom: 20px !important;
+            left: 12px !important;
+            right: 12px !important;
+            max-width: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
 function Toast({ toast, onClose }) {
   const palette = {
-    info:    { bg: '#eff6ff', border: '#3b82f6', icon: 'ℹ', iconBg: '#3b82f6' },
+    info: { bg: '#eff6ff', border: '#3b82f6', icon: 'ℹ', iconBg: '#3b82f6' },
     success: { bg: '#f0fdf4', border: '#22c55e', icon: '✓', iconBg: '#22c55e' },
     warning: { bg: '#fefce8', border: '#eab308', icon: '⚠', iconBg: '#eab308' },
-    error:   { bg: '#fef2f2', border: '#ef4444', icon: '!', iconBg: '#ef4444' },
+    error: { bg: '#fef2f2', border: '#ef4444', icon: '!', iconBg: '#ef4444' },
   }[toast.type] || { bg: '#fff', border: '#999', icon: '·', iconBg: '#999' };
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div style={{
       ...styles.toast,
       background: palette.bg,
       borderLeft: `4px solid ${palette.border}`,
+      ...(isMobile && styles.toastMobile),
     }}>
       <div style={{ ...styles.iconBox, background: palette.iconBg }}>{palette.icon}</div>
       <div style={{ flex: 1 }}>
@@ -367,6 +376,13 @@ const styles = {
     gap: 12,
     maxWidth: 380,
   },
+  containerMobile: {
+    top: 'auto',
+    bottom: 20,
+    left: 12,
+    right: 12,
+    maxWidth: 'none',
+  },
   toast: {
     display: 'flex',
     alignItems: 'flex-start',
@@ -376,6 +392,12 @@ const styles = {
     boxShadow: '0 6px 20px rgba(0,0,0,0.10)',
     fontFamily: 'Segoe UI, sans-serif',
     minWidth: 300,
+  },
+  toastMobile: {
+    minWidth: 'auto',
+    width: '100%',
+    padding: '12px',
+    gap: 10,
   },
   iconBox: {
     width: 28,
@@ -388,8 +410,16 @@ const styles = {
     fontWeight: 700,
     flexShrink: 0,
   },
-  title: { fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 2 },
-  message: { fontSize: 13, color: '#555' },
+  title: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#111',
+    marginBottom: 2
+  },
+  message: {
+    fontSize: 13,
+    color: '#555'
+  },
   close: {
     background: 'none',
     border: 'none',

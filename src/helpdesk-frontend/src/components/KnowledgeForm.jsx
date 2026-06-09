@@ -7,6 +7,118 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../components/NotificationProvider';
 
+// Validación para evitar texto sin sentido
+const validateMeaningfulText = (text, fieldName) => {
+  if (!text || text.trim().length === 0) {
+    return { isValid: false, message: `${fieldName} es obligatorio` };
+  }
+
+  const trimmedText = text.trim();
+  const lowerText = trimmedText.toLowerCase();
+
+  // 1. Solo números → INVÁLIDO
+  const onlyNumbers = /^\d+$/.test(trimmedText.replace(/\s/g, ''));
+  if (onlyNumbers) {
+    return { isValid: false, message: `${fieldName} no puede ser solo números. Describe el problema con palabras.` };
+  }
+
+  // 2. Solo símbolos → INVÁLIDO
+  const onlySymbols = /^[^\w\s\u00C0-\u00FF]+$/.test(trimmedText);
+  if (onlySymbols) {
+    return { isValid: false, message: `${fieldName} no puede ser solo símbolos. Describe el problema.` };
+  }
+
+  // 3. Sin letras → INVÁLIDO
+  const hasAnyLetter = /[a-zA-Z\u00C0-\u00FF]/i.test(trimmedText);
+  if (!hasAnyLetter) {
+    return { isValid: false, message: `${fieldName} debe contener letras. Describe el problema con palabras.` };
+  }
+
+  // Eliminar números y espacios
+  const withoutNumbers = lowerText.replace(/[0-9]/g, '');
+  const withoutSpaces = withoutNumbers.replace(/\s/g, '');
+
+  // 4. Caracteres repetidos (ej: "ssssssssss")
+  const repeatedCharPattern = /^(.)\1{9,}$/i;
+  if (repeatedCharPattern.test(trimmedText.replace(/\s/g, ''))) {
+    return { isValid: false, message: `${fieldName} contiene caracteres repetidos` };
+  }
+
+  // 5. DETECCIÓN MEJORADA DE PATRONES DE TECLADO QWERTY
+  // Patrones de filas del teclado (mínimo 4 letras consecutivas)
+  const keyboardRows = [
+    /qwertyuiop/i, /asdfghjkl/i, /zxcvbnm/i,
+    /qwerty/i, /asdfgh/i, /zxcvbn/i,
+    /wertyui/i, /sdfghjk/i, /xcvbnm/i,
+    /qwertyuiopasdfghjkl/i, /asdfghjklzxcvbnm/i,
+    /poiuytrewq/i, /lkjhgfdsa/i, /mnbvcxz/i,
+    /ytrewq/i, /hgfdsa/i, /bcxza/i,
+    /uiop/i, /jkl/i, /vbnm/i
+  ];
+
+  // Función para detectar si el texto es mayormente patrón de teclado
+  const isKeyboardPattern = (str) => {
+    if (str.length < 4) return false;
+
+    // Buscar cualquier patrón de teclado conocido
+    for (const pattern of keyboardRows) {
+      if (pattern.test(str)) {
+        return true;
+      }
+    }
+
+    // Detectar letras consecutivas en el teclado (como "gfdsdfghjkl")
+    // Buscar secuencias de letras que son adyacentes en QWERTY
+    const keyboardAdjacent = /(q|w|e|r|t|y|u|i|o|p){3,}|(a|s|d|f|g|h|j|k|l){3,}|(z|x|c|v|b|n|m){3,}/i;
+    if (keyboardAdjacent.test(str)) {
+      // Verificar que no sea una palabra real (tiene vocales)
+      const hasVowel = /[aeiouáéíóúü]/i.test(str);
+      if (!hasVowel && str.length > 5) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  // Verificar si el texto completo o partes son patrón de teclado
+  if (isKeyboardPattern(withoutSpaces)) {
+    return { isValid: false, message: `${fieldName} contiene un patrón de teclado (ej: "qwerty", "asdfgh"). Describe el problema con palabras reales.` };
+  }
+
+  // 6. Detectar patrón de teclado + números
+  const keyboardWithNumbers = /(qwerty|asdfgh|zxcvbn|qwertyuiop|asdfghjkl|zxcvbnm)\d*/i;
+  if (keyboardWithNumbers.test(lowerText)) {
+    return { isValid: false, message: `${fieldName} contiene un patrón de teclado con números` };
+  }
+
+  // 7. Detectar letras en orden alfabético
+  const alphabeticalPattern = /abcd|bcde|cdef|defg|efgh|fghi|ghij|hijk|ijkl|jklm|klmn|lmno|mnop|nopq|opqr|pqrs|qrst|rstu|stuv|tuvw|uvwx|vwxy|wxyz/i;
+  if (alphabeticalPattern.test(withoutSpaces)) {
+    return { isValid: false, message: `${fieldName} contiene letras en orden alfabético` };
+  }
+
+  // 8. Detectar si no tiene vocales (sin sentido)
+  const hasVowel = /[aeiouáéíóúü]/i.test(trimmedText);
+  if (!hasVowel && trimmedText.length > 3) {
+    return { isValid: false, message: `${fieldName} no parece tener sentido (sin vocales)` };
+  }
+
+  // 9. Texto muy corto sin espacios
+  const words = trimmedText.split(/\s+/).filter(w => w.length > 0);
+  if (words.length < 2 && trimmedText.length < 15 && !trimmedText.includes(' ')) {
+    return { isValid: false, message: `${fieldName} es muy corto. Explica con más detalle (mínimo 2 palabras)` };
+  }
+
+  // 10. Teléfono o cédula
+  const phonePattern = /^[\d\s\-\.\(\)]{8,}$/;
+  if (phonePattern.test(trimmedText) && !hasAnyLetter) {
+    return { isValid: false, message: `${fieldName} parece un número. Describe el problema con palabras.` };
+  }
+
+  return { isValid: true, message: '' };
+};
+
 // Constantes
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -90,13 +202,16 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved, exis
   };
   const update = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
-  // Validar campo específico
-  const validateField = (field, value) => {
+  const validateField = (field, value, fieldName) => {
     if (!value || !value.trim()) {
-      return `${field} es obligatorio`;
+      return `${fieldName} es obligatorio`;
     }
     if (value.trim().length < 5) {
-      return `${field} debe tener al menos 5 caracteres`;
+      return `${fieldName} debe tener al menos 5 caracteres`;
+    }
+    const meaningfulCheck = validateMeaningfulText(value, fieldName);
+    if (!meaningfulCheck.isValid) {
+      return meaningfulCheck.message;
     }
     return null;
   };
@@ -105,13 +220,13 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved, exis
   const validateForm = () => {
     const errors = {};
 
-    const problemError = validateField('Problema y síntomas', form.problem);
+    const problemError = validateField('Problema y síntomas', form.problem, 'Problema y síntomas');
     if (problemError) errors.problem = problemError;
 
-    const causeError = validateField('Causa raíz', form.cause);
+    const causeError = validateField('Causa raíz', form.cause, 'Causa raíz');
     if (causeError) errors.cause = causeError;
 
-    const solutionError = validateField('Solución aplicada', form.solution);
+    const solutionError = validateField('Solución aplicada', form.solution, 'Solución aplicada');
     if (solutionError) errors.solution = solutionError;
 
     setValidationErrors(errors);
@@ -213,25 +328,29 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved, exis
       return;
     }
 
+    // ✅ Llenar TODOS los campos con los datos de la sugerencia
     setForm((prev) => ({
       ...prev,
-      title: suggestion.title || prev.title,
-      problem: suggestion.problem || prev.problem,
-      cause: suggestion.cause || prev.cause,
-      solution: suggestion.solution || prev.solution,
+      problem: suggestion.problem || suggestion.solution || '',
+      cause: suggestion.cause || '',
+      solution: suggestion.solution || '',
+      // El título y la categoría NO se modifican (se mantienen)
+      title: prev.title,
+      category: prev.category,
     }));
+
     setAppliedSuggestionId(suggestion.id);
     setValidationErrors({});
 
-    // Limpiar sugerencias del campo actual
-    if (fieldType === 'problem') setProblemSuggestions([]);
-    if (fieldType === 'cause') setCauseSuggestions([]);
-    if (fieldType === 'solution') setSolutionSuggestions([]);
+    // Limpiar sugerencias
+    setProblemSuggestions([]);
+    setCauseSuggestions([]);
+    setSolutionSuggestions([]);
 
     showToast({
       type: 'success',
       title: 'Sugerencia aplicada',
-      message: 'Los campos se han llenado con la solución seleccionada.'
+      message: 'Se han llenado los campos: Problema, Causa y Solución.'
     });
   };
 
@@ -496,7 +615,11 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved, exis
               <AlertCircle size={12} /> {validationErrors.problem}
             </div>
           )}
-
+          {!validationErrors.problem && form.problem && form.problem.length > 0 && (
+            <div style={styles.successText}>
+              <CheckCircle size={12} /> Texto válido
+            </div>
+          )}
           <SuggestionsBox
             suggestions={problemSuggestions}
             fieldType="problem"
@@ -524,7 +647,11 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved, exis
               <AlertCircle size={12} /> {validationErrors.cause}
             </div>
           )}
-
+          {!validationErrors.cause && form.cause && form.cause.length > 0 && (
+            <div style={styles.successText}>
+              <CheckCircle size={12} /> Texto válido
+            </div>
+          )}
           <SuggestionsBox
             suggestions={causeSuggestions}
             fieldType="cause"
@@ -553,7 +680,11 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved, exis
               <AlertCircle size={12} /> {validationErrors.solution}
             </div>
           )}
-
+          {!validationErrors.solution && form.solution && form.solution.length > 0 && (
+            <div style={styles.successText}>
+              <CheckCircle size={12} /> Texto válido
+            </div>
+          )}
           <SuggestionsBox
             suggestions={solutionSuggestions}
             fieldType="solution"
@@ -725,65 +856,525 @@ export default function KnowledgeForm({ ticket, fullName, onClose, onSaved, exis
           </div>
         )}
       </div>
+
+      {/* Estilos responsive */}
+      <style>{`
+        @media (max-width: 768px) {
+          .knowledge-form-overlay {
+            padding: 12px !important;
+          }
+
+          .knowledge-form-box {
+            padding: 20px !important;
+            width: calc(100% - 24px) !important;
+            margin: 0 auto !important;
+            border-radius: 20px !important;
+          }
+          
+          .knowledge-form-title {
+            font-size: 18px !important;
+          }
+          
+          .knowledge-form-subtitle {
+            font-size: 11px !important;
+          }
+          
+          .knowledge-form-header {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          
+          .knowledge-form-field {
+            margin-bottom: 16px !important;
+          }
+          
+          .knowledge-form-label {
+            font-size: 12px !important;
+          }
+          
+          .knowledge-form-input,
+          .knowledge-form-textarea {
+            font-size: 16px !important;
+            padding: 10px 12px !important;
+          }
+          
+          .knowledge-form-suggestions-section {
+            margin-top: 8px !important;
+            padding: 10px !important;
+          }
+          
+          .knowledge-form-suggestion-card {
+            padding: 10px !important;
+          }
+          
+          .knowledge-form-suggestion-card-title {
+            font-size: 12px !important;
+          }
+          
+          .knowledge-form-upload-area {
+            padding: 16px !important;
+          }
+          
+          .knowledge-form-preview-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 8px !important;
+          }
+          
+          .knowledge-form-actions {
+            flex-direction: column !important;
+            gap: 10px !important;
+            margin-top: 20px !important;
+          }
+          
+          .knowledge-form-btn-ghost,
+          .knowledge-form-btn-primary {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 12px !important;
+          }
+          
+          .knowledge-form-existing-images-grid {
+            flex-direction: column !important;
+          }
+          
+          .knowledge-form-existing-image-card {
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+          
+          .knowledge-form-image-modal-box {
+            width: 90vw !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
 const styles = {
-  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 },
-  box: { background: '#fff', borderRadius: 14, padding: 28, width: 660, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.20)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-  title: { fontSize: 22, fontWeight: 700, margin: 0, color: '#111' },
-  subtitle: { fontSize: 13, color: '#dc2626', marginTop: 4 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 28, color: '#9ca3af', cursor: 'pointer', padding: 0, lineHeight: '20px' },
-  error: { background: '#fef2f2', color: '#b91c1c', padding: 12, borderRadius: 8, fontSize: 13, marginBottom: 14 },
-  errorText: { fontSize: 11, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 },
-  editModeWarning: { background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400e', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 },
-  suggestionsSection: { background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: 14, marginBottom: 14, marginTop: 8 },
-  suggestionsTitle: { fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 10 },
-  suggestionCard: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, cursor: 'pointer', marginBottom: 8 },
-  suggestionCardActive: { border: '2px solid #16a34a', background: '#f0fdf4' },
-  suggestionCardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  suggestionCat: { fontSize: 10, fontWeight: 700, color: '#4361ee', background: '#eef2ff', padding: '2px 8px', borderRadius: 6 },
-  appliedBadge: { fontSize: 11, fontWeight: 700, color: '#16a34a' },
-  suggestionCardTitle: { fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 4 },
-  suggestionCardSol: { fontSize: 12, color: '#6b7280' },
-  suggestionCardAction: { fontSize: 11, color: '#4361ee', marginTop: 6, fontStyle: 'italic' },
-  field: { marginBottom: 14 },
-  lbl: { display: 'block', fontSize: 13, color: '#374151', marginBottom: 6, fontWeight: 600 },
-  input: { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, outline: 'none', boxSizing: 'border-box' },
-  textarea: { width: '100%', minHeight: 70, padding: 12, borderRadius: 8, border: '1px solid #d1d5db', fontSize: 13, outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' },
-  uploadArea: { border: '2px dashed #d0d5dd', borderRadius: 10, padding: 16, textAlign: 'center', backgroundColor: '#fafbfc' },
-  uploadLabel: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer' },
-  uploadInfo: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, fontSize: 11, color: '#6b7280' },
-  progressContainer: { marginTop: 12 },
-  progressBar: { height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#4361ee', borderRadius: 2, transition: 'width 0.3s' },
-  progressText: { display: 'block', fontSize: 10, color: '#4361ee', marginTop: 4, textAlign: 'center' },
-  previewGrid: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  previewCard: { position: 'relative', width: 80, border: '1px solid #e4e7eb', borderRadius: 8, overflow: 'hidden', backgroundColor: '#fff' },
-  previewImage: { width: '100%', height: 60, objectFit: 'cover' },
-  previewInfo: { padding: 4, textAlign: 'center' },
-  previewName: { fontSize: 8, color: '#374151', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  previewSize: { fontSize: 7, color: '#8a9bb5' },
-  removeBtn: { position: 'absolute', top: 2, right: 2, background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: 4, padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  actions: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18, paddingTop: 16, borderTop: '1px solid #f3f4f6' },
-  btnGhost: { padding: '11px 18px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' },
-  btnPrimary: { padding: '11px 22px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' },
-  readOnlyBanner: { background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#166534', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 },
-  readOnlyInput: { background: '#f9fafb', color: '#6b7280', cursor: 'not-allowed', borderColor: '#e5e7eb' },
-  // Galería de imágenes existentes (modo solo lectura)
-  existingImagesGrid: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-  existingImageCard: { display: 'flex', alignItems: 'center', gap: 10, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '8px 12px', minWidth: 200, maxWidth: 280 },
-  existingImageIcon: { position: 'relative', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eef2ff', borderRadius: 8, cursor: 'pointer', flexShrink: 0 },
-  existingImageInfo: { flex: 1, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' },
-  existingImageName: { fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  existingImageSize: { fontSize: 10, color: '#94a3b8' },
-  existingImageDownload: { background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: 6, cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  // Modal de imagen ampliada
-  imageModalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 },
-  imageModalBox: { position: 'relative', maxWidth: '85vw', maxHeight: '85vh', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' },
-  imageModalClose: { position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 1 },
-  imageModalImg: { maxWidth: '85vw', maxHeight: '75vh', objectFit: 'contain', display: 'block' },
-  imageModalInfo: { display: 'flex', justifyContent: 'space-between', padding: '10px 16px', fontSize: 12, color: '#6b7280', borderTop: '1px solid #f3f4f6' },
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: 20
+  },
+  box: {
+    background: '#fff',
+    borderRadius: 14,
+    padding: 28,
+    width: 660,
+    maxWidth: '100%',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.20)'
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 18
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 700,
+    margin: 0,
+    color: '#111'
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#dc2626',
+    marginTop: 4
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    fontSize: 28,
+    color: '#9ca3af',
+    cursor: 'pointer',
+    padding: 0,
+    lineHeight: '20px'
+  },
+  error: {
+    background: '#fef2f2',
+    color: '#b91c1c',
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 13,
+    marginBottom: 14
+  },
+  errorText: {
+    fontSize: 11,
+    color: '#dc2626',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4
+  },
+  successText: {
+    fontSize: 11,
+    color: '#10b981',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4
+  },
+  editModeWarning: {
+    background: '#fef3c7',
+    border: '1px solid #f59e0b',
+    borderRadius: 8,
+    padding: '10px 12px',
+    fontSize: 12,
+    color: '#92400e',
+    marginBottom: 14,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8
+  },
+  suggestionsSection: {
+    background: '#fffbeb',
+    border: '1px solid #fde68a',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 14,
+    marginTop: 8
+  },
+  suggestionsTitle: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#92400e',
+    marginBottom: 10
+  },
+  suggestionCard: {
+    background: '#fff',
+    border: '1px solid #e5e7eb',
+    borderRadius: 8,
+    padding: 12,
+    cursor: 'pointer',
+    marginBottom: 8
+  },
+  suggestionCardActive: {
+    border: '2px solid #16a34a',
+    background: '#f0fdf4'
+  },
+  suggestionCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+  suggestionCat: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#4361ee',
+    background: '#eef2ff',
+    padding: '2px 8px',
+    borderRadius: 6
+  },
+  appliedBadge: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#16a34a'
+  },
+  suggestionCardTitle: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#111',
+    marginBottom: 4
+  },
+  suggestionCardSol: {
+    fontSize: 12,
+    color: '#6b7280'
+  },
+  suggestionCardAction: {
+    fontSize: 11,
+    color: '#4361ee',
+    marginTop: 6,
+    fontStyle: 'italic'
+  },
+  field: {
+    marginBottom: 14
+  },
+  lbl: {
+    display: 'block',
+    fontSize: 13,
+    color: '#374151',
+    marginBottom: 6,
+    fontWeight: 600
+  },
+  input: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: '1px solid #d1d5db',
+    fontSize: 14,
+    outline: 'none',
+    boxSizing: 'border-box'
+  },
+  textarea: {
+    width: '100%',
+    minHeight: 70,
+    padding: 12,
+    borderRadius: 8,
+    border: '1px solid #d1d5db',
+    fontSize: 13,
+    outline: 'none',
+    boxSizing: 'border-box',
+    resize: 'vertical',
+    fontFamily: 'inherit'
+  },
+  uploadArea: {
+    border: '2px dashed #d0d5dd',
+    borderRadius: 10,
+    padding: 16,
+    textAlign: 'center',
+    backgroundColor: '#fafbfc'
+  },
+  uploadLabel: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+    cursor: 'pointer'
+  },
+  uploadInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+    fontSize: 11,
+    color: '#6b7280'
+  },
+  progressContainer: {
+    marginTop: 12
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    overflow: 'hidden'
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4361ee',
+    borderRadius: 2,
+    transition: 'width 0.3s'
+  },
+  progressText: {
+    display: 'block',
+    fontSize: 10,
+    color: '#4361ee',
+    marginTop: 4,
+    textAlign: 'center'
+  },
+  previewGrid: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12
+  },
+  previewCard: {
+    position: 'relative',
+    width: 80,
+    border: '1px solid #e4e7eb',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#fff'
+  },
+  previewImage: {
+    width: '100%',
+    height: 60,
+    objectFit: 'cover'
+  },
+  previewInfo: {
+    padding: 4,
+    textAlign: 'center'
+  },
+  previewName: {
+    fontSize: 8,
+    color: '#374151',
+    display: 'block',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  previewSize: {
+    fontSize: 7,
+    color: '#8a9bb5'
+  },
+  removeBtn: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    background: 'rgba(255,255,255,0.9)',
+    border: 'none',
+    borderRadius: 4,
+    padding: 2,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  actions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 18,
+    paddingTop: 16,
+    borderTop: '1px solid #f3f4f6'
+  },
+  btnGhost: {
+    padding: '11px 18px',
+    background: '#fff',
+    color: '#374151',
+    border: '1px solid #d1d5db',
+    borderRadius: 8,
+    fontWeight: 600,
+    fontSize: 13,
+    cursor: 'pointer'
+  },
+  btnPrimary: {
+    padding: '11px 22px',
+    background: '#2563eb',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: 'pointer'
+  },
+  readOnlyInput: {
+    background: '#f9fafb',
+    color: '#6b7280',
+    cursor: 'not-allowed',
+    borderColor: '#e5e7eb'
+  },
+  existingImagesGrid: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 8
+  },
+  existingImageCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: 10,
+    padding: '8px 12px',
+    minWidth: 200,
+    maxWidth: 280
+  },
+  existingImageIcon: {
+    position: 'relative',
+    width: 48,
+    height: 48,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#eef2ff',
+    borderRadius: 8,
+    cursor: 'pointer',
+    flexShrink: 0
+  },
+  existingImageInfo: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    overflow: 'hidden'
+  },
+  existingImageName: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#334155',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  existingImageSize: {
+    fontSize: 10,
+    color: '#94a3b8'
+  },
+  existingImageDownload: {
+    background: 'none',
+    border: '1px solid #e2e8f0',
+    borderRadius: 6,
+    padding: 6,
+    cursor: 'pointer',
+    color: '#64748b',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  },
+  imageModalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000
+  },
+  imageModalBox: {
+    position: 'relative',
+    maxWidth: '85vw',
+    maxHeight: '85vh',
+    background: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
+  },
+  imageModalClose: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    background: 'rgba(0,0,0,0.5)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '50%',
+    width: 32,
+    height: 32,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    zIndex: 1
+  },
+  imageModalImg: {
+    maxWidth: '85vw',
+    maxHeight: '75vh',
+    objectFit: 'contain',
+    display: 'block'
+  },
+  imageModalInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '10px 16px',
+    fontSize: 12,
+    color: '#6b7280',
+    borderTop: '1px solid #f3f4f6'
+  },
 };
+
+// Añadir animación para el spinner
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(styleSheet);

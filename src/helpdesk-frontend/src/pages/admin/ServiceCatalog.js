@@ -32,8 +32,9 @@ function ServiceCatalogPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Filtros
   const [search, setSearch] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterDamage, setFilterDamage] = useState('');
@@ -46,6 +47,12 @@ function ServiceCatalogPage() {
     estimatedTimeHours: 24,
     damageCatalogId: '',
   });
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadServices();
@@ -64,10 +71,10 @@ function ServiceCatalogPage() {
   const loadDamages = () => {
     catalogAPI
       .get('/damagecatalog')
-      .then((res) => setDamages(res.data));
+      .then((res) => setDamages(res.data))
+      .catch((err) => console.error(err));
   };
 
-  // Filtrado de servicios
   const filteredServices = useMemo(() => {
     return services.filter((sv) => {
       const matchSearch = search === '' ||
@@ -196,169 +203,149 @@ function ServiceCatalogPage() {
     return colors[level] || '#1565c0';
   };
 
-  const getLevelIcon = (level) => {
-    switch (level) {
-      case 1: return <Shield size={12} style={{ marginRight: 4 }} />;
-      case 2: return <Shield size={12} style={{ marginRight: 4 }} />;
-      case 3: return <Shield size={12} style={{ marginRight: 4 }} />;
-      case 4: return <Shield size={12} style={{ marginRight: 4 }} />;
-      default: return <Shield size={12} style={{ marginRight: 4 }} />;
-    }
-  };
-
   return (
     <Layout>
-      <main style={styles.content}>
-        <div style={styles.header}>
+      <div className="service-catalog-page">
+        <div className="service-catalog-header">
           <div>
-            <h1 style={styles.title}>
-              <Briefcase size={28} style={{ marginRight: 12, color: '#4361ee', verticalAlign: 'middle' }} />
+            <h1 className="service-catalog-title">
+              <Briefcase size={isMobile ? 24 : 28} />
               Catálogo de Servicios
             </h1>
-            <p style={styles.subtitle}>Administra servicios y categorías tecnológicas</p>
+            <p className="service-catalog-subtitle">Administra servicios y categorías tecnológicas</p>
           </div>
-          <button style={styles.actionBtn} onClick={openCreateModal}>
-            <Plus size={16} style={{ marginRight: 6 }} />
+          <button className="service-catalog-new-btn" onClick={openCreateModal}>
+            <Plus size={16} />
             Nuevo Servicio
           </button>
         </div>
 
         {success && (
-          <div style={styles.success}>
-            <CheckCircle size={18} style={{ marginRight: 10 }} />
+          <div className="service-catalog-success">
+            <CheckCircle size={18} />
             {success}
           </div>
         )}
         {error && !showModal && (
-          <div style={styles.error}>
-            <AlertCircle size={18} style={{ marginRight: 10 }} />
+          <div className="service-catalog-error">
+            <AlertCircle size={18} />
             {error}
           </div>
         )}
 
         {/* Barra de filtros */}
-        <div style={styles.filtersBar}>
-          <div style={styles.searchWrapper}>
-            <Search size={18} color="#9ca3af" style={styles.searchIcon} />
-            <input
-              style={styles.searchInput}
-              placeholder="Buscar servicio por nombre o categoría..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button style={styles.clearSearchBtn} onClick={() => setSearch('')}>
+        <div className="service-catalog-filters-card">
+          <div className="service-catalog-search-bar">
+            <div className="service-catalog-search-wrapper">
+              <Search size={16} className="service-catalog-search-icon" />
+              <input
+                className="service-catalog-search-input"
+                placeholder={isMobile ? "Buscar..." : "Buscar servicio por nombre o categoría..."}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="service-catalog-clear-search" onClick={() => setSearch('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button className="service-catalog-filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+              <Filter size={14} />
+              Filtros
+            </button>
+          </div>
+
+          <div className={`service-catalog-filters ${showFilters ? 'service-catalog-filters-open' : ''}`}>
+            <div className="service-catalog-filter-group">
+              <label className="service-catalog-filter-label">Nivel</label>
+              <select className="service-catalog-filter-select" value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
+                <option value="">Todos los niveles</option>
+                <option value="1">N1 - Técnico Básico</option>
+                <option value="2">N2 - Técnico Profesional</option>
+                <option value="3">N3 - DITIC</option>
+                <option value="4">N4 - Proveedor Externo</option>
+              </select>
+            </div>
+
+            <div className="service-catalog-filter-group">
+              <label className="service-catalog-filter-label">Tipo de Daño</label>
+              <select className="service-catalog-filter-select" value={filterDamage} onChange={(e) => setFilterDamage(e.target.value)}>
+                <option value="">Todos los tipos</option>
+                {damages.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="service-catalog-stats">
+              <Briefcase size={12} />
+              {filteredServices.length} de {services.length} servicios
+            </div>
+
+            {hasFilters && (
+              <button className="service-catalog-clear-filters" onClick={clearFilters}>
                 <X size={14} />
+                Limpiar
               </button>
             )}
           </div>
-
-          <div style={styles.filterWrapper}>
-            <Shield size={14} color="#6b7280" style={styles.filterIcon} />
-            <select style={styles.filterSelect} value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
-              <option value="">Todos los niveles</option>
-              <option value="1">N1 - Técnico Básico</option>
-              <option value="2">N2 - Técnico Profesional</option>
-              <option value="3">N3 - DITIC</option>
-              <option value="4">N4 - Proveedor Externo</option>
-            </select>
-          </div>
-
-          <div style={styles.filterWrapper}>
-            <Wrench size={14} color="#6b7280" style={styles.filterIcon} />
-            <select style={styles.filterSelect} value={filterDamage} onChange={(e) => setFilterDamage(e.target.value)}>
-              <option value="">Todos los tipos de daño</option>
-              {damages.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {hasFilters && (
-            <button style={styles.clearFiltersBtn} onClick={clearFilters}>
-              <X size={14} style={{ marginRight: 4 }} />
-              Limpiar filtros
-            </button>
-          )}
-
-          <span style={styles.resultCount}>
-            <Briefcase size={12} style={{ marginRight: 4 }} />
-            {filteredServices.length} de {services.length} servicios
-          </span>
         </div>
 
         {loading ? (
-          <div style={styles.stateContainer}>
-            <RefreshCw size={24} style={styles.spinner} />
-            <p style={styles.stateText}>Cargando servicios...</p>
+          <div className="service-catalog-loading">
+            <RefreshCw size={24} className="service-catalog-spinner" />
+            <p>Cargando servicios...</p>
           </div>
         ) : filteredServices.length === 0 ? (
-          <div style={styles.stateContainer}>
-            <p style={styles.stateText}>
-              {hasFilters ? 'No hay servicios que coincidan con los filtros.' : 'No hay servicios registrados.'}
-            </p>
+          <div className="service-catalog-empty">
+            <p>{hasFilters ? 'No hay servicios que coincidan con los filtros.' : 'No hay servicios registrados.'}</p>
           </div>
         ) : (
-          <div style={styles.tableCard}>
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
+          <div className="service-catalog-table-card">
+            <div className="service-catalog-table-wrapper">
+              <table className="service-catalog-table">
                 <thead>
-                  <tr style={styles.thead}>
-                    <th style={styles.th}>
-                      <Package size={12} style={{ marginRight: 4 }} />
-                      Servicio
-                    </th>
-                    <th style={styles.th}>
-                      <Layers size={12} style={{ marginRight: 4 }} />
-                      Categoría
-                    </th>
-                    <th style={styles.th}>
-                      <FileText size={12} style={{ marginRight: 4 }} />
-                      Descripción
-                    </th>
-                    <th style={styles.th}>
-                      <Shield size={12} style={{ marginRight: 4 }} />
-                      Nivel
-                    </th>
-                    <th style={styles.th}>
-                      <Clock size={12} style={{ marginRight: 4 }} />
-                      Tiempo Est.
-                    </th>
-                    <th style={styles.th}>
-                      <Wrench size={12} style={{ marginRight: 4 }} />
-                      Tipo de Daño
-                    </th>
-                    <th style={styles.th}>Acciones</th>
+                  <tr>
+                    <th>Servicio</th>
+                    <th>Categoría</th>
+                    <th>Descripción</th>
+                    <th>Nivel</th>
+                    <th>Tiempo Est.</th>
+                    <th>Tipo de Daño</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredServices.map((sItem) => (
-                    <tr key={sItem.id} style={styles.tr}>
-                      <td style={styles.td}>
+                    <tr key={sItem.id}>
+                      <td className="service-catalog-name">
                         <strong>{sItem.name}</strong>
                       </td>
-                      <td style={styles.td}>{sItem.category}</td>
-                      <td style={styles.td}>{sItem.description || '—'}</td>
-                      <td style={styles.td}>
-                        <span style={{ ...styles.badge, backgroundColor: getLevelColor(sItem.attentionLevel) }}>
-                          {getLevelIcon(sItem.attentionLevel)}
+                      <td>{sItem.category}</td>
+                      <td>{sItem.description || '—'}</td>
+                      <td>
+                        <span className="service-catalog-level-badge" style={{ backgroundColor: getLevelColor(sItem.attentionLevel) }}>
+                          <Shield size={12} style={{ marginRight: 4 }} />
                           {getLevelName(sItem.attentionLevel)}
                         </span>
                       </td>
-                      <td style={styles.td}>
-                        <span style={styles.timeBadge}>
+                      <td>
+                        <span className="service-catalog-time-badge">
                           <Clock size={12} style={{ marginRight: 4 }} />
                           {sItem.estimatedTimeHours}h
                         </span>
                       </td>
-                      <td style={styles.td}>{sItem.damageName}</td>
-                      <td style={styles.td}>
-                        <div style={styles.actions}>
-                          <button onClick={() => openEditModal(sItem)} style={styles.iconBtn} title="Editar">
-                            <Pencil size={15} color="#4361ee" />
+                      <td>{sItem.damageName || '—'}</td>
+                      <td>
+                        <div className="service-catalog-actions">
+                          <button onClick={() => openEditModal(sItem)} className="service-catalog-edit-btn" title="Editar">
+                            <Pencil size={14} />
+                            Editar
                           </button>
-                          <button onClick={() => handleDelete(sItem.id, sItem.name)} style={styles.iconBtn} title="Eliminar">
-                            <Trash2 size={15} color="#dc2626" />
+                          <button onClick={() => handleDelete(sItem.id, sItem.name)} className="service-catalog-delete-btn" title="Eliminar">
+                            <Trash2 size={14} />
+                            Eliminar
                           </button>
                         </div>
                       </td>
@@ -369,617 +356,749 @@ function ServiceCatalogPage() {
             </div>
           </div>
         )}
-      </main>
+      </div>
 
-      {/* MODAL DE CREAR/EDITAR SERVICIO */}
+      {/* MODAL DE CREAR/EDITAR SERVICIO RESPONSIVE */}
       {showModal && (
-        <div style={modalStyles.overlay} onClick={closeModal}>
-          <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={modalStyles.header}>
-              <div style={modalStyles.headerIcon}>
+        <div className="service-catalog-modal-overlay" onClick={closeModal}>
+          <div className="service-catalog-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="service-catalog-modal-header">
+              <div className="service-catalog-modal-header-icon">
                 {editItem ? <Pencil size={24} color="#fff" /> : <Plus size={24} color="#fff" />}
               </div>
-              <div style={modalStyles.headerText}>
-                <h2 style={modalStyles.title}>
-                  {editItem ? 'Editar Servicio' : 'Nuevo Servicio'}
-                </h2>
-                <p style={modalStyles.subtitle}>
-                  {editItem ? 'Modifica los datos del servicio' : 'Completa los datos para crear un nuevo servicio'}
-                </p>
+              <div className="service-catalog-modal-header-text">
+                <h2>{editItem ? 'Editar Servicio' : 'Nuevo Servicio'}</h2>
+                <p>{editItem ? 'Modifica los datos del servicio' : 'Completa los datos para crear un nuevo servicio'}</p>
               </div>
-              <button style={modalStyles.closeBtn} onClick={closeModal}>
+              <button className="service-catalog-modal-close" onClick={closeModal}>
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div style={modalStyles.content}>
+              <div className="service-catalog-modal-body">
                 {error && (
-                  <div style={modalStyles.error}>
-                    <AlertCircle size={16} style={{ marginRight: 8 }} />
+                  <div className="service-catalog-modal-error">
+                    <AlertCircle size={16} />
                     {error}
                   </div>
                 )}
-                {success && (
-                  <div style={modalStyles.success}>
-                    <CheckCircle size={16} style={{ marginRight: 8 }} />
-                    {success}
-                  </div>
-                )}
 
-                <div style={modalStyles.formGrid}>
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Package size={14} style={{ marginRight: 6 }} />
-                      Nombre *
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="text"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      placeholder="Nombre del servicio"
-                      required
-                    />
-                  </div>
+                <div className="service-catalog-modal-field">
+                  <label>Nombre *</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Nombre del servicio"
+                    required
+                  />
+                </div>
 
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Layers size={14} style={{ marginRight: 6 }} />
-                      Categoría *
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="text"
-                      value={form.category}
-                      onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      placeholder="Hardware, Software, Redes..."
-                      required
-                    />
-                  </div>
+                <div className="service-catalog-modal-field">
+                  <label>Categoría *</label>
+                  <input
+                    type="text"
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    placeholder="Hardware, Software, Redes..."
+                    required
+                  />
+                </div>
 
-                  <div style={{ ...modalStyles.field, gridColumn: '1 / -1' }}>
-                    <label style={modalStyles.label}>
-                      <FileText size={14} style={{ marginRight: 6 }} />
-                      Descripción
-                    </label>
-                    <textarea
-                      style={modalStyles.textarea}
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      placeholder="Descripción del servicio"
-                      rows={3}
-                    />
-                  </div>
+                <div className="service-catalog-modal-field full-width">
+                  <label>Descripción</label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="Descripción del servicio"
+                    rows={3}
+                  />
+                </div>
 
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Shield size={14} style={{ marginRight: 6 }} />
-                      Nivel de atención *
-                    </label>
-                    <select
-                      style={modalStyles.select}
-                      value={form.attentionLevel}
-                      onChange={(e) => setForm({ ...form, attentionLevel: e.target.value })}
-                    >
-                      <option value={1}>N1 — Técnico Básico</option>
-                      <option value={2}>N2 — Técnico Profesional</option>
-                      <option value={3}>N3 — DITIC</option>
-                      <option value={4}>N4 — Proveedor Externo</option>
-                    </select>
-                  </div>
+                <div className="service-catalog-modal-field">
+                  <label>Nivel de atención *</label>
+                  <select
+                    value={form.attentionLevel}
+                    onChange={(e) => setForm({ ...form, attentionLevel: parseInt(e.target.value) })}
+                  >
+                    <option value={1}>N1 — Técnico Básico</option>
+                    <option value={2}>N2 — Técnico Profesional</option>
+                    <option value={3}>N3 — DITIC</option>
+                    <option value={4}>N4 — Proveedor Externo</option>
+                  </select>
+                </div>
 
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Clock size={14} style={{ marginRight: 6 }} />
-                      Tiempo estimado (horas) *
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="number"
-                      min={1}
-                      max={720}
-                      value={form.estimatedTimeHours}
-                      onChange={(e) => setForm({ ...form, estimatedTimeHours: e.target.value })}
-                      required
-                    />
-                  </div>
+                <div className="service-catalog-modal-field">
+                  <label>Tiempo estimado (horas) *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={720}
+                    value={form.estimatedTimeHours}
+                    onChange={(e) => setForm({ ...form, estimatedTimeHours: parseInt(e.target.value) })}
+                    required
+                  />
+                </div>
 
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Wrench size={14} style={{ marginRight: 6 }} />
-                      Categoría de daño *
-                    </label>
-                    <select
-                      style={modalStyles.select}
-                      value={form.damageCatalogId}
-                      onChange={(e) => setForm({ ...form, damageCatalogId: e.target.value })}
-                      required
-                    >
-                      <option value="">-- Selecciona --</option>
-                      {damages.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="service-catalog-modal-field">
+                  <label>Categoría de daño *</label>
+                  <select
+                    value={form.damageCatalogId}
+                    onChange={(e) => setForm({ ...form, damageCatalogId: parseInt(e.target.value) })}
+                    required
+                  >
+                    <option value="">-- Selecciona --</option>
+                    {damages.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              <div style={modalStyles.footer}>
-                <button type="button" style={modalStyles.cancelBtn} onClick={closeModal}>
+              <div className="service-catalog-modal-footer">
+                <button type="button" className="service-catalog-modal-cancel" onClick={closeModal}>
                   Cancelar
                 </button>
-                <button type="submit" style={modalStyles.saveBtn} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8 }} />
-                      Guardando...
-                    </>
-                  ) : (
-                    editItem ? 'Guardar Cambios' : 'Crear Servicio'
-                  )}
+                <button type="submit" className="service-catalog-modal-save" disabled={saving}>
+                  {saving ? 'Guardando...' : (editItem ? 'Guardar Cambios' : 'Crear Servicio')}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <style>{`
+        .service-catalog-page {
+          padding: 28px 32px;
+          flex: 1;
+          min-height: 100vh;
+          background-color: #f5f7fa;
+        }
+
+        .service-catalog-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .service-catalog-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #111827;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .service-catalog-subtitle {
+          font-size: 14px;
+          color: #6b7280;
+        }
+
+        .service-catalog-new-btn {
+          background-color: #4361ee;
+          color: #fff;
+          border: none;
+          padding: 12px 18px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.2s;
+        }
+
+        .service-catalog-new-btn:hover {
+          background-color: #304ffe;
+          transform: translateY(-1px);
+        }
+
+        .service-catalog-success {
+          background-color: #ecfdf3;
+          color: #027a48;
+          padding: 14px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .service-catalog-error {
+          background-color: #fef3f2;
+          color: #b42318;
+          padding: 14px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .service-catalog-filters-card {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          padding: 16px 20px;
+          margin-bottom: 24px;
+        }
+
+        .service-catalog-search-bar {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .service-catalog-search-wrapper {
+          position: relative;
+          flex: 1;
+          min-width: 200px;
+        }
+
+        .service-catalog-search-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #9ca3af;
+        }
+
+        .service-catalog-search-input {
+          width: 100%;
+          padding: 10px 16px 10px 38px;
+          border-radius: 12px;
+          border: 1px solid #e4e7eb;
+          font-size: 14px;
+          outline: none;
+          background: #f9fafb;
+        }
+
+        .service-catalog-search-input:focus {
+          border-color: #4361ee;
+          box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .service-catalog-clear-search {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #9ca3af;
+        }
+
+        .service-catalog-filter-toggle {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          background: #f9fafb;
+          border: 1px solid #eaecf0;
+          border-radius: 10px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .service-catalog-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          align-items: center;
+          margin-top: 16px;
+        }
+
+        .service-catalog-filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 150px;
+        }
+
+        .service-catalog-filter-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .service-catalog-filter-select {
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #d0d5dd;
+          font-size: 14px;
+          background: #fff;
+          cursor: pointer;
+        }
+
+        .service-catalog-filter-select:focus {
+          border-color: #4361ee;
+          outline: none;
+        }
+
+        .service-catalog-stats {
+          font-size: 13px;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f9fafb;
+          padding: 8px 14px;
+          border-radius: 10px;
+          margin-left: auto;
+        }
+
+        .service-catalog-clear-filters {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 10px;
+          background: #f3f4f6;
+          border: 1px solid #d1d5db;
+          color: #374151;
+          cursor: pointer;
+          font-size: 13px;
+          transition: all 0.2s;
+        }
+
+        .service-catalog-clear-filters:hover {
+          background: #fee2e2;
+          border-color: #fecaca;
+          color: #dc2626;
+        }
+
+        .service-catalog-table-card {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          overflow: hidden;
+        }
+
+        .service-catalog-table-wrapper {
+          overflow-x: auto;
+        }
+
+        .service-catalog-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 800px;
+        }
+
+        .service-catalog-table th {
+          padding: 16px 20px;
+          text-align: left;
+          font-size: 12px;
+          font-weight: 700;
+          color: #667085;
+          background: #f9fafb;
+          border-bottom: 1px solid #eaecf0;
+        }
+
+        .service-catalog-table td {
+          padding: 18px 20px;
+          font-size: 14px;
+          color: #344054;
+          border-bottom: 1px solid #f1f3f5;
+        }
+
+        .service-catalog-table tr:hover td {
+          background-color: #f9fafb;
+        }
+
+        .service-catalog-name {
+          font-weight: 600;
+        }
+
+        .service-catalog-level-badge {
+          color: #fff;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .service-catalog-time-badge {
+          background: #f3f4f6;
+          color: #374151;
+          padding: 4px 10px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .service-catalog-actions {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .service-catalog-edit-btn {
+          background: #4361ee;
+          color: #fff;
+          border: none;
+          padding: 8px 14px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.2s;
+        }
+
+        .service-catalog-edit-btn:hover {
+          background: #304ffe;
+          transform: translateY(-1px);
+        }
+
+        .service-catalog-delete-btn {
+          background: #dc2626;
+          color: #fff;
+          border: none;
+          padding: 8px 14px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.2s;
+        }
+
+        .service-catalog-delete-btn:hover {
+          background: #b91c1c;
+          transform: translateY(-1px);
+        }
+
+        .service-catalog-loading, .service-catalog-empty {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          padding: 60px 20px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .service-catalog-spinner {
+          animation: spin 1s linear infinite;
+        }
+
+        /* Modal Responsive */
+        .service-catalog-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+        }
+
+        .service-catalog-modal {
+          background: #fff;
+          border-radius: 24px;
+          width: 100%;
+          max-width: 650px;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+
+        .service-catalog-modal-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 20px 24px;
+          background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%);
+          border-top-left-radius: 24px;
+          border-top-right-radius: 24px;
+          position: sticky;
+          top: 0;
+        }
+
+        .service-catalog-modal-header-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 24px;
+          background: rgba(255,255,255,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .service-catalog-modal-header-text {
+          flex: 1;
+        }
+
+        .service-catalog-modal-header-text h2 {
+          font-size: 20px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0;
+        }
+
+        .service-catalog-modal-header-text p {
+          font-size: 13px;
+          color: rgba(255,255,255,0.8);
+          margin-top: 4px;
+        }
+
+        .service-catalog-modal-close {
+          background: rgba(255,255,255,0.2);
+          border: none;
+          border-radius: 20px;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #fff;
+          transition: background 0.2s;
+        }
+
+        .service-catalog-modal-close:hover {
+          background: rgba(255,255,255,0.3);
+        }
+
+        .service-catalog-modal-body {
+          padding: 24px;
+        }
+
+        .service-catalog-modal-field {
+          margin-bottom: 20px;
+        }
+
+        .service-catalog-modal-field.full-width {
+          grid-column: 1 / -1;
+        }
+
+        .service-catalog-modal-field label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 8px;
+        }
+
+        .service-catalog-modal-field input,
+        .service-catalog-modal-field select,
+        .service-catalog-modal-field textarea {
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #d1d5db;
+          font-size: 14px;
+          outline: none;
+          font-family: inherit;
+          transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        .service-catalog-modal-field input:focus,
+        .service-catalog-modal-field select:focus,
+        .service-catalog-modal-field textarea:focus {
+          border-color: #4361ee;
+          box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .service-catalog-modal-field textarea {
+          resize: vertical;
+        }
+
+        .service-catalog-modal-error {
+          background: #fef2f2;
+          color: #dc2626;
+          padding: 12px 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .service-catalog-modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          padding: 16px 24px;
+          border-top: 1px solid #eaecf0;
+          background: #f9fafb;
+          border-bottom-left-radius: 24px;
+          border-bottom-right-radius: 24px;
+          position: sticky;
+          bottom: 0;
+        }
+
+        .service-catalog-modal-cancel {
+          padding: 10px 20px;
+          background: #fff;
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .service-catalog-modal-cancel:hover {
+          background: #f3f4f6;
+        }
+
+        .service-catalog-modal-save {
+          padding: 10px 24px;
+          background: #4361ee;
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #fff;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .service-catalog-modal-save:hover {
+          background: #304ffe;
+          transform: translateY(-1px);
+        }
+
+        .service-catalog-modal-save:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+          .service-catalog-page {
+            padding: 70px 12px 20px 12px;
+          }
+
+          .service-catalog-title {
+            font-size: 22px;
+          }
+
+          .service-catalog-subtitle {
+            font-size: 12px;
+          }
+
+          .service-catalog-filter-toggle {
+            display: flex;
+          }
+
+          .service-catalog-filters {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+          }
+
+          .service-catalog-filters-open {
+            display: flex;
+          }
+
+          .service-catalog-filter-group {
+            width: 100%;
+          }
+
+          .service-catalog-filter-select {
+            width: 100%;
+          }
+
+          .service-catalog-stats {
+            margin-left: 0;
+            justify-content: center;
+            width: 100%;
+          }
+
+          .service-catalog-clear-filters {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .service-catalog-actions {
+            flex-direction: column;
+          }
+
+          .service-catalog-edit-btn,
+          .service-catalog-delete-btn {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .service-catalog-table th,
+          .service-catalog-table td {
+            padding: 12px 16px;
+          }
+
+          .service-catalog-modal {
+            max-width: 95%;
+          }
+
+          .service-catalog-modal-header {
+            padding: 16px 20px;
+          }
+
+          .service-catalog-modal-header-icon {
+            width: 40px;
+            height: 40px;
+          }
+
+          .service-catalog-modal-header-text h2 {
+            font-size: 16px;
+          }
+
+          .service-catalog-modal-body {
+            padding: 20px;
+          }
+
+          .service-catalog-modal-footer {
+            flex-direction: column;
+          }
+
+          .service-catalog-modal-cancel,
+          .service-catalog-modal-save {
+            width: 100%;
+            text-align: center;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
-
-const styles = {
-  content: {
-    padding: '32px',
-    flex: 1,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: '#111827',
-    marginBottom: 8,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  actionBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#4361ee',
-    color: '#fff',
-    border: 'none',
-    padding: '10px 18px',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: 14,
-    transition: 'background-color 0.2s ease',
-  },
-  success: {
-    backgroundColor: '#ecfdf3',
-    color: '#027a48',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 20,
-    fontSize: 14,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  error: {
-    backgroundColor: '#fef3f2',
-    color: '#b42318',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 20,
-    fontSize: 14,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  filtersBar: {
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-    flexWrap: 'wrap',
-    backgroundColor: '#fff',
-    padding: '16px 20px',
-    borderRadius: 16,
-    border: '1px solid #eaecf0',
-  },
-  searchWrapper: {
-    position: 'relative',
-    flex: '1 1 260px',
-    minWidth: 220,
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 12,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
-  },
-  searchInput: {
-    width: '100%',
-    padding: '10px 16px 10px 38px',
-    borderRadius: 12,
-    border: '1px solid #e4e7eb',
-    fontSize: 14,
-    boxSizing: 'border-box',
-    outline: 'none',
-    backgroundColor: '#f9fafb',
-    transition: 'all 0.2s ease',
-    '&:focus': {
-      borderColor: '#4361ee',
-      boxShadow: '0 0 0 3px rgba(67, 97, 238, 0.1)',
-    }
-  },
-  clearSearchBtn: {
-    position: 'absolute',
-    right: 8,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#9ca3af',
-    display: 'flex',
-    alignItems: 'center',
-    padding: 4,
-  },
-  filterWrapper: {
-    position: 'relative',
-    minWidth: 180,
-  },
-  filterIcon: {
-    position: 'absolute',
-    left: 12,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
-  },
-  filterSelect: {
-    width: '100%',
-    padding: '10px 14px 10px 38px',
-    borderRadius: 10,
-    border: '1px solid #d0d5dd',
-    fontSize: 14,
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-    outline: 'none',
-    appearance: 'none',
-    transition: 'all 0.2s ease',
-  },
-  clearFiltersBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '10px 16px',
-    borderRadius: 10,
-    border: '1px solid #e5e7eb',
-    backgroundColor: '#f9fafb',
-    color: '#374151',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 500,
-    transition: 'all 0.2s ease',
-  },
-  resultCount: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginLeft: 'auto',
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    padding: '8px 14px',
-    borderRadius: 10,
-  },
-  tableCard: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    border: '1px solid #eaecf0',
-    overflow: 'hidden',
-  },
-  tableWrapper: {
-    overflowX: 'auto',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  thead: {
-    backgroundColor: '#f9fafb',
-  },
-  th: {
-    padding: '16px 20px',
-    textAlign: 'left',
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#667085',
-    borderBottom: '1px solid #eaecf0',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  tr: {
-    borderBottom: '1px solid #f1f3f5',
-    transition: 'background-color 0.2s ease',
-  },
-  td: {
-    padding: '18px 20px',
-    fontSize: 14,
-    color: '#344054',
-  },
-  badge: {
-    color: '#fff',
-    padding: '6px 12px',
-    borderRadius: 20,
-    fontSize: 12,
-    fontWeight: 600,
-    display: 'inline-flex',
-    alignItems: 'center',
-  },
-  timeBadge: {
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
-    padding: '4px 10px',
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: 500,
-    display: 'inline-flex',
-    alignItems: 'center',
-  },
-  actions: {
-    display: 'flex',
-    gap: 4,
-    alignItems: 'center',
-  },
-  iconBtn: {
-    width: 32,
-    height: 32,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: 8,
-    cursor: 'pointer',
-    transition: 'background-color 0.2s ease',
-  },
-  stateContainer: {
-    padding: '60px 20px',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 12,
-  },
-  stateText: {
-    color: '#6b7280',
-    fontSize: 15,
-  },
-  spinner: {
-    animation: 'spin 1s linear infinite',
-  },
-};
-
-// Estilos del Modal
-const modalStyles = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '20px',
-  },
-  modal: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    width: '100%',
-    maxWidth: 650,
-    maxHeight: '90vh',
-    overflowY: 'auto',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-    animation: 'slideUp 0.3s ease',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    padding: '20px 24px',
-    background: 'linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%)',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    position: 'relative',
-  },
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    background: 'rgba(255, 255, 255, 0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#fff',
-    margin: 0,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-  },
-  closeBtn: {
-    background: 'rgba(255, 255, 255, 0.2)',
-    border: 'none',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    color: '#fff',
-    transition: 'all 0.2s',
-  },
-  content: {
-    padding: '24px',
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 20,
-  },
-  field: {
-    marginBottom: 8,
-  },
-  label: {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-    outline: 'none',
-    transition: 'all 0.2s',
-    boxSizing: 'border-box',
-  },
-  textarea: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-    outline: 'none',
-    transition: 'all 0.2s',
-    boxSizing: 'border-box',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  select: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-    outline: 'none',
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-  },
-  error: {
-    backgroundColor: '#fef2f2',
-    color: '#dc2626',
-    padding: '12px 16px',
-    borderRadius: 10,
-    fontSize: 13,
-    marginBottom: 20,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  success: {
-    backgroundColor: '#ecfdf5',
-    color: '#10b981',
-    padding: '12px 16px',
-    borderRadius: 10,
-    fontSize: 13,
-    marginBottom: 20,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  footer: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: 12,
-    padding: '16px 24px',
-    borderTop: '1px solid #eaecf0',
-    backgroundColor: '#f9fafb',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  cancelBtn: {
-    padding: '10px 20px',
-    background: '#fff',
-    border: '1px solid #d1d5db',
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#374151',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  saveBtn: {
-    padding: '10px 24px',
-    background: '#4361ee',
-    border: 'none',
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#fff',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-  },
-};
-
-// Agregar animaciones
-const styleSheetModal = document.createElement("style");
-styleSheetModal.textContent = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .modal-close-btn:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-  }
-  .modal-cancel-btn:hover {
-    background-color: #f3f4f6;
-  }
-  .modal-save-btn:hover {
-    background-color: #1e3a5f;
-  }
-`;
-document.head.appendChild(styleSheetModal);
 
 export default ServiceCatalogPage;

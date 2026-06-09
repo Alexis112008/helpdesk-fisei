@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Mail, 
-  Lock, 
-  UserPlus, 
-  GraduationCap, 
-  Zap, 
-  Shield, 
+import {
+  Mail,
+  Lock,
+  UserPlus,
+  GraduationCap,
+  Zap,
+  Shield,
   Clock,
   AlertCircle,
   CheckCircle,
@@ -27,6 +27,13 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -64,74 +71,41 @@ function Register() {
     }
   };
 
-  return (
-    <div style={styles.container}>
-      {/* Panel izquierdo */}
-      <div style={styles.left}>
-        <div style={styles.leftContent}>
-          <div style={styles.logoIcon}>
-            <GraduationCap size={56} color="#fff" />
+  // Si es móvil, mostrar SOLO el formulario
+  if (isMobile) {
+    return (
+      <div style={mobileStyles.container}>
+        <div style={mobileStyles.card}>
+          <div style={mobileStyles.logoIcon}>
+            <GraduationCap size={48} color="#2d6a9f" />
           </div>
-          <h1 style={styles.systemTitle}>
-            Sistema de<br/>Service Desk
-          </h1>
-          <p style={styles.systemSubtitle}>
-            Soporte técnico institucional para la comunidad universitaria UTA
-          </p>
-          <div style={styles.features}>
-            <div style={styles.feature}>
-              <Zap size={18} style={styles.featureIcon} />
-              <span>Resolución rápida de incidentes</span>
-            </div>
-            <div style={styles.feature}>
-              <Shield size={18} style={styles.featureIcon} />
-              <span>Seguridad y privacidad garantizadas</span>
-            </div>
-            <div style={styles.feature}>
-              <Clock size={18} style={styles.featureIcon} />
-              <span>Disponible las 24 horas, 7 días</span>
-            </div>
-          </div>
-          <p style={styles.ditic}>
-            DITIC — Dirección de Tecnologías de la Información
-          </p>
-        </div>
-      </div>
 
-      {/* Panel derecho */}
-      <div style={styles.right}>
-        <div style={styles.formCard}>
-          <div style={styles.formHeader}>
-            <UserPlus size={32} color="#2d6a9f" />
-            <h2 style={styles.title}>Crear cuenta</h2>
-          </div>
-          <p style={styles.subtitle}>
-            Regístrate con tu correo institucional
-          </p>
+          <h1 style={mobileStyles.title}>Crear cuenta</h1>
+          <p style={mobileStyles.subtitle}>Regístrate con tu correo institucional</p>
 
           {error && (
-            <div style={styles.error}>
+            <div style={mobileStyles.error}>
               <AlertCircle size={16} style={{ marginRight: 8 }} />
               {error}
             </div>
           )}
           {success && (
-            <div style={styles.success}>
+            <div style={mobileStyles.success}>
               <CheckCircle size={16} style={{ marginRight: 8 }} />
               {success}
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
-            <div style={styles.field}>
-              <label style={styles.label}>
-                <User size={14} style={styles.labelIcon} />
+            <div style={mobileStyles.field}>
+              <label style={mobileStyles.label}>
+                <User size={14} style={{ marginRight: 6 }} />
                 Nombre completo
               </label>
-              <div style={styles.inputWrapper}>
-                <User size={18} style={styles.inputIcon} color="#8a9bb5" />
+              <div style={mobileStyles.inputWrapper}>
+                <User size={18} style={mobileStyles.inputIcon} color="#8a9bb5" />
                 <input
-                  style={styles.input}
+                  style={mobileStyles.input}
                   type="text"
                   placeholder="Tu nombre completo"
                   value={form.fullName}
@@ -141,15 +115,15 @@ function Register() {
               </div>
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>
-                <Mail size={14} style={styles.labelIcon} />
+            <div style={mobileStyles.field}>
+              <label style={mobileStyles.label}>
+                <Mail size={14} style={{ marginRight: 6 }} />
                 Correo institucional
               </label>
-              <div style={styles.inputWrapper}>
-                <Mail size={18} style={styles.inputIcon} color="#8a9bb5" />
+              <div style={mobileStyles.inputWrapper}>
+                <Mail size={18} style={mobileStyles.inputIcon} color="#8a9bb5" />
                 <input
-                  style={styles.input}
+                  style={mobileStyles.input}
                   type="email"
                   placeholder="usuario@uta.edu.ec"
                   value={form.email}
@@ -159,15 +133,15 @@ function Register() {
               </div>
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>
-                <Lock size={14} style={styles.labelIcon} />
+            <div style={mobileStyles.field}>
+              <label style={mobileStyles.label}>
+                <Lock size={14} style={{ marginRight: 6 }} />
                 Contraseña
               </label>
-              <div style={styles.inputWrapper}>
-                <Lock size={18} style={styles.inputIcon} color="#8a9bb5" />
+              <div style={mobileStyles.inputWrapper}>
+                <Lock size={18} style={mobileStyles.inputIcon} color="#8a9bb5" />
                 <input
-                  style={{ ...styles.input, paddingRight: 48 }}
+                  style={{ ...mobileStyles.input, paddingRight: 48 }}
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={form.password}
@@ -176,24 +150,24 @@ function Register() {
                 />
                 <button
                   type="button"
-                  style={styles.passwordToggle}
+                  style={mobileStyles.passwordToggle}
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <span style={styles.hint}>Mínimo 6 caracteres</span>
+              <span style={mobileStyles.hint}>Mínimo 6 caracteres</span>
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>
-                <Lock size={14} style={styles.labelIcon} />
+            <div style={mobileStyles.field}>
+              <label style={mobileStyles.label}>
+                <Lock size={14} style={{ marginRight: 6 }} />
                 Confirmar contraseña
               </label>
-              <div style={styles.inputWrapper}>
-                <Lock size={18} style={styles.inputIcon} color="#8a9bb5" />
+              <div style={mobileStyles.inputWrapper}>
+                <Lock size={18} style={mobileStyles.inputIcon} color="#8a9bb5" />
                 <input
-                  style={{ ...styles.input, paddingRight: 48 }}
+                  style={{ ...mobileStyles.input, paddingRight: 48 }}
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={form.confirmPassword}
@@ -202,7 +176,7 @@ function Register() {
                 />
                 <button
                   type="button"
-                  style={styles.passwordToggle}
+                  style={mobileStyles.passwordToggle}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -211,13 +185,13 @@ function Register() {
             </div>
 
             <button
-              style={{ ...styles.button, opacity: loading ? 0.7 : 1 }}
+              style={{ ...mobileStyles.button, opacity: loading ? 0.7 : 1 }}
               type="submit"
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <span style={styles.spinner} />
+                  <span style={mobileStyles.spinner} />
                   Registrando...
                 </>
               ) : (
@@ -229,9 +203,191 @@ function Register() {
             </button>
           </form>
 
-          <p style={styles.loginLink}>
+          <p style={mobileStyles.loginLink}>
             ¿Ya tienes cuenta?{' '}
-            <span style={styles.link} onClick={() => navigate('/')}>
+            <span style={mobileStyles.link} onClick={() => navigate('/')}>
+              <ArrowLeft size={14} style={{ marginRight: 4 }} />
+              Inicia sesión
+            </span>
+          </p>
+
+          <p style={mobileStyles.footer}>
+            DITIC — Dirección de Tecnologías de la Información
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ========== ESTILOS PARA DESKTOP (dos columnas) ==========
+  return (
+    <div style={desktopStyles.container}>
+      {/* Panel izquierdo */}
+      <div style={desktopStyles.left}>
+        <div style={desktopStyles.leftContent}>
+          <div style={desktopStyles.logoIcon}>
+            <GraduationCap size={56} color="#fff" />
+          </div>
+          <h1 style={desktopStyles.systemTitle}>
+            Sistema de<br />Service Desk
+          </h1>
+          <p style={desktopStyles.systemSubtitle}>
+            Soporte técnico institucional para la comunidad universitaria UTA
+          </p>
+          <div style={desktopStyles.features}>
+            <div style={desktopStyles.feature}>
+              <Zap size={18} style={desktopStyles.featureIcon} />
+              <span>Resolución rápida de incidentes</span>
+            </div>
+            <div style={desktopStyles.feature}>
+              <Shield size={18} style={desktopStyles.featureIcon} />
+              <span>Seguridad y privacidad garantizadas</span>
+            </div>
+            <div style={desktopStyles.feature}>
+              <Clock size={18} style={desktopStyles.featureIcon} />
+              <span>Disponible las 24 horas, 7 días</span>
+            </div>
+          </div>
+          <p style={desktopStyles.ditic}>
+            DITIC — Dirección de Tecnologías de la Información
+          </p>
+        </div>
+      </div>
+
+      {/* Panel derecho */}
+      <div style={desktopStyles.right}>
+        <div style={desktopStyles.formCard}>
+          <div style={desktopStyles.formHeader}>
+            <UserPlus size={32} color="#2d6a9f" />
+            <h2 style={desktopStyles.title}>Crear cuenta</h2>
+          </div>
+          <p style={desktopStyles.subtitle}>
+            Regístrate con tu correo institucional
+          </p>
+
+          {error && (
+            <div style={desktopStyles.error}>
+              <AlertCircle size={16} style={{ marginRight: 8 }} />
+              {error}
+            </div>
+          )}
+          {success && (
+            <div style={desktopStyles.success}>
+              <CheckCircle size={16} style={{ marginRight: 8 }} />
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div style={desktopStyles.field}>
+              <label style={desktopStyles.label}>
+                <User size={14} style={desktopStyles.labelIcon} />
+                Nombre completo
+              </label>
+              <div style={desktopStyles.inputWrapper}>
+                <User size={18} style={desktopStyles.inputIcon} color="#8a9bb5" />
+                <input
+                  style={desktopStyles.input}
+                  type="text"
+                  placeholder="Tu nombre completo"
+                  value={form.fullName}
+                  onChange={e => setForm({ ...form, fullName: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={desktopStyles.field}>
+              <label style={desktopStyles.label}>
+                <Mail size={14} style={desktopStyles.labelIcon} />
+                Correo institucional
+              </label>
+              <div style={desktopStyles.inputWrapper}>
+                <Mail size={18} style={desktopStyles.inputIcon} color="#8a9bb5" />
+                <input
+                  style={desktopStyles.input}
+                  type="email"
+                  placeholder="usuario@uta.edu.ec"
+                  value={form.email}
+                  onChange={e => setForm({ ...form, email: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={desktopStyles.field}>
+              <label style={desktopStyles.label}>
+                <Lock size={14} style={desktopStyles.labelIcon} />
+                Contraseña
+              </label>
+              <div style={desktopStyles.inputWrapper}>
+                <Lock size={18} style={desktopStyles.inputIcon} color="#8a9bb5" />
+                <input
+                  style={{ ...desktopStyles.input, paddingRight: 48 }}
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={e => setForm({ ...form, password: e.target.value })}
+                  required
+                />
+                <button
+                  type="button"
+                  style={desktopStyles.passwordToggle}
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <span style={desktopStyles.hint}>Mínimo 6 caracteres</span>
+            </div>
+
+            <div style={desktopStyles.field}>
+              <label style={desktopStyles.label}>
+                <Lock size={14} style={desktopStyles.labelIcon} />
+                Confirmar contraseña
+              </label>
+              <div style={desktopStyles.inputWrapper}>
+                <Lock size={18} style={desktopStyles.inputIcon} color="#8a9bb5" />
+                <input
+                  style={{ ...desktopStyles.input, paddingRight: 48 }}
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={form.confirmPassword}
+                  onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
+                  required
+                />
+                <button
+                  type="button"
+                  style={desktopStyles.passwordToggle}
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              style={{ ...desktopStyles.button, opacity: loading ? 0.7 : 1 }}
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span style={desktopStyles.spinner} />
+                  Registrando...
+                </>
+              ) : (
+                <>
+                  <UserPlus size={18} style={{ marginRight: 8 }} />
+                  Crear Cuenta
+                </>
+              )}
+            </button>
+          </form>
+
+          <p style={desktopStyles.loginLink}>
+            ¿Ya tienes cuenta?{' '}
+            <span style={desktopStyles.link} onClick={() => navigate('/')}>
               <ArrowLeft size={14} style={{ marginRight: 4 }} />
               Inicia sesión
             </span>
@@ -242,28 +398,194 @@ function Register() {
   );
 }
 
-const styles = {
-  container: { 
-    display: 'flex', 
-    height: '100vh', 
-    fontFamily: 'Segoe UI, system-ui, sans-serif' 
+// ========== ESTILOS PARA MÓVIL ==========
+const mobileStyles = {
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f5f7fa',
+    padding: '20px',
+    fontFamily: 'Segoe UI, system-ui, sans-serif',
   },
-  left: { 
-    width: '45%', 
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: '24px',
+    padding: '32px 24px',
+    width: '100%',
+    maxWidth: '400px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+  },
+  logoIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: '#eef2ff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 20px auto',
+  },
+  title: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#1a202c',
+    textAlign: 'center',
+    marginBottom: '8px',
+  },
+  subtitle: {
+    fontSize: '14px',
+    color: '#718096',
+    textAlign: 'center',
+    marginBottom: '28px',
+  },
+  error: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#e53e3e',
+    fontSize: '13px',
+    marginBottom: '20px',
+    background: '#fff5f5',
+    padding: '12px 16px',
+    borderRadius: '12px',
+    border: '1px solid #feb2b2',
+  },
+  success: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#2e7d32',
+    fontSize: '13px',
+    marginBottom: '20px',
+    background: '#e8f5e9',
+    padding: '12px 16px',
+    borderRadius: '12px',
+    border: '1px solid #a5d6a7',
+  },
+  field: {
+    marginBottom: '20px',
+  },
+  label: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#4a5568',
+    marginBottom: '8px',
+  },
+  inputWrapper: {
+    position: 'relative',
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: 14,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
+  },
+  input: {
+    width: '100%',
+    padding: '14px 16px 14px 44px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    fontSize: '16px',
+    outline: 'none',
+    boxSizing: 'border-box',
+    color: '#1a202c',
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 14,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+    opacity: 0.6,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  hint: {
+    display: 'block',
+    fontSize: '11px',
+    color: '#8a9bb5',
+    marginTop: '6px',
+  },
+  button: {
+    width: '100%',
+    padding: '14px',
+    background: 'linear-gradient(135deg, #2d6a9f 0%, #1e3a5f 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    marginTop: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '50px',
+  },
+  loginLink: {
+    textAlign: 'center',
+    marginTop: '24px',
+    fontSize: '13px',
+    color: '#718096',
+  },
+  link: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    color: '#2d6a9f',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+  footer: {
+    textAlign: 'center',
+    marginTop: '28px',
+    fontSize: '11px',
+    color: '#9ca3af',
+    borderTop: '1px solid #e2e8f0',
+    paddingTop: '20px',
+  },
+  spinner: {
+    width: 18,
+    height: 18,
+    border: '2px solid rgba(255,255,255,0.3)',
+    borderTop: '2px solid white',
+    borderRadius: '50%',
+    animation: 'spin 0.8s linear infinite',
+    marginRight: 8,
+  },
+};
+
+// ========== ESTILOS PARA DESKTOP ==========
+const desktopStyles = {
+  container: {
+    display: 'flex',
+    height: '100vh',
+    fontFamily: 'Segoe UI, system-ui, sans-serif'
+  },
+  left: {
+    width: '45%',
     background: 'linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%)',
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: '40px',
     position: 'relative',
     overflow: 'hidden',
   },
-  leftContent: { 
-    color: 'white', 
+  leftContent: {
+    color: 'white',
     maxWidth: '380px',
     zIndex: 2,
   },
-  logoIcon: { 
+  logoIcon: {
     width: 80,
     height: 80,
     borderRadius: 20,
@@ -273,52 +595,52 @@ const styles = {
     justifyContent: 'center',
     marginBottom: 24,
   },
-  systemTitle: { 
-    fontSize: '36px', 
-    fontWeight: '700', 
-    marginBottom: '16px', 
-    lineHeight: '1.2' 
+  systemTitle: {
+    fontSize: '36px',
+    fontWeight: '700',
+    marginBottom: '16px',
+    lineHeight: '1.2'
   },
-  systemSubtitle: { 
-    fontSize: '15px', 
-    opacity: '0.85', 
-    marginBottom: '32px', 
-    lineHeight: '1.6' 
+  systemSubtitle: {
+    fontSize: '15px',
+    opacity: '0.85',
+    marginBottom: '32px',
+    lineHeight: '1.6'
   },
-  features: { 
-    marginBottom: '48px' 
+  features: {
+    marginBottom: '48px'
   },
-  feature: { 
+  feature: {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    fontSize: '14px', 
-    marginBottom: '14px', 
-    opacity: '0.9' 
+    fontSize: '14px',
+    marginBottom: '14px',
+    opacity: '0.9'
   },
   featureIcon: {
     opacity: 0.9,
   },
-  ditic: { 
-    fontSize: '12px', 
-    opacity: '0.6', 
+  ditic: {
+    fontSize: '12px',
+    opacity: '0.6',
     borderTop: '1px solid rgba(255,255,255,0.2)',
-    paddingTop: '20px' 
+    paddingTop: '20px'
   },
-  right: { 
-    width: '55%', 
-    display: 'flex', 
+  right: {
+    width: '55%',
+    display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center', 
-    background: '#f5f7fa' 
+    justifyContent: 'center',
+    background: '#f5f7fa'
   },
-  formCard: { 
-    background: 'white', 
-    padding: '48px', 
+  formCard: {
+    background: 'white',
+    padding: '48px',
     borderRadius: '24px',
-    width: '100%', 
-    maxWidth: '440px', 
-    boxShadow: '0 8px 32px rgba(0,0,0,0.08)' 
+    width: '100%',
+    maxWidth: '440px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
   },
   formHeader: {
     display: 'flex',
@@ -326,50 +648,50 @@ const styles = {
     gap: 12,
     marginBottom: 8,
   },
-  title: { 
-    fontSize: '26px', 
-    fontWeight: '700', 
-    color: '#1a202c', 
+  title: {
+    fontSize: '26px',
+    fontWeight: '700',
+    color: '#1a202c',
     margin: 0,
   },
-  subtitle: { 
-    fontSize: '14px', 
-    color: '#718096', 
-    marginBottom: '28px' 
+  subtitle: {
+    fontSize: '14px',
+    color: '#718096',
+    marginBottom: '28px'
   },
-  error: { 
+  error: {
     display: 'flex',
     alignItems: 'center',
-    color: '#e53e3e', 
-    fontSize: '13px', 
+    color: '#e53e3e',
+    fontSize: '13px',
     marginBottom: '20px',
-    background: '#fff5f5', 
-    padding: '12px 16px', 
+    background: '#fff5f5',
+    padding: '12px 16px',
     borderRadius: '12px',
     border: '1px solid #feb2b2',
   },
-  success: { 
+  success: {
     display: 'flex',
     alignItems: 'center',
-    color: '#2e7d32', 
-    fontSize: '13px', 
+    color: '#2e7d32',
+    fontSize: '13px',
     marginBottom: '20px',
-    background: '#e8f5e9', 
-    padding: '12px 16px', 
+    background: '#e8f5e9',
+    padding: '12px 16px',
     borderRadius: '12px',
     border: '1px solid #a5d6a7',
   },
-  field: { 
-    marginBottom: '20px' 
+  field: {
+    marginBottom: '20px'
   },
-  label: { 
+  label: {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
-    fontSize: '13px', 
-    fontWeight: '600', 
-    color: '#4a5568', 
-    marginBottom: '8px' 
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#4a5568',
+    marginBottom: '8px'
   },
   labelIcon: {
     color: '#8a9bb5',
@@ -384,14 +706,14 @@ const styles = {
     transform: 'translateY(-50%)',
     pointerEvents: 'none',
   },
-  input: { 
-    width: '100%', 
-    padding: '12px 16px 12px 44px', 
+  input: {
+    width: '100%',
+    padding: '12px 16px 12px 44px',
     border: '1px solid #e2e8f0',
-    borderRadius: '12px', 
-    fontSize: '14px', 
+    borderRadius: '12px',
+    fontSize: '14px',
     outline: 'none',
-    boxSizing: 'border-box', 
+    boxSizing: 'border-box',
     color: '#1a202c',
     transition: 'border-color 0.2s, box-shadow 0.2s',
   },
@@ -414,35 +736,35 @@ const styles = {
     color: '#8a9bb5',
     marginTop: '6px',
   },
-  button: { 
-    width: '100%', 
-    padding: '14px', 
+  button: {
+    width: '100%',
+    padding: '14px',
     background: 'linear-gradient(135deg, #2d6a9f 0%, #1e3a5f 100%)',
-    color: 'white', 
-    border: 'none', 
+    color: 'white',
+    border: 'none',
     borderRadius: '12px',
-    fontSize: '15px', 
-    fontWeight: '600', 
-    cursor: 'pointer', 
+    fontSize: '15px',
+    fontWeight: '600',
+    cursor: 'pointer',
     marginTop: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     transition: 'transform 0.2s, box-shadow 0.2s',
   },
-  loginLink: { 
-    textAlign: 'center', 
-    marginTop: '24px', 
-    fontSize: '13px', 
-    color: '#718096' 
+  loginLink: {
+    textAlign: 'center',
+    marginTop: '24px',
+    fontSize: '13px',
+    color: '#718096'
   },
-  link: { 
+  link: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 4,
-    color: '#2d6a9f', 
-    cursor: 'pointer', 
-    fontWeight: '600' 
+    color: '#2d6a9f',
+    cursor: 'pointer',
+    fontWeight: '600'
   },
   spinner: {
     width: 18,

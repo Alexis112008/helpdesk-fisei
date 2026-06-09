@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, Eye, Filter, ChevronDown, Ticket, AlertCircle, 
+import {
+  Plus, Eye, Filter, ChevronDown, Ticket, AlertCircle,
   Search, X, Calendar, Clock, CheckCircle, TrendingUp,
   FolderKanban, BarChart3, SlidersHorizontal, RefreshCw,
   LayoutDashboard
@@ -19,10 +19,10 @@ function TicketList() {
   const [filterLevel, setFilterLevel] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   const role = localStorage.getItem('role');
 
-  // Colores unificados con el Dashboard
   const COLORS = {
     Primario: '#2d6a9f',
     PrimarioOscuro: '#1e3a5f',
@@ -78,13 +78,12 @@ function TicketList() {
       .finally(() => setLoading(false));
   }, [role]);
 
-  // Filtrar por fecha
   const getDateFilter = (ticketDate) => {
     const date = new Date(ticketDate);
     const now = new Date();
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
-    switch(dateRange) {
+
+    switch (dateRange) {
       case 'week': return diffDays <= 7;
       case 'month': return diffDays <= 30;
       case 'quarter': return diffDays <= 90;
@@ -92,20 +91,18 @@ function TicketList() {
     }
   };
 
-  // Filtrar tickets
   const filteredTickets = tickets.filter((t) => {
     const matchStatus = filterStatus === '' || t.status === filterStatus;
     const matchPriority = filterPriority === '' || t.priority === filterPriority;
     const matchLevel = filterLevel === '' || t.currentLevel === parseInt(filterLevel);
-    const matchSearch = searchTerm === '' || 
+    const matchSearch = searchTerm === '' ||
       t.ticketNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.title?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchDate = getDateFilter(t.createdAt);
-    
+
     return matchStatus && matchPriority && matchLevel && matchSearch && matchDate;
   });
 
-  // Estadísticas
   const stats = {
     total: tickets.length,
     abiertos: tickets.filter(t => t.status === 'Abierto').length,
@@ -114,41 +111,29 @@ function TicketList() {
     cerrados: tickets.filter(t => t.status === 'Cerrado').length,
   };
 
-  const getStatusColor = (status) => {
-    return COLORS[status] || '#6b7280';
-  };
+  const getStatusColor = (status) => COLORS[status] || '#6b7280';
+  const getStatusBgColor = (status) => ({
+    'Abierto': '#eef2ff',
+    'En Proceso': '#fffbeb',
+    'Escalado': '#f3e8ff',
+    'Resuelto': '#ecfdf5',
+    'Cerrado': '#f3f4f6',
+    'Vencido': '#fef2f2',
+  }[status] || '#f3f4f6');
 
-  const getStatusBgColor = (status) => {
-    const colors = {
-      'Abierto': '#eef2ff',
-      'En Proceso': '#fffbeb',
-      'Escalado': '#f3e8ff',
-      'Resuelto': '#ecfdf5',
-      'Cerrado': '#f3f4f6',
-      'Vencido': '#fef2f2',
-    };
-    return colors[status] || '#f3f4f6';
-  };
+  const getPriorityColor = (priority) => ({
+    Baja: '#10b981',
+    Media: '#f59e0b',
+    Alta: '#f97316',
+    Crítica: '#ef4444',
+  }[priority] || '#6b7280');
 
-  const getPriorityColor = (priority) => {
-    const colors = {
-      Baja: '#10b981',
-      Media: '#f59e0b',
-      Alta: '#f97316',
-      Crítica: '#ef4444',
-    };
-    return colors[priority] || '#6b7280';
-  };
-
-  const getPriorityBgColor = (priority) => {
-    const colors = {
-      Baja: '#ecfdf5',
-      Media: '#fffbeb',
-      Alta: '#fff7ed',
-      Crítica: '#fef2f2',
-    };
-    return colors[priority] || '#f3f4f6';
-  };
+  const getPriorityBgColor = (priority) => ({
+    Baja: '#ecfdf5',
+    Media: '#fffbeb',
+    Alta: '#fff7ed',
+    Crítica: '#fef2f2',
+  }[priority] || '#f3f4f6');
 
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
@@ -165,151 +150,136 @@ function TicketList() {
 
   const hasActiveFilters = filterStatus || filterPriority || filterLevel || dateRange !== 'all' || searchTerm;
 
-  const cardStyle = {
-    background: '#fff',
-    borderRadius: 20,
-    border: '1px solid #e4e7eb',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-  };
-
-  const StatCard = ({ icon, label, value, color, bg }) => (
-    <div style={{ ...cardStyle, padding: '16px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: bg, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: color }}>{value}</div>
-          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>{label}</div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <Layout>
-      <main style={styles.content}>
+      <div className="ticket-list-page">
         {/* Header */}
-        <div style={styles.header}>
+        <div className="ticket-list-header">
           <div>
-            <h1 style={styles.title}>Mis Tickets</h1>
-            <p style={styles.subtitle}>Tickets que has creado y su estado actual</p>
+            <h1 className="ticket-list-title">Mis Tickets</h1>
+            <p className="ticket-list-subtitle">Tickets que has creado y su estado actual</p>
           </div>
-          <button style={styles.newButton} onClick={() => navigate('/crear-ticket')}>
-            <Plus size={18} style={{ marginRight: 8 }} />
+          <button className="ticket-list-new-btn" onClick={() => navigate('/crear-ticket')}>
+            <Plus size={18} />
             Nuevo Ticket
           </button>
         </div>
 
         {/* Tarjetas de estadísticas */}
         {!loading && tickets.length > 0 && (
-          <div style={styles.statsGrid}>
-            <StatCard icon={<Ticket size={20} />} label="Total tickets" value={stats.total} color={COLORS.Primario} bg="#eef2ff" />
-            <StatCard icon={<AlertCircle size={20} />} label="Abiertos" value={stats.abiertos} color={COLORS.Abierto} bg="#eef2ff" />
-            <StatCard icon={<TrendingUp size={20} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
-            <StatCard icon={<CheckCircle size={20} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
-            <StatCard icon={<FolderKanban size={20} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
+          <div className="ticket-list-stats">
+            <div className="ticket-list-stat-card">
+              <div className="ticket-list-stat-icon ticket-list-stat-icon-primary">
+                <Ticket size={20} />
+              </div>
+              <div>
+                <div className="ticket-list-stat-value">{stats.total}</div>
+                <div className="ticket-list-stat-label">Total tickets</div>
+              </div>
+            </div>
+            <div className="ticket-list-stat-card">
+              <div className="ticket-list-stat-icon ticket-list-stat-icon-abierto">
+                <AlertCircle size={20} />
+              </div>
+              <div>
+                <div className="ticket-list-stat-value">{stats.abiertos}</div>
+                <div className="ticket-list-stat-label">Abiertos</div>
+              </div>
+            </div>
+            <div className="ticket-list-stat-card">
+              <div className="ticket-list-stat-icon ticket-list-stat-icon-proceso">
+                <TrendingUp size={20} />
+              </div>
+              <div>
+                <div className="ticket-list-stat-value">{stats.enProceso}</div>
+                <div className="ticket-list-stat-label">En Proceso</div>
+              </div>
+            </div>
+            <div className="ticket-list-stat-card">
+              <div className="ticket-list-stat-icon ticket-list-stat-icon-resuelto">
+                <CheckCircle size={20} />
+              </div>
+              <div>
+                <div className="ticket-list-stat-value">{stats.resueltos}</div>
+                <div className="ticket-list-stat-label">Resueltos</div>
+              </div>
+            </div>
+            <div className="ticket-list-stat-card">
+              <div className="ticket-list-stat-icon ticket-list-stat-icon-cerrado">
+                <FolderKanban size={20} />
+              </div>
+              <div>
+                <div className="ticket-list-stat-value">{stats.cerrados}</div>
+                <div className="ticket-list-stat-label">Cerrados</div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Barra de filtros HORIZONTAL con combobox */}
-        <div style={{ ...cardStyle, padding: '16px 20px', marginBottom: 20 }}>
-          <div style={styles.filterBar}>
-            {/* Buscador */}
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>Buscar</label>
-              <div style={styles.searchWrapper}>
-                <Search size={14} color="#9ca3af" style={styles.searchIconSmall} />
-                <input
-                  type="text"
-                  placeholder="Número o título..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={styles.searchInputSmall}
-                />
-                {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} style={styles.clearBtnSmall}>
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
+        {/* Barra de filtros */}
+        <div className="ticket-list-filters-card">
+          {/* Buscador y botón de filtros */}
+          <div className="ticket-list-search-bar">
+            <div className="ticket-list-search-wrapper">
+              <Search size={14} className="ticket-list-search-icon" />
+              <input
+                type="text"
+                placeholder="Buscar por número o título..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="ticket-list-search-input"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="ticket-list-clear-btn">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <button className="ticket-list-filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+              <Filter size={14} />
+              Filtros
+            </button>
+          </div>
+
+          {/* Filtros desplegables */}
+          <div className={`ticket-list-filters ${showFilters ? 'ticket-list-filters-open' : ''}`}>
+            <div className="ticket-list-filter-group">
+              <label className="ticket-list-filter-label">Estado</label>
+              <select className="ticket-list-filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
             </div>
 
-            {/* Filtro Estado */}
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>Estado</label>
-              <div style={styles.selectWrapper}>
-                <select
-                  style={styles.filterSelect}
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  {statusOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="ticket-list-filter-group">
+              <label className="ticket-list-filter-label">Prioridad</label>
+              <select className="ticket-list-filter-select" value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
+                {priorityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
             </div>
 
-            {/* Filtro Prioridad */}
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>Prioridad</label>
-              <div style={styles.selectWrapper}>
-                <select
-                  style={styles.filterSelect}
-                  value={filterPriority}
-                  onChange={(e) => setFilterPriority(e.target.value)}
-                >
-                  {priorityOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="ticket-list-filter-group">
+              <label className="ticket-list-filter-label">Nivel</label>
+              <select className="ticket-list-filter-select" value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
+                {levelOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
             </div>
 
-            {/* Filtro Nivel */}
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>Nivel</label>
-              <div style={styles.selectWrapper}>
-                <select
-                  style={styles.filterSelect}
-                  value={filterLevel}
-                  onChange={(e) => setFilterLevel(e.target.value)}
-                >
-                  {levelOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="ticket-list-filter-group">
+              <label className="ticket-list-filter-label">Fecha</label>
+              <select className="ticket-list-filter-select" value={dateRange} onChange={(e) => setDateRange(e.target.value)}>
+                {dateOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
             </div>
 
-            {/* Filtro Fecha */}
-            <div style={styles.filterGroup}>
-              <label style={styles.filterLabel}>Fecha</label>
-              <div style={styles.selectWrapper}>
-                <select
-                  style={styles.filterSelect}
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                >
-                  {dateOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Contador y limpiar */}
-            <div style={styles.filterInfo}>
-              <div style={styles.filterGroup}>
-                <label style={styles.filterLabel}>Resultados</label>
-                <div style={styles.filterCount}>
-                  <Ticket size={14} style={{ marginRight: 4 }} />
-                  {filteredTickets.length}
-                </div>
+            <div className="ticket-list-filter-info">
+              <div className="ticket-list-filter-count">
+                <Ticket size={14} />
+                {filteredTickets.length}
               </div>
               {hasActiveFilters && (
-                <button style={styles.resetBtn} onClick={resetFilters} title="Limpiar filtros">
-                  <RefreshCw size={14} />
-                  <span style={{ marginLeft: 4 }}>Limpiar</span>
+                <button className="ticket-list-reset-btn" onClick={resetFilters}>
+                  <RefreshCw size={12} />
+                  Limpiar
                 </button>
               )}
             </div>
@@ -318,71 +288,62 @@ function TicketList() {
 
         {/* Tabla de tickets */}
         {loading ? (
-          <div style={styles.stateContainer}>
-            <p style={styles.stateText}>Cargando tickets...</p>
+          <div className="ticket-list-loading">
+            <p>Cargando tickets...</p>
           </div>
         ) : filteredTickets.length === 0 ? (
-          <div style={{ ...cardStyle, padding: '60px 20px', textAlign: 'center' }}>
-            <Ticket size={48} color="#9ca3af" style={{ marginBottom: 16 }} />
-            <p style={styles.stateText}>
-              {tickets.length === 0 
-                ? 'No hay tickets registrados aún.' 
+          <div className="ticket-list-empty">
+            <Ticket size={48} />
+            <p>
+              {tickets.length === 0
+                ? 'No hay tickets registrados aún.'
                 : 'No hay tickets que coincidan con los filtros seleccionados.'}
             </p>
           </div>
         ) : (
-          <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={styles.table}>
+          <div className="ticket-list-table-container">
+            <div className="ticket-list-table-wrapper">
+              <table className="ticket-list-table">
                 <thead>
-                  <tr style={styles.thead}>
-                    <th style={styles.th}>N° Ticket</th>
-                    <th style={styles.th}>Título</th>
-                    <th style={styles.th}>Prioridad</th>
-                    <th style={styles.th}>Estado</th>
-                    <th style={styles.th}>Nivel</th>
-                    <th style={styles.th}>Fecha</th>
-                    <th style={styles.th}>Acciones</th>
+                  <tr>
+                    <th>N° Ticket</th>
+                    <th>Título</th>
+                    <th>Prioridad</th>
+                    <th>Estado</th>
+                    <th>Nivel</th>
+                    <th>Fecha</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTickets.map((t) => (
-                    <tr key={t.id} style={styles.tr}>
-                      <td style={styles.td}>
-                        <span style={{ ...styles.ticketNumber, color: COLORS.Primario }}>
-                          {t.ticketNumber}
-                        </span>
-                       </td>
-                      <td style={styles.td}>{t.title}</td>
-                      <td style={styles.td}>
-                        <span style={{
-                          ...styles.badge,
+                    <tr key={t.id}>
+                      <td className="ticket-list-ticket-number">{t.ticketNumber}</td>
+                      <td>{t.title}</td>
+                      <td>
+                        <span className="ticket-list-badge" style={{
                           backgroundColor: getPriorityBgColor(t.priority),
                           color: getPriorityColor(t.priority),
                         }}>
                           {t.priority}
                         </span>
                       </td>
-                      <td style={styles.td}>
-                        <span style={{
-                          ...styles.badge,
+                      <td>
+                        <span className="ticket-list-badge" style={{
                           backgroundColor: getStatusBgColor(t.status),
                           color: getStatusColor(t.status),
                         }}>
                           {t.status}
                         </span>
                       </td>
-                      <td style={styles.td}>{t.levelName}</td>
-                      <td style={styles.tdDate}>
-                        <Calendar size={12} style={{ marginRight: 4, opacity: 0.6 }} />
+                      <td>{t.levelName}</td>
+                      <td className="ticket-list-date">
+                        <Calendar size={12} />
                         {formatDate(t.createdAt)}
                       </td>
-                      <td style={styles.td}>
-                        <button
-                          style={styles.viewBtn}
-                          onClick={() => navigate(`/tickets/${t.id}`)}
-                        >
-                          <Eye size={14} style={{ marginRight: 6 }} />
+                      <td>
+                        <button className="ticket-list-view-btn" onClick={() => navigate(`/tickets/${t.id}`)}>
+                          <Eye size={14} />
                           Ver detalle
                         </button>
                       </td>
@@ -393,271 +354,417 @@ function TicketList() {
             </div>
           </div>
         )}
-      </main>
+      </div>
+
+      <style>{`
+        .ticket-list-page {
+          padding: 28px 32px;
+          flex: 1;
+          background-color: #f5f7fa;
+          min-height: 100vh;
+        }
+
+        .ticket-list-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 28px;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .ticket-list-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #111827;
+          margin-bottom: 4px;
+        }
+
+        .ticket-list-subtitle {
+          font-size: 13px;
+          color: #6b7280;
+        }
+
+        .ticket-list-new-btn {
+          background-color: #2d6a9f;
+          color: #fff;
+          border: none;
+          padding: 12px 20px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(45, 106, 159, 0.2);
+        }
+
+        .ticket-list-new-btn:hover {
+          transform: translateY(-1px);
+          background-color: #1e4a76;
+        }
+
+        .ticket-list-stats {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 16px;
+          margin-bottom: 28px;
+        }
+
+        .ticket-list-stat-card {
+          background: #fff;
+          border-radius: 20px;
+          border: 1px solid #e4e7eb;
+          padding: 16px 20px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .ticket-list-stat-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .ticket-list-stat-icon-primary { background: #eef2ff; color: #2d6a9f; }
+        .ticket-list-stat-icon-abierto { background: #eef2ff; color: #2d6a9f; }
+        .ticket-list-stat-icon-proceso { background: #fffbeb; color: #f59e0b; }
+        .ticket-list-stat-icon-resuelto { background: #ecfdf5; color: #10b981; }
+        .ticket-list-stat-icon-cerrado { background: #f3f4f6; color: #6b7280; }
+
+        .ticket-list-stat-value {
+          font-size: 22px;
+          font-weight: 700;
+        }
+
+        .ticket-list-stat-label {
+          font-size: 11px;
+          color: #6b7280;
+          font-weight: 500;
+        }
+
+        .ticket-list-filters-card {
+          background: #fff;
+          border-radius: 20px;
+          border: 1px solid #e4e7eb;
+          padding: 16px 20px;
+          margin-bottom: 20px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .ticket-list-search-bar {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .ticket-list-search-wrapper {
+          position: relative;
+          flex: 1;
+          min-width: 200px;
+        }
+
+        .ticket-list-search-icon {
+          position: absolute;
+          left: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+          color: #9ca3af;
+        }
+
+        .ticket-list-search-input {
+          width: 100%;
+          padding: 8px 12px 8px 32px;
+          font-size: 13px;
+          border: 1px solid #e4e7eb;
+          border-radius: 10px;
+          outline: none;
+          background-color: #f9fafb;
+        }
+
+        .ticket-list-search-input:focus {
+          border-color: #2d6a9f;
+          box-shadow: 0 0 0 3px rgba(45, 106, 159, 0.1);
+        }
+
+        .ticket-list-clear-btn {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #9ca3af;
+          display: flex;
+          align-items: center;
+        }
+
+        .ticket-list-filter-toggle {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          background: #f9fafb;
+          border: 1px solid #e4e7eb;
+          border-radius: 10px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 500;
+          color: #6b7280;
+        }
+
+        .ticket-list-filters {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: flex-end;
+          gap: 16px;
+          margin-top: 16px;
+        }
+
+        .ticket-list-filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .ticket-list-filter-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .ticket-list-filter-select {
+          padding: 8px 28px 8px 12px;
+          font-size: 13px;
+          border: 1px solid #e4e7eb;
+          border-radius: 10px;
+          background-color: #f9fafb;
+          cursor: pointer;
+          outline: none;
+          color: #374151;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+          min-width: 170px;
+        }
+
+        .ticket-list-filter-info {
+          display: flex;
+          align-items: flex-end;
+          gap: 12px;
+          margin-left: auto;
+        }
+
+        .ticket-list-filter-count {
+          font-size: 13px;
+          font-weight: 600;
+          color: #2d6a9f;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background-color: #eef2ff;
+          padding: 8px 14px;
+          border-radius: 10px;
+          border: 1px solid #d1d9f0;
+        }
+
+        .ticket-list-reset-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          background: #f9fafb;
+          border: 1px solid #e4e7eb;
+          border-radius: 10px;
+          padding: 8px 14px;
+          cursor: pointer;
+          color: #6b7280;
+          font-size: 12px;
+          font-weight: 500;
+          transition: all 0.2s;
+        }
+
+        .ticket-list-reset-btn:hover {
+          background-color: #fee2e2;
+          border-color: #fecaca;
+          color: #dc2626;
+        }
+
+        .ticket-list-table-container {
+          background: #fff;
+          border-radius: 20px;
+          border: 1px solid #e4e7eb;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .ticket-list-table-wrapper {
+          overflow-x: auto;
+        }
+
+        .ticket-list-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 700px;
+        }
+
+        .ticket-list-table th {
+          padding: 14px 20px;
+          text-align: left;
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          background-color: #f9fafb;
+          border-bottom: 1px solid #e4e7eb;
+        }
+
+        .ticket-list-table td {
+          padding: 14px 20px;
+          font-size: 13px;
+          color: #1a1a2e;
+          border-bottom: 1px solid #f1f5f9;
+        }
+
+        .ticket-list-table tr:hover td {
+          background-color: #f9fafb;
+          cursor: pointer;
+        }
+
+        .ticket-list-ticket-number {
+          font-weight: 700;
+          font-family: monospace;
+          font-size: 12px;
+          color: #2d6a9f;
+        }
+
+        .ticket-list-badge {
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 600;
+          display: inline-block;
+        }
+
+        .ticket-list-date {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+          color: #6b7280;
+        }
+
+        .ticket-list-view-btn {
+          background: #2d6a9f;
+          color: #fff;
+          border: none;
+          padding: 6px 14px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.2s;
+        }
+
+        .ticket-list-view-btn:hover {
+          background-color: #1e4a76;
+          transform: translateY(-1px);
+        }
+
+        .ticket-list-loading, .ticket-list-empty {
+          background: #fff;
+          border-radius: 20px;
+          border: 1px solid #e4e7eb;
+          padding: 60px 20px;
+          text-align: center;
+          color: #6b7280;
+        }
+
+        .ticket-list-empty p {
+          margin-top: 12px;
+          font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+          .ticket-list-page {
+            padding: 70px 12px 20px 12px;
+          }
+
+          .ticket-list-title {
+            font-size: 22px;
+          }
+
+          .ticket-list-subtitle {
+            font-size: 11px;
+          }
+
+          .ticket-list-stats {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .ticket-list-stat-card {
+            padding: 12px 16px;
+          }
+
+          .ticket-list-stat-value {
+            font-size: 18px;
+          }
+
+          .ticket-list-filter-toggle {
+            display: flex;
+          }
+
+          .ticket-list-filters {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+          }
+
+          .ticket-list-filters-open {
+            display: flex;
+          }
+
+          .ticket-list-filter-group {
+            width: 100%;
+          }
+
+          .ticket-list-filter-select {
+            width: 100%;
+          }
+
+          .ticket-list-filter-info {
+            margin-left: 0;
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .ticket-list-filter-count {
+            justify-content: center;
+          }
+
+          .ticket-list-reset-btn {
+            justify-content: center;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
-
-const styles = {
-  content: {
-    padding: '28px 32px',
-    flex: 1,
-    backgroundColor: '#f5f7fa',
-    minHeight: '100vh',
-  },
-
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 28,
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: '#111827',
-    marginBottom: 4,
-  },
-
-  subtitle: {
-    fontSize: 13,
-    color: '#6b7280',
-  },
-
-  newButton: {
-    backgroundColor: '#2d6a9f',
-    color: '#fff',
-    border: 'none',
-    padding: '12px 20px',
-    borderRadius: 12,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 2px 8px rgba(45, 106, 159, 0.2)',
-  },
-
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-    marginTop: 8,
-  },
-
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#1a1a2e',
-    margin: 0,
-  },
-
-  sectionLine: {
-    flex: 1,
-    height: 1,
-    background: 'linear-gradient(90deg, #e4e7eb 0%, transparent 100%)',
-  },
-
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-    gap: 16,
-    marginBottom: 28,
-  },
-
-  filterBar: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'flex-end',
-    gap: 20,
-  },
-
-  filterGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-
-  filterLabel: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  searchWrapper: {
-    position: 'relative',
-    minWidth: 180,
-  },
-
-  searchIconSmall: {
-    position: 'absolute',
-    left: 10,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
-  },
-
-  searchInputSmall: {
-    width: '100%',
-    padding: '8px 12px 8px 32px',
-    fontSize: 13,
-    border: '1px solid #e4e7eb',
-    borderRadius: 10,
-    outline: 'none',
-    backgroundColor: '#f9fafb',
-    transition: 'all 0.2s',
-  },
-
-  clearBtnSmall: {
-    position: 'absolute',
-    right: 8,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#9ca3af',
-    display: 'flex',
-    alignItems: 'center',
-  },
-
-  selectWrapper: {
-    position: 'relative',
-  },
-
-  filterSelect: {
-    padding: '8px 28px 8px 12px',
-    fontSize: 13,
-    border: '1px solid #e4e7eb',
-    borderRadius: 10,
-    backgroundColor: '#f9fafb',
-    cursor: 'pointer',
-    outline: 'none',
-    color: '#374151',
-    appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 10px center',
-    minWidth: 170,
-  },
-
-  filterInfo: {
-    display: 'flex',
-    alignItems: 'flex-end',
-    gap: 12,
-    marginLeft: 'auto',
-  },
-
-  filterCount: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#2d6a9f',
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#eef2ff',
-    padding: '8px 14px',
-    borderRadius: 10,
-    border: '1px solid #d1d9f0',
-  },
-
-  resetBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    background: '#f9fafb',
-    border: '1px solid #e4e7eb',
-    borderRadius: 10,
-    padding: '8px 14px',
-    cursor: 'pointer',
-    color: '#6b7280',
-    fontSize: 12,
-    fontWeight: 500,
-    transition: 'all 0.2s',
-  },
-
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-
-  thead: {
-    backgroundColor: '#f9fafb',
-    borderBottom: '1px solid #e4e7eb',
-  },
-
-  th: {
-    padding: '14px 20px',
-    textAlign: 'left',
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  tr: {
-    borderBottom: '1px solid #f1f5f9',
-    transition: 'background 0.2s',
-  },
-
-  td: {
-    padding: '14px 20px',
-    fontSize: 13,
-    color: '#1a1a2e',
-  },
-
-  tdDate: {
-    padding: '14px 20px',
-    fontSize: 12,
-    color: '#6b7280',
-    display: 'flex',
-    alignItems: 'center',
-  },
-
-  ticketNumber: {
-    fontWeight: 700,
-    fontFamily: 'monospace',
-    fontSize: 12,
-  },
-
-  badge: {
-    padding: '4px 12px',
-    borderRadius: 20,
-    fontSize: 11,
-    fontWeight: 600,
-    display: 'inline-block',
-  },
-
-  stateContainer: {
-    padding: '60px 20px',
-    textAlign: 'center',
-  },
-
-  stateText: {
-    color: '#6b7280',
-    fontSize: 14,
-  },
-
-  viewBtn: {
-    background: '#2d6a9f',
-    color: '#fff',
-    border: 'none',
-    padding: '6px 14px',
-    borderRadius: 8,
-    cursor: 'pointer',
-    fontSize: 11,
-    fontWeight: 600,
-    display: 'inline-flex',
-    alignItems: 'center',
-    transition: 'all 0.2s',
-  },
-};
 
 export default TicketList;

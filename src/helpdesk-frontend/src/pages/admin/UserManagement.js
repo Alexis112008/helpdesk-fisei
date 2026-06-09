@@ -37,8 +37,9 @@ function UserManagement() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Filtros locales
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -59,6 +60,12 @@ function UserManagement() {
     roleId: '',
     isActive: true,
   });
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadUsers();
@@ -90,7 +97,6 @@ function UserManagement() {
     authAPI.get('/user/roles').then((res) => setRoles(res.data));
   };
 
-  // Filtrado reactivo local
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
       const matchSearch =
@@ -235,167 +241,159 @@ function UserManagement() {
     return colors[role] || '#555';
   };
 
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'Admin': return <Shield size={12} style={{ marginRight: 4 }} />;
-      default: return <Users size={12} style={{ marginRight: 4 }} />;
-    }
-  };
-
   return (
     <Layout>
-      <main style={s.content}>
-        <div style={s.header}>
+      <div className="user-management-page">
+        <div className="user-management-header">
           <div>
-            <h1 style={s.title}>
-              <Users size={28} style={{ marginRight: 12, color: '#4361ee', verticalAlign: 'middle' }} />
+            <h1 className="user-management-title">
+              <Users size={isMobile ? 24 : 28} />
               Gestión de Usuarios
             </h1>
-            <p style={s.subtitle}>Administra usuarios, roles y permisos del sistema</p>
+            <p className="user-management-subtitle">Administra usuarios, roles y permisos del sistema</p>
           </div>
-          <button style={s.actionBtn} onClick={openCreateModal}>
-            <Plus size={16} style={{ marginRight: 6 }} />
+          <button className="user-management-create-btn" onClick={openCreateModal}>
+            <Plus size={16} />
             Crear Usuario
           </button>
         </div>
 
         {success && (
-          <div style={s.success}>
-            <CheckCircle size={18} style={{ marginRight: 10 }} />
+          <div className="user-management-success">
+            <CheckCircle size={18} />
             {success}
           </div>
         )}
         {error && !showModal && (
-          <div style={s.error}>
-            <AlertCircle size={18} style={{ marginRight: 10 }} />
+          <div className="user-management-error">
+            <AlertCircle size={18} />
             {error}
           </div>
         )}
 
-        {/* Barra de filtros - ÚNICA */}
-        <div style={s.filtersBar}>
-          <div style={s.searchWrapper}>
-            <Search size={15} color="#9ca3af" style={s.searchIcon} />
-            <input
-              style={s.searchInput}
-              placeholder="Buscar por nombre o correo..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          <div style={s.filterWrapper}>
-            <Shield size={14} color="#6b7280" style={s.filterIcon} />
-            <select
-              style={s.filterSelect}
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-            >
-              <option value="">Todos los roles</option>
-              {roles.map((r) => (
-                <option key={r.id} value={r.name}>{r.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={s.filterWrapper}>
-            <UserCheck size={14} color="#6b7280" style={s.filterIcon} />
-            <select
-              style={s.filterSelect}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="">Todos los estados</option>
-              <option value="activo">Activo</option>
-              <option value="inactivo">Inactivo</option>
-            </select>
-          </div>
-
-          {hasFilters && (
-            <button style={s.clearBtn} onClick={clearFilters}>
-              <X size={13} style={{ marginRight: 4 }} />
-              Limpiar
+        {/* Barra de filtros */}
+        <div className="user-management-filters-card">
+          <div className="user-management-search-bar">
+            <div className="user-management-search-wrapper">
+              <Search size={16} className="user-management-search-icon" />
+              <input
+                className="user-management-search-input"
+                placeholder={isMobile ? "Buscar..." : "Buscar por nombre o correo..."}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
+              />
+              {search && (
+                <button className="user-management-clear-search" onClick={() => setSearch('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button className="user-management-filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+              <Filter size={14} />
+              Filtros
             </button>
-          )}
+          </div>
 
-          <span style={s.resultCount}>
-            <Users size={12} style={{ marginRight: 4 }} />
-            {filteredUsers.length} de {users.length} usuarios
-          </span>
+          <div className={`user-management-filters ${showFilters ? 'user-management-filters-open' : ''}`}>
+            <div className="user-management-filter-group">
+              <label className="user-management-filter-label">Rol</label>
+              <select className="user-management-filter-select" value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
+                <option value="">Todos los roles</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.name}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="user-management-filter-group">
+              <label className="user-management-filter-label">Estado</label>
+              <select className="user-management-filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                <option value="">Todos los estados</option>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </select>
+            </div>
+
+            <div className="user-management-stats">
+              <Users size={12} />
+              {filteredUsers.length} de {users.length} usuarios
+            </div>
+
+            {hasFilters && (
+              <button className="user-management-clear-filters" onClick={clearFilters}>
+                <X size={14} />
+                Limpiar
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
-          <div style={s.stateContainer}>
-            <p style={s.stateText}>Cargando usuarios...</p>
+          <div className="user-management-loading">
+            <RefreshCw size={24} className="user-management-spinner" />
+            <p>Cargando usuarios...</p>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div style={s.stateContainer}>
-            <p style={s.stateText}>
-              {hasFilters ? 'No hay usuarios que coincidan con los filtros.' : 'No hay usuarios registrados.'}
-            </p>
+          <div className="user-management-empty">
+            <p>{hasFilters ? 'No hay usuarios que coincidan con los filtros.' : 'No hay usuarios registrados.'}</p>
           </div>
         ) : (
-          <div style={s.tableCard}>
-            <div style={s.tableWrapper}>
-              <table style={s.table}>
+          <div className="user-management-table-card">
+            <div className="user-management-table-wrapper">
+              <table className="user-management-table">
                 <thead>
-                  <tr style={s.thead}>
-                    <th style={s.th}>Nombre</th>
-                    <th style={s.th}>Correo</th>
-                    <th style={s.th}>Teléfono</th>
-                    <th style={s.th}>Rol</th>
-                    <th style={s.th}>Estado</th>
-                    <th style={s.th}>Fecha Registro</th>
-                    <th style={s.th}>Acciones</th>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>Teléfono</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Fecha Registro</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredUsers.map((u) => (
-                    <tr key={u.id} style={s.tr}>
-                      <td style={s.td}>
+                    <tr key={u.id}>
+                      <td className="user-management-name">
                         <strong>{u.fullName}</strong>
                       </td>
-                      <td style={s.td}>
-                        <div style={s.emailCell}>
-                          <Mail size={12} color="#6b7280" />
+                      <td>
+                        <div className="user-management-email-cell">
+                          <Mail size={12} />
                           <span>{u.email}</span>
                         </div>
                       </td>
-                      <td style={s.td}>
-                        <div style={s.phoneCell}>
-                          <Phone size={12} color="#6b7280" />
+                      <td>
+                        <div className="user-management-phone-cell">
+                          <Phone size={12} />
                           <span>{u.phone || '—'}</span>
                         </div>
                       </td>
-                      <td style={s.td}>
-                        <span style={{ ...s.badge, backgroundColor: getRoleBadgeColor(u.roleName) }}>
-                          {getRoleIcon(u.roleName)}
+                      <td>
+                        <span className="user-management-role-badge" style={{ backgroundColor: getRoleBadgeColor(u.roleName) }}>
                           {u.roleName}
                         </span>
                       </td>
-                      <td style={s.td}>
-                        <span style={{ ...s.badge, backgroundColor: u.isActive ? '#2e7d32' : '#c62828' }}>
-                          {u.isActive ? (
-                            <UserCheck size={12} style={{ marginRight: 4 }} />
-                          ) : (
-                            <UserX size={12} style={{ marginRight: 4 }} />
-                          )}
+                      <td>
+                        <span className="user-management-status-badge" style={{ backgroundColor: u.isActive ? '#2e7d32' : '#c62828' }}>
                           {u.isActive ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td style={s.td}>
-                        <div style={s.dateCell}>
-                          <Calendar size={12} color="#9ca3af" />
+                      <td>
+                        <div className="user-management-date-cell">
+                          <Calendar size={12} />
                           <span>{new Date(u.createdAt).toLocaleDateString('es-EC')}</span>
                         </div>
                       </td>
-                      <td style={s.td}>
-                        <div style={s.actions}>
-                          <button onClick={() => openEditModal(u)} style={s.iconBtn} title="Editar">
-                            <Pencil size={15} color="#4361ee" />
+                      <td>
+                        <div className="user-management-actions">
+                          <button onClick={() => openEditModal(u)} className="user-management-edit-btn" title="Editar">
+                            <Pencil size={15} />
                           </button>
-                          <button onClick={() => handleDelete(u.id)} style={s.iconBtn} title="Eliminar">
-                            <Trash2 size={15} color="#dc2626" />
+                          <button onClick={() => handleDelete(u.id)} className="user-management-delete-btn" title="Eliminar">
+                            <Trash2 size={15} />
                           </button>
                         </div>
                       </td>
@@ -406,660 +404,858 @@ function UserManagement() {
             </div>
 
             {pagination.total > pagination.pageSize && (
-              <div style={s.pagination}>
+              <div className="user-management-pagination">
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                   disabled={pagination.page === 1}
-                  style={{ ...s.pageBtn, opacity: pagination.page === 1 ? 0.5 : 1 }}
+                  className="user-management-page-btn"
                 >
-                  <ChevronLeft size={14} style={{ marginRight: 4 }} />
+                  <ChevronLeft size={14} />
                   Anterior
                 </button>
-                <span style={s.pageInfo}>
+                <span className="user-management-page-info">
                   Página {pagination.page} de {Math.ceil(pagination.total / pagination.pageSize)}
                 </span>
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                   disabled={pagination.page >= Math.ceil(pagination.total / pagination.pageSize)}
-                  style={{ ...s.pageBtn, opacity: pagination.page >= Math.ceil(pagination.total / pagination.pageSize) ? 0.5 : 1 }}
+                  className="user-management-page-btn"
                 >
                   Siguiente
-                  <ChevronRight size={14} style={{ marginLeft: 4 }} />
+                  <ChevronRight size={14} />
                 </button>
               </div>
             )}
           </div>
         )}
-      </main>
+      </div>
 
-      {/* MODAL DE CREAR/EDITAR USUARIO */}
+      {/* MODAL DE CREAR/EDITAR USUARIO RESPONSIVE */}
       {showModal && (
-        <div style={modalStyles.overlay} onClick={closeModal}>
-          <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={modalStyles.header}>
-              <div style={modalStyles.headerIcon}>
+        <div className="user-management-modal-overlay" onClick={closeModal}>
+          <div className="user-management-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="user-management-modal-header">
+              <div className="user-management-modal-header-icon">
                 {editUser ? <Pencil size={24} color="#fff" /> : <Plus size={24} color="#fff" />}
               </div>
-              <div style={modalStyles.headerText}>
-                <h2 style={modalStyles.title}>
-                  {editUser ? 'Editar Usuario' : 'Nuevo Usuario'}
-                </h2>
-                <p style={modalStyles.subtitle}>
-                  {editUser ? 'Modifica la información del usuario' : 'Completa los datos para crear un nuevo usuario'}
-                </p>
+              <div className="user-management-modal-header-text">
+                <h2>{editUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
+                <p>{editUser ? 'Modifica la información del usuario' : 'Completa los datos para crear un nuevo usuario'}</p>
               </div>
-              <button style={modalStyles.closeBtn} onClick={closeModal}>
+              <button className="user-management-modal-close" onClick={closeModal}>
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div style={modalStyles.content}>
+              <div className="user-management-modal-body">
                 {error && (
-                  <div style={modalStyles.error}>
-                    <AlertCircle size={16} style={{ marginRight: 8 }} />
+                  <div className="user-management-modal-error">
+                    <AlertCircle size={16} />
                     {error}
                   </div>
                 )}
-                {success && (
-                  <div style={modalStyles.success}>
-                    <CheckCircle size={16} style={{ marginRight: 8 }} />
-                    {success}
+
+                <div className="user-management-modal-field">
+                  <label>Nombre completo *</label>
+                  <input
+                    type="text"
+                    value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                    placeholder="Ej: Juan Pérez"
+                    required
+                  />
+                </div>
+
+                <div className="user-management-modal-field">
+                  <label>Correo institucional *</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="usuario@uta.edu.ec"
+                    required
+                  />
+                </div>
+
+                {!editUser && (
+                  <div className="user-management-modal-field">
+                    <label>Contraseña *</label>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="Mínimo 6 caracteres"
+                      required
+                      minLength={6}
+                    />
                   </div>
                 )}
 
-                <div style={modalStyles.formGrid}>
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <User size={14} style={{ marginRight: 6 }} />
-                      Nombre completo *
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="text"
-                      value={form.fullName}
-                      onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                      placeholder="Ej: Juan Pérez"
-                      required
-                    />
-                  </div>
-
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Mail size={14} style={{ marginRight: 6 }} />
-                      Correo institucional *
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      placeholder="usuario@uta.edu.ec"
-                      required
-                    />
-                  </div>
-
-                  {!editUser && (
-                    <div style={modalStyles.field}>
-                      <label style={modalStyles.label}>
-                        <Lock size={14} style={{ marginRight: 6 }} />
-                        Contraseña *
-                      </label>
-                      <input
-                        style={modalStyles.input}
-                        type="password"
-                        value={form.password}
-                        onChange={(e) => setForm({ ...form, password: e.target.value })}
-                        placeholder="Mínimo 6 caracteres"
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                  )}
-
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Phone size={14} style={{ marginRight: 6 }} />
-                      Teléfono
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="0987654321"
-                    />
-                  </div>
-
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <IdCard size={14} style={{ marginRight: 6 }} />
-                      Cédula
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="text"
-                      value={form.cedula}
-                      onChange={(e) => setForm({ ...form, cedula: e.target.value })}
-                      placeholder="1804567890"
-                      maxLength={10}
-                    />
-                  </div>
-
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Building size={14} style={{ marginRight: 6 }} />
-                      Departamento / Facultad
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="text"
-                      value={form.department}
-                      onChange={(e) => setForm({ ...form, department: e.target.value })}
-                      placeholder="FISEI, Rectorado, DITIC..."
-                    />
-                  </div>
-
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Award size={14} style={{ marginRight: 6 }} />
-                      Especialidad
-                    </label>
-                    <input
-                      style={modalStyles.input}
-                      type="text"
-                      value={form.specialty}
-                      onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-                      placeholder="Solo para técnicos: Redes, Hardware, Software..."
-                    />
-                  </div>
-
-                  <div style={modalStyles.field}>
-                    <label style={modalStyles.label}>
-                      <Shield size={14} style={{ marginRight: 6 }} />
-                      Rol *
-                    </label>
-                    <select
-                      style={modalStyles.select}
-                      value={form.roleId}
-                      onChange={(e) => setForm({ ...form, roleId: e.target.value })}
-                      required
-                    >
-                      <option value="">-- Selecciona un rol --</option>
-                      {roles.map((r) => (
-                        <option key={r.id} value={r.id}>{r.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {editUser && (
-                    <div style={modalStyles.field}>
-                      <label style={modalStyles.label}>Estado</label>
-                      <div style={modalStyles.toggleGroup}>
-                        <button
-                          type="button"
-                          style={{
-                            ...modalStyles.toggleBtn,
-                            ...(form.isActive ? modalStyles.toggleActive : modalStyles.toggleInactive)
-                          }}
-                          onClick={() => setForm({ ...form, isActive: true })}
-                        >
-                          <UserCheck size={14} style={{ marginRight: 6 }} />
-                          Activo
-                        </button>
-                        <button
-                          type="button"
-                          style={{
-                            ...modalStyles.toggleBtn,
-                            ...(!form.isActive ? modalStyles.toggleActive : modalStyles.toggleInactive)
-                          }}
-                          onClick={() => setForm({ ...form, isActive: false })}
-                        >
-                          <UserX size={14} style={{ marginRight: 6 }} />
-                          Inactivo
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                <div className="user-management-modal-field">
+                  <label>Teléfono</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="0987654321"
+                  />
                 </div>
+
+                <div className="user-management-modal-field">
+                  <label>Cédula</label>
+                  <input
+                    type="text"
+                    value={form.cedula}
+                    onChange={(e) => setForm({ ...form, cedula: e.target.value })}
+                    placeholder="1804567890"
+                    maxLength={10}
+                  />
+                </div>
+
+                <div className="user-management-modal-field">
+                  <label>Departamento / Facultad</label>
+                  <input
+                    type="text"
+                    value={form.department}
+                    onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    placeholder="FISEI, Rectorado, DITIC..."
+                  />
+                </div>
+
+                <div className="user-management-modal-field">
+                  <label>Especialidad</label>
+                  <input
+                    type="text"
+                    value={form.specialty}
+                    onChange={(e) => setForm({ ...form, specialty: e.target.value })}
+                    placeholder="Solo para técnicos: Redes, Hardware, Software..."
+                  />
+                </div>
+
+                <div className="user-management-modal-field">
+                  <label>Rol *</label>
+                  <select
+                    value={form.roleId}
+                    onChange={(e) => setForm({ ...form, roleId: e.target.value })}
+                    required
+                  >
+                    <option value="">-- Selecciona un rol --</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {editUser && (
+                  <div className="user-management-modal-field">
+                    <label>Estado</label>
+                    <div className="user-management-toggle-group">
+                      <button
+                        type="button"
+                        className={`user-management-toggle-btn ${form.isActive ? 'user-management-toggle-active' : ''}`}
+                        onClick={() => setForm({ ...form, isActive: true })}
+                      >
+                        <UserCheck size={14} />
+                        Activo
+                      </button>
+                      <button
+                        type="button"
+                        className={`user-management-toggle-btn ${!form.isActive ? 'user-management-toggle-active' : ''}`}
+                        onClick={() => setForm({ ...form, isActive: false })}
+                      >
+                        <UserX size={14} />
+                        Inactivo
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div style={modalStyles.footer}>
-                <button type="button" style={modalStyles.cancelBtn} onClick={closeModal}>
+              <div className="user-management-modal-footer">
+                <button type="button" className="user-management-modal-cancel" onClick={closeModal}>
                   Cancelar
                 </button>
-                <button type="submit" style={modalStyles.saveBtn} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8 }} />
-                      Guardando...
-                    </>
-                  ) : (
-                    editUser ? 'Guardar Cambios' : 'Crear Usuario'
-                  )}
+                <button type="submit" className="user-management-modal-save" disabled={saving}>
+                  {saving ? 'Guardando...' : (editUser ? 'Guardar Cambios' : 'Crear Usuario')}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <style>{`
+        .user-management-page {
+          padding: 28px 32px;
+          flex: 1;
+          background-color: #f5f7fa;
+          min-height: 100vh;
+        }
+
+        .user-management-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .user-management-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #1a1a2e;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .user-management-subtitle {
+          font-size: 13px;
+          color: #6b7280;
+        }
+
+        .user-management-create-btn {
+          background-color: #4361ee;
+          color: #fff;
+          border: none;
+          padding: 12px 18px;
+          border-radius: 12px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.2s;
+        }
+
+        .user-management-create-btn:hover {
+          background-color: #304ffe;
+          transform: translateY(-1px);
+        }
+
+        .user-management-success {
+          background-color: #ecfdf3;
+          color: #027a48;
+          padding: 14px;
+          border-radius: 12px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .user-management-error {
+          background-color: #fef3f2;
+          color: #b42318;
+          padding: 14px;
+          border-radius: 12px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .user-management-filters-card {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          padding: 16px 20px;
+          margin-bottom: 24px;
+        }
+
+        .user-management-search-bar {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .user-management-search-wrapper {
+          position: relative;
+          flex: 1;
+          min-width: 200px;
+        }
+
+        .user-management-search-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #9ca3af;
+        }
+
+        .user-management-search-input {
+          width: 100%;
+          padding: 10px 16px 10px 38px;
+          border-radius: 12px;
+          border: 1px solid #e4e7eb;
+          font-size: 14px;
+          outline: none;
+          background: #f9fafb;
+        }
+
+        .user-management-search-input:focus {
+          border-color: #4361ee;
+          box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .user-management-clear-search {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #9ca3af;
+        }
+
+        .user-management-filter-toggle {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          background: #f9fafb;
+          border: 1px solid #eaecf0;
+          border-radius: 10px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .user-management-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          align-items: center;
+          margin-top: 16px;
+        }
+
+        .user-management-filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 150px;
+        }
+
+        .user-management-filter-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .user-management-filter-select {
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #d0d5dd;
+          font-size: 14px;
+          background: #fff;
+          cursor: pointer;
+        }
+
+        .user-management-filter-select:focus {
+          border-color: #4361ee;
+          outline: none;
+        }
+
+        .user-management-stats {
+          font-size: 13px;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f9fafb;
+          padding: 8px 14px;
+          border-radius: 10px;
+          margin-left: auto;
+        }
+
+        .user-management-clear-filters {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 10px;
+          background: #f3f4f6;
+          border: 1px solid #d1d5db;
+          color: #374151;
+          cursor: pointer;
+          font-size: 13px;
+          transition: all 0.2s;
+        }
+
+        .user-management-clear-filters:hover {
+          background: #fee2e2;
+          border-color: #fecaca;
+          color: #dc2626;
+        }
+
+        .user-management-table-card {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          overflow: hidden;
+        }
+
+        .user-management-table-wrapper {
+          overflow-x: auto;
+        }
+
+        .user-management-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 700px;
+        }
+
+        .user-management-table th {
+          padding: 16px 20px;
+          text-align: left;
+          font-size: 12px;
+          font-weight: 700;
+          color: #667085;
+          background: #f9fafb;
+          border-bottom: 1px solid #eaecf0;
+        }
+
+        .user-management-table td {
+          padding: 18px 20px;
+          font-size: 14px;
+          color: #344054;
+          border-bottom: 1px solid #f1f3f5;
+        }
+
+        .user-management-table tr:hover td {
+          background-color: #f9fafb;
+        }
+
+        .user-management-name {
+          font-weight: 600;
+        }
+
+        .user-management-email-cell, .user-management-phone-cell, .user-management-date-cell {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .user-management-role-badge {
+          color: #fff;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .user-management-status-badge {
+          color: #fff;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .user-management-actions {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .user-management-edit-btn, .user-management-delete-btn {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .user-management-edit-btn:hover {
+          background: #eef2ff;
+          color: #4361ee;
+        }
+
+        .user-management-delete-btn:hover {
+          background: #fee2e2;
+          color: #dc2626;
+        }
+
+        .user-management-pagination {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 16px;
+          padding: 20px;
+          border-top: 1px solid #eaecf0;
+          flex-wrap: wrap;
+        }
+
+        .user-management-page-btn {
+          padding: 8px 16px;
+          background: #f3f4f6;
+          border: 1px solid #d0d5dd;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 13px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.2s;
+        }
+
+        .user-management-page-btn:hover:not(:disabled) {
+          background: #e5e7eb;
+        }
+
+        .user-management-page-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .user-management-page-info {
+          font-size: 13px;
+          color: #344054;
+        }
+
+        .user-management-loading, .user-management-empty {
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #eaecf0;
+          padding: 60px 20px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .user-management-spinner {
+          animation: spin 1s linear infinite;
+        }
+
+        /* Modal Responsive */
+        .user-management-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+        }
+
+        .user-management-modal {
+          background: #fff;
+          border-radius: 24px;
+          width: 100%;
+          max-width: 680px;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+
+        .user-management-modal-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 20px 24px;
+          background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%);
+          border-top-left-radius: 24px;
+          border-top-right-radius: 24px;
+          position: sticky;
+          top: 0;
+        }
+
+        .user-management-modal-header-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 24px;
+          background: rgba(255,255,255,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .user-management-modal-header-text {
+          flex: 1;
+        }
+
+        .user-management-modal-header-text h2 {
+          font-size: 20px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0;
+        }
+
+        .user-management-modal-header-text p {
+          font-size: 13px;
+          color: rgba(255,255,255,0.8);
+          margin-top: 4px;
+        }
+
+        .user-management-modal-close {
+          background: rgba(255,255,255,0.2);
+          border: none;
+          border-radius: 20px;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #fff;
+          transition: background 0.2s;
+        }
+
+        .user-management-modal-close:hover {
+          background: rgba(255,255,255,0.3);
+        }
+
+        .user-management-modal-body {
+          padding: 24px;
+        }
+
+        .user-management-modal-field {
+          margin-bottom: 20px;
+        }
+
+        .user-management-modal-field label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 8px;
+        }
+
+        .user-management-modal-field input,
+        .user-management-modal-field select {
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #d1d5db;
+          font-size: 14px;
+          outline: none;
+          box-sizing: border-box;
+          transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        .user-management-modal-field input:focus,
+        .user-management-modal-field select:focus {
+          border-color: #4361ee;
+          box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .user-management-modal-error {
+          background: #fef2f2;
+          color: #dc2626;
+          padding: 12px 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .user-management-toggle-group {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .user-management-toggle-btn {
+          flex: 1;
+          padding: 10px;
+          border-radius: 8px;
+          border: 1px solid #d1d5db;
+          background: #fff;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 13px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          transition: all 0.2s;
+        }
+
+        .user-management-toggle-active {
+          background-color: #4361ee;
+          color: #fff;
+          border-color: #4361ee;
+        }
+
+        .user-management-modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          padding: 16px 24px;
+          border-top: 1px solid #eaecf0;
+          background: #f9fafb;
+          border-bottom-left-radius: 24px;
+          border-bottom-right-radius: 24px;
+          position: sticky;
+          bottom: 0;
+        }
+
+        .user-management-modal-cancel {
+          padding: 10px 20px;
+          background: #fff;
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .user-management-modal-cancel:hover {
+          background: #f3f4f6;
+        }
+
+        .user-management-modal-save {
+          padding: 10px 24px;
+          background: #4361ee;
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #fff;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .user-management-modal-save:hover {
+          background: #304ffe;
+          transform: translateY(-1px);
+        }
+
+        .user-management-modal-save:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+          .user-management-page {
+            padding: 70px 12px 20px 12px;
+          }
+
+          .user-management-title {
+            font-size: 22px;
+          }
+
+          .user-management-subtitle {
+            font-size: 11px;
+          }
+
+          .user-management-filter-toggle {
+            display: flex;
+          }
+
+          .user-management-filters {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+          }
+
+          .user-management-filters-open {
+            display: flex;
+          }
+
+          .user-management-filter-group {
+            width: 100%;
+          }
+
+          .user-management-filter-select {
+            width: 100%;
+          }
+
+          .user-management-stats {
+            margin-left: 0;
+            justify-content: center;
+            width: 100%;
+          }
+
+          .user-management-clear-filters {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .user-management-pagination {
+            flex-direction: column;
+            gap: 12px;
+          }
+
+          .user-management-actions {
+            justify-content: center;
+          }
+
+          .user-management-modal {
+            max-width: 95%;
+          }
+
+          .user-management-modal-header {
+            padding: 16px 20px;
+          }
+
+          .user-management-modal-header-icon {
+            width: 40px;
+            height: 40px;
+          }
+
+          .user-management-modal-header-text h2 {
+            font-size: 16px;
+          }
+
+          .user-management-modal-body {
+            padding: 20px;
+          }
+
+          .user-management-modal-footer {
+            flex-direction: column;
+          }
+
+          .user-management-modal-cancel,
+          .user-management-modal-save {
+            width: 100%;
+            text-align: center;
+          }
+
+          .user-management-toggle-group {
+            flex-direction: column;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
-
-const s = {
-  content: { padding: '32px', flex: 1 },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: 16 },
-  title: { fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8, display: 'flex', alignItems: 'center' },
-  subtitle: { fontSize: 14, color: '#6b7280' },
-  actionBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#4361ee',
-    color: '#fff',
-    border: 'none',
-    padding: '10px 18px',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: 14
-  },
-  success: {
-    backgroundColor: '#ecfdf3',
-    color: '#027a48',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 20,
-    fontSize: 14,
-    display: 'flex',
-    alignItems: 'center'
-  },
-  error: {
-    backgroundColor: '#fef3f2',
-    color: '#b42318',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 20,
-    fontSize: 14,
-    display: 'flex',
-    alignItems: 'center'
-  },
-  filtersBar: {
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-    flexWrap: 'wrap',
-    backgroundColor: '#fff',
-    padding: '16px 20px',
-    borderRadius: 16,
-    border: '1px solid #eaecf0',
-  },
-  searchWrapper: {
-    position: 'relative',
-    flex: '1 1 220px',
-    minWidth: 180
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 12,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none'
-  },
-  searchInput: {
-    width: '100%',
-    padding: '10px 16px 10px 38px',
-    borderRadius: 12,
-    border: '1px solid #e4e7eb',
-    fontSize: 14,
-    boxSizing: 'border-box',
-    outline: 'none',
-    backgroundColor: '#f9fafb',
-    transition: 'all 0.2s ease',
-    '&:focus': {
-      borderColor: '#4361ee',
-      boxShadow: '0 0 0 3px rgba(67, 97, 238, 0.1)',
-    }
-  },
-  filterWrapper: {
-    position: 'relative',
-    minWidth: 140,
-  },
-  filterIcon: {
-    position: 'absolute',
-    left: 12,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none',
-  },
-  filterSelect: {
-    width: '100%',
-    padding: '10px 14px 10px 36px',
-    borderRadius: 10,
-    border: '1px solid #d0d5dd',
-    fontSize: 14,
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-    outline: 'none',
-    appearance: 'none',
-    transition: 'all 0.2s ease',
-  },
-  clearBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '10px 16px',
-    borderRadius: 10,
-    border: '1px solid #e5e7eb',
-    backgroundColor: '#f9fafb',
-    color: '#374151',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 500,
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      backgroundColor: '#f3f4f6',
-      borderColor: '#d1d5db',
-    }
-  },
-  resultCount: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginLeft: 'auto',
-    display: 'flex',
-    alignItems: 'center'
-  },
-  tableCard: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    border: '1px solid #eaecf0',
-    overflow: 'hidden'
-  },
-  tableWrapper: { overflowX: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  thead: { backgroundColor: '#f9fafb' },
-  th: {
-    padding: '16px 20px',
-    textAlign: 'left',
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#667085',
-    borderBottom: '1px solid #eaecf0',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  tr: { borderBottom: '1px solid #f1f3f5', transition: 'background-color 0.2s ease' },
-  td: { padding: '18px 20px', fontSize: 14, color: '#344054' },
-  emailCell: { display: 'flex', alignItems: 'center', gap: 6 },
-  phoneCell: { display: 'flex', alignItems: 'center', gap: 6 },
-  dateCell: { display: 'flex', alignItems: 'center', gap: 6 },
-  badge: {
-    color: '#fff',
-    padding: '6px 12px',
-    borderRadius: 20,
-    fontSize: 12,
-    fontWeight: 600,
-    display: 'inline-flex',
-    alignItems: 'center'
-  },
-  actions: { display: 'flex', gap: 4, alignItems: 'center' },
-  iconBtn: {
-    width: 32,
-    height: 32,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: 8,
-    cursor: 'pointer',
-    transition: 'background-color 0.2s ease'
-  },
-  stateContainer: { padding: '60px 20px', textAlign: 'center' },
-  stateText: { color: '#6b7280', fontSize: 15 },
-  pagination: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-    padding: '20px',
-    borderTop: '1px solid #eaecf0'
-  },
-  pageBtn: {
-    padding: '8px 16px',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d0d5dd',
-    borderRadius: 8,
-    cursor: 'pointer',
-    fontSize: 13,
-    display: 'inline-flex',
-    alignItems: 'center'
-  },
-  pageInfo: { fontSize: 13, color: '#344054' }
-};
-
-// Estilos del Modal
-const modalStyles = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '20px',
-  },
-  modal: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    width: '100%',
-    maxWidth: 680,
-    maxHeight: '90vh',
-    overflowY: 'auto',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-    animation: 'slideUp 0.3s ease',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    padding: '20px 24px',
-    background: 'linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%)',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    position: 'relative',
-  },
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    background: 'rgba(255, 255, 255, 0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#fff',
-    margin: 0,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-  },
-  closeBtn: {
-    background: 'rgba(255, 255, 255, 0.2)',
-    border: 'none',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    color: '#fff',
-    transition: 'all 0.2s',
-  },
-  content: {
-    padding: '24px',
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 20,
-  },
-  field: {
-    marginBottom: 8,
-  },
-  label: {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-    outline: 'none',
-    transition: 'all 0.2s',
-    boxSizing: 'border-box',
-  },
-  select: {
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-    outline: 'none',
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-  },
-  toggleGroup: {
-    display: 'flex',
-    gap: 8,
-  },
-  toggleBtn: {
-    flex: 1,
-    padding: '10px',
-    borderRadius: 8,
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: 13,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s',
-  },
-  toggleActive: {
-    backgroundColor: '#4361ee',
-    color: '#fff',
-  },
-  toggleInactive: {
-    backgroundColor: '#f3f4f6',
-    color: '#6b7280',
-  },
-  error: {
-    backgroundColor: '#fef2f2',
-    color: '#dc2626',
-    padding: '12px 16px',
-    borderRadius: 10,
-    fontSize: 13,
-    marginBottom: 20,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  success: {
-    backgroundColor: '#ecfdf5',
-    color: '#10b981',
-    padding: '12px 16px',
-    borderRadius: 10,
-    fontSize: 13,
-    marginBottom: 20,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  footer: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: 12,
-    padding: '16px 24px',
-    borderTop: '1px solid #eaecf0',
-    backgroundColor: '#f9fafb',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  cancelBtn: {
-    padding: '10px 20px',
-    background: '#fff',
-    border: '1px solid #d1d5db',
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#374151',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  saveBtn: {
-    padding: '10px 24px',
-    background: '#4361ee',
-    border: 'none',
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#fff',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-  },
-};
-
-// Agregar animaciones
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .modal-close-btn:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-  }
-  .modal-cancel-btn:hover {
-    background-color: #f3f4f6;
-  }
-  .modal-save-btn:hover {
-    background-color: #1e3a5f;
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default UserManagement;

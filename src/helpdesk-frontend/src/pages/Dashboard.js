@@ -40,6 +40,7 @@ function Dashboard() {
   const role = localStorage.getItem('role');
   const fullName = localStorage.getItem('fullName');
   const userId = parseInt(localStorage.getItem('userId') || '0');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   const [stats, setStats] = useState(null);
   const [recentTickets, setRecentTickets] = useState([]);
@@ -70,6 +71,13 @@ function Dashboard() {
   const [ticketsByTechnician, setTicketsByTechnician] = useState([]);
   const [weeklyTrend, setWeeklyTrend] = useState([]);
 
+  // Detectar móvil
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const isTech = ['TecnicoN1', 'TecnicoN2', 'DITIC', 'Proveedor'].includes(role);
   const isAdmin = role === 'Admin';
 
@@ -78,7 +86,7 @@ function Dashboard() {
     setStartDate('');
     setEndDate('');
     setSelectedTechnician('');
-    loadData(); // Recargar datos sin filtros
+    loadData();
   };
 
   const hasFilters = startDate !== '' || endDate !== '' || selectedTechnician !== '';
@@ -87,12 +95,10 @@ function Dashboard() {
   const loadTechnicians = useCallback(async () => {
     if (!isAdmin) return;
     try {
-      // ✅ Usar el endpoint existente /user/list
       const res = await authAPI.get('/user/list', {
-        params: { page: 1, pageSize: 100 } // Traer muchos usuarios
+        params: { page: 1, pageSize: 100 }
       });
 
-      // La respuesta viene en res.data.users
       const usersList = res.data.users || [];
 
       const techs = usersList.filter(u =>
@@ -107,7 +113,6 @@ function Dashboard() {
       }));
     } catch (err) {
       console.error('Error cargando técnicos:', err);
-      // No mostrar error en UI para no molestar al usuario
     }
   }, [isAdmin]);
 
@@ -145,7 +150,7 @@ function Dashboard() {
     setTicketsByTechnician(enrichedData);
   }, []);
 
-  // Calcular tendencia semanal mejorada
+  // Calcular tendencia semanal
   const calculateWeeklyTrend = useCallback((tickets) => {
     const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     const created = new Array(7).fill(0);
@@ -327,7 +332,6 @@ function Dashboard() {
       let ticketsWithActions = [];
 
       if (isAdmin) {
-        // 👇 CONSTRUIR URL CON FILTROS
         let url = '/ticket';
         const params = new URLSearchParams();
         if (startDate) params.append('startDate', startDate);
@@ -338,7 +342,6 @@ function Dashboard() {
         const res = await ticketAPI.get(url);
         tickets = res.data;
 
-        // Cargar acciones para métricas de rendimiento
         const detailedTickets = await Promise.all(
           tickets.slice(0, 50).map(async (t) => {
             try {
@@ -370,7 +373,6 @@ function Dashboard() {
         calculateAdminMetrics(tickets);
         await loadTechnicians();
 
-        // Calcular tickets por técnico después de tener técnicos
         const techMap = new Map();
         tickets.forEach(ticket => {
           if (ticket.assignedTechnicianId) {
@@ -448,7 +450,7 @@ function Dashboard() {
     }
   }, [isAdmin, isTech, userId, calculatePerformance, calculateWeeklyTrend, calculateAdminMetrics, loadTechnicians, startDate, endDate, selectedTechnician]);
 
-  // SignalR para tiempo real
+  // SignalR
   useEffect(() => {
     if (!isTech) return;
 
@@ -583,22 +585,49 @@ function Dashboard() {
     return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short' });
   };
 
+  // Estilos responsive - se adaptan según móvil o desktop
+  const mainContainerStyle = {
+    padding: isMobile ? '70px 12px 20px 12px' : '28px 32px',
+    backgroundColor: '#f5f7fa',
+    minHeight: '100vh',
+  };
+
   const cardStyle = {
     background: '#fff',
     borderRadius: 20,
-    padding: '20px 24px',
+    padding: isMobile ? '16px' : '20px 24px',
     border: '1px solid #e4e7eb',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
     transition: 'transform 0.2s, box-shadow 0.2s',
   };
 
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '20px',
+    marginBottom: '28px',
+  };
+
+  const chartGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(450px, 1fr))',
+    gap: '20px',
+    marginBottom: '28px',
+  };
+
+  const quickLinksGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))',
+    gap: '20px',
+  };
+
   const StatCard = ({ icon, label, value, color, bg, trend, trendValue, suffix = '' }) => (
     <div style={cardStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: bg, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 16 }}>
+        <div style={{ width: isMobile ? 40 : 48, height: isMobile ? 40 : 48, borderRadius: 16, backgroundColor: bg, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
         <div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: color }}>{value}{suffix}</div>
-          <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>{label}</div>
+          <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: color }}>{value}{suffix}</div>
+          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>{label}</div>
           {trend && (
             <div style={{ fontSize: 10, color: trendValue >= 0 ? '#10b981' : '#ef4444', marginTop: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
               {trendValue >= 0 ? <TrendingUp size={10} /> : <TrendingUp size={10} style={{ transform: 'rotate(180deg)' }} />}
@@ -629,16 +658,16 @@ function Dashboard() {
           background: '#fff',
           color: COLORS.Primario,
           border: 'none',
-          padding: '12px 24px',
+          padding: '10px 18px',
           borderRadius: 40,
           fontWeight: 600,
-          fontSize: 14,
+          fontSize: 13,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: 8
+          gap: 6
         }} onClick={() => navigate('/tecnico/panel')}>
-          <Inbox size={18} />
+          <Inbox size={16} />
           Ver Bandeja
         </button>
       );
@@ -649,16 +678,16 @@ function Dashboard() {
           background: '#fff',
           color: COLORS.Primario,
           border: 'none',
-          padding: '12px 24px',
+          padding: '10px 18px',
           borderRadius: 40,
           fontWeight: 600,
-          fontSize: 14,
+          fontSize: 13,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: 8
+          gap: 6
         }} onClick={() => navigate('/crear-ticket')}>
-          <Plus size={18} />
+          <Plus size={16} />
           Nuevo Ticket
         </button>
       );
@@ -670,39 +699,38 @@ function Dashboard() {
     if (isAdmin) {
       return (
         <>
-          <StatCard icon={<Ticket size={24} />} label="Total Tickets" value={stats.total} color={COLORS.Primario} bg="#eef2ff" />
-          <StatCard icon={<Clock size={24} />} label="Abiertos" value={stats.abiertos} color={COLORS.Abierto} bg="#eef2ff" />
-          <StatCard icon={<TrendingUp size={24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
-          <StatCard icon={<AlertCircle size={24} />} label="Escalados" value={stats.escalados} color={COLORS.Escalado} bg="#f3e8ff" />
-          <StatCard icon={<CheckCircle size={24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
-          <StatCard icon={<FolderKanban size={24} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
+          <StatCard icon={<Ticket size={isMobile ? 20 : 24} />} label="Total Tickets" value={stats.total} color={COLORS.Primario} bg="#eef2ff" />
+          <StatCard icon={<Clock size={isMobile ? 20 : 24} />} label="Abiertos" value={stats.abiertos} color={COLORS.Abierto} bg="#eef2ff" />
+          <StatCard icon={<TrendingUp size={isMobile ? 20 : 24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
+          <StatCard icon={<AlertCircle size={isMobile ? 20 : 24} />} label="Escalados" value={stats.escalados} color={COLORS.Escalado} bg="#f3e8ff" />
+          <StatCard icon={<CheckCircle size={isMobile ? 20 : 24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
+          <StatCard icon={<FolderKanban size={isMobile ? 20 : 24} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
         </>
       );
     } else if (isTech) {
       return (
         <>
-          <StatCard icon={<Ticket size={24} />} label="Asignados" value={stats.total} color={COLORS.Primario} bg="#eef2ff" trend={true} trendValue={performance.monthlyProgress} />
-          <StatCard icon={<TrendingUp size={24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
-          <StatCard icon={<AlertCircle size={24} />} label="Escalados" value={stats.escalados} color={COLORS.Escalado} bg="#f3e8ff" />
-          <StatCard icon={<CheckCircle size={24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
-          <StatCard icon={<FolderKanban size={24} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
-          <StatCard icon={<Flag size={24} />} label="SLA Cumplimiento" value={`${performance.slaCompliance || 0}%`} color={performance.slaCompliance >= 80 ? COLORS.Resuelto : COLORS.Vencido} bg="#ecfdf5" />
+          <StatCard icon={<Ticket size={isMobile ? 20 : 24} />} label="Asignados" value={stats.total} color={COLORS.Primario} bg="#eef2ff" trend={true} trendValue={performance.monthlyProgress} />
+          <StatCard icon={<TrendingUp size={isMobile ? 20 : 24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
+          <StatCard icon={<AlertCircle size={isMobile ? 20 : 24} />} label="Escalados" value={stats.escalados} color={COLORS.Escalado} bg="#f3e8ff" />
+          <StatCard icon={<CheckCircle size={isMobile ? 20 : 24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
+          <StatCard icon={<FolderKanban size={isMobile ? 20 : 24} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
+          <StatCard icon={<Flag size={isMobile ? 20 : 24} />} label="SLA Cumplimiento" value={`${performance.slaCompliance || 0}%`} color={performance.slaCompliance >= 80 ? COLORS.Resuelto : COLORS.Vencido} bg="#ecfdf5" />
         </>
       );
     } else {
       return (
         <>
-          <StatCard icon={<Ticket size={24} />} label="Mis Tickets" value={stats.total} color={COLORS.Primario} bg="#eef2ff" />
-          <StatCard icon={<Clock size={24} />} label="Abiertos" value={stats.abiertos} color={COLORS.Abierto} bg="#eef2ff" />
-          <StatCard icon={<TrendingUp size={24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
-          <StatCard icon={<CheckCircle size={24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
-          <StatCard icon={<FolderKanban size={24} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
+          <StatCard icon={<Ticket size={isMobile ? 20 : 24} />} label="Mis Tickets" value={stats.total} color={COLORS.Primario} bg="#eef2ff" />
+          <StatCard icon={<Clock size={isMobile ? 20 : 24} />} label="Abiertos" value={stats.abiertos} color={COLORS.Abierto} bg="#eef2ff" />
+          <StatCard icon={<TrendingUp size={isMobile ? 20 : 24} />} label="En Proceso" value={stats.enProceso} color={COLORS.EnProceso} bg="#fffbeb" />
+          <StatCard icon={<CheckCircle size={isMobile ? 20 : 24} />} label="Resueltos" value={stats.resueltos} color={COLORS.Resuelto} bg="#ecfdf5" />
+          <StatCard icon={<FolderKanban size={isMobile ? 20 : 24} />} label="Cerrados" value={stats.cerrados} color={COLORS.Cerrado} bg="#f3f4f6" />
         </>
       );
     }
   };
 
-  // Funciones de exportación
   const handleExportExcel = () => {
     const ticketsToExport = filteredTickets.length > 0 ? filteredTickets : recentTickets;
     exportTickets(ticketsToExport, 'excel', isTech ? 'tech' : (isAdmin ? 'admin' : 'user'));
@@ -719,9 +747,51 @@ function Dashboard() {
     }
   };
 
+  const styles = {
+    exportBtnExcel: {
+      background: '#fff',
+      border: '1px solid #10b981',
+      color: '#10b981',
+      padding: isMobile ? '8px 12px' : '10px 18px',
+      borderRadius: 12,
+      cursor: 'pointer',
+      fontSize: isMobile ? 11 : 13,
+      fontWeight: 600,
+      display: 'flex',
+      alignItems: 'center',
+      transition: 'all 0.2s',
+    },
+    exportBtnPDF: {
+      background: '#fff',
+      border: '1px solid #ef4444',
+      color: '#ef4444',
+      padding: isMobile ? '8px 12px' : '10px 18px',
+      borderRadius: 12,
+      cursor: 'pointer',
+      fontSize: isMobile ? 11 : 13,
+      fontWeight: 600,
+      display: 'flex',
+      alignItems: 'center',
+      transition: 'all 0.2s',
+    },
+    exportBtnStats: {
+      background: '#fff',
+      border: '1px solid #f59e0b',
+      color: '#f59e0b',
+      padding: isMobile ? '8px 12px' : '10px 18px',
+      borderRadius: 12,
+      cursor: 'pointer',
+      fontSize: isMobile ? 11 : 13,
+      fontWeight: 600,
+      display: 'flex',
+      alignItems: 'center',
+      transition: 'all 0.2s',
+    },
+  };
+
   return (
     <Layout>
-      <div style={{ padding: '28px 32px', backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
+      <div style={mainContainerStyle}>
 
         {/* Tarjeta de bienvenida */}
         <div style={{
@@ -730,36 +800,36 @@ function Dashboard() {
           color: '#fff',
           marginBottom: 28,
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 16 : 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{
-                width: 56, height: 56, borderRadius: 28,
+                width: isMobile ? 48 : 56, height: isMobile ? 48 : 56, borderRadius: 28,
                 background: 'rgba(255,255,255,0.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, fontWeight: 700
+                fontSize: isMobile ? 18 : 22, fontWeight: 700
               }}>{getInitials()}</div>
               <div>
-                <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+                <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, margin: 0 }}>
                   {getGreeting()}, {fullName?.split(' ')[0] || 'Usuario'}
                 </h1>
-                <p style={{ fontSize: 13, opacity: 0.85, marginTop: 6 }}>
+                <p style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
                   {getPanelTitle()} — {getPanelDescription()}
                 </p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={handleExportExcel} style={styles.exportBtnExcel} title="Exportar a Excel">
-                <FileSpreadsheet size={16} style={{ marginRight: 6 }} />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={handleExportExcel} style={styles.exportBtnExcel}>
+                <FileSpreadsheet size={isMobile ? 12 : 16} style={{ marginRight: 4 }} />
                 Excel
               </button>
-              <button onClick={handleExportPDF} style={styles.exportBtnPDF} title="Exportar a PDF">
-                <FileText size={16} style={{ marginRight: 6 }} />
+              <button onClick={handleExportPDF} style={styles.exportBtnPDF}>
+                <FileText size={isMobile ? 12 : 16} style={{ marginRight: 4 }} />
                 PDF
               </button>
               {isAdmin && (
-                <button onClick={handleExportStats} style={styles.exportBtnStats} title="Exportar estadísticas">
-                  <BarChart3 size={16} style={{ marginRight: 6 }} />
+                <button onClick={handleExportStats} style={styles.exportBtnStats}>
+                  <BarChart3 size={isMobile ? 12 : 16} style={{ marginRight: 4 }} />
                   Estadísticas
                 </button>
               )}
@@ -768,34 +838,67 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* 👇 NUEVA SECCIÓN: FILTROS DE FECHA Y TÉCNICO (solo admin) */}
+        {/* Filtros solo admin */}
         {isAdmin && !loading && (
           <div style={{ ...cardStyle, marginBottom: 28 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>Fecha desde</label>
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              flexWrap: 'wrap',
+              gap: 12,
+              alignItems: isMobile ? 'stretch' : 'flex-end',
+              width: '100%'
+            }}>
+              {/* Filtro Fecha desde */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: isMobile ? '100%' : 'auto' }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Fecha desde</label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid #d1d5db',
+                    fontSize: 13,
+                    background: '#fff',
+                    width: '100%'
+                  }}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>Fecha hasta</label>
+
+              {/* Filtro Fecha hasta */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: isMobile ? '100%' : 'auto' }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Fecha hasta</label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid #d1d5db',
+                    fontSize: 13,
+                    background: '#fff',
+                    width: '100%'
+                  }}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>Técnico</label>
+
+              {/* Filtro Técnico */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: isMobile ? '100%' : 'auto' }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Técnico</label>
                 <select
                   value={selectedTechnician}
                   onChange={(e) => setSelectedTechnician(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 13, minWidth: 150, background: '#fff' }}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid #d1d5db',
+                    fontSize: 13,
+                    background: '#fff',
+                    width: '100%'
+                  }}
                 >
                   <option value="">Todos los técnicos</option>
                   {technicians.map(tech => (
@@ -803,10 +906,25 @@ function Dashboard() {
                   ))}
                 </select>
               </div>
+
+              {/* Botón Limpiar filtros */}
               {hasFilters && (
                 <button
                   onClick={clearFilters}
-                  style={{ padding: '8px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                  style={{
+                    padding: '8px 14px',
+                    background: '#f3f4f6',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    height: 40,
+                    width: isMobile ? '100%' : 'auto',
+                    marginTop: isMobile ? 0 : 'auto'
+                  }}
                 >
                   <X size={14} />
                   Limpiar filtros
@@ -816,106 +934,100 @@ function Dashboard() {
           </div>
         )}
 
-        {/* Tarjetas de métricas de rendimiento (solo admin) */}
+        {/* Métricas admin */}
         {isAdmin && !loading && stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 28 }}>
+          <div style={gridStyle}>
             <div style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Gauge size={24} color={COLORS.Primario} />
+                <div style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Gauge size={20} color={COLORS.Primario} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.Primario }}>{performance.resolutionRate || 0}%</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Tasa de resolución</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.Primario }}>{performance.resolutionRate || 0}%</div>
+                  <div style={{ fontSize: 10, color: '#6b7280' }}>Tasa de resolución</div>
                 </div>
               </div>
             </div>
-
             <div style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Timer size={24} color={COLORS.Resuelto} />
+                <div style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Timer size={20} color={COLORS.Resuelto} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.Resuelto }}>{performance.slaCompliance || 0}%</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>SLA (&lt;48h)</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.Resuelto }}>{performance.slaCompliance || 0}%</div>
+                  <div style={{ fontSize: 10, color: '#6b7280' }}>SLA (&lt;48h)</div>
                 </div>
               </div>
             </div>
-
             <div style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Users size={24} color={COLORS.EnProceso} />
+                <div style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Users size={20} color={COLORS.EnProceso} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.EnProceso }}>{performance.ticketsPerTechnician}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Tickets por técnico</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.EnProceso }}>{performance.ticketsPerTechnician}</div>
+                  <div style={{ fontSize: 10, color: '#6b7280' }}>Tickets por técnico</div>
                 </div>
               </div>
             </div>
-
             <div style={{ ...cardStyle, borderTop: `3px solid ${performance.overdue > 0 ? COLORS.Vencido : COLORS.Resuelto}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: performance.overdue > 0 ? '#fef2f2' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AlertCircle size={24} color={performance.overdue > 0 ? COLORS.Vencido : COLORS.Cerrado} />
+                <div style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: performance.overdue > 0 ? '#fef2f2' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AlertCircle size={20} color={performance.overdue > 0 ? COLORS.Vencido : COLORS.Cerrado} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: performance.overdue > 0 ? COLORS.Vencido : COLORS.Cerrado }}>{performance.overdue || 0}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Tickets vencidos (&gt;48h)</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: performance.overdue > 0 ? COLORS.Vencido : COLORS.Cerrado }}>{performance.overdue || 0}</div>
+                  <div style={{ fontSize: 10, color: '#6b7280' }}>Tickets vencidos</div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Tarjetas de métricas de rendimiento (solo técnico) */}
+        {/* Métricas técnico */}
         {isTech && !loading && stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 28 }}>
+          <div style={gridStyle}>
             <div style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Watch size={24} color={COLORS.Primario} />
+                <div style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Watch size={20} color={COLORS.Primario} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.Primario }}>{performance.avgResponseTime}h</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Tiempo promedio respuesta</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.Primario }}>{performance.avgResponseTime}h</div>
+                  <div style={{ fontSize: 10, color: '#6b7280' }}>Respuesta promedio</div>
                 </div>
               </div>
             </div>
-
             <div style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Target size={24} color={COLORS.Resuelto} />
+                <div style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Target size={20} color={COLORS.Resuelto} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.Resuelto }}>{performance.avgResolutionTime}h</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Tiempo promedio resolución</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.Resuelto }}>{performance.avgResolutionTime}h</div>
+                  <div style={{ fontSize: 10, color: '#6b7280' }}>Resolución promedio</div>
                 </div>
               </div>
             </div>
-
             <div style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Award size={24} color={COLORS.EnProceso} />
+                <div style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Award size={20} color={COLORS.EnProceso} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.EnProceso }}>{performance.efficiency}%</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Eficiencia (cerrados/asignados)</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.EnProceso }}>{performance.efficiency}%</div>
+                  <div style={{ fontSize: 10, color: '#6b7280' }}>Eficiencia</div>
                 </div>
               </div>
             </div>
-
             <div style={{ ...cardStyle, borderTop: `3px solid ${performance.overdue > 0 ? COLORS.Vencido : COLORS.Resuelto}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: performance.overdue > 0 ? '#fef2f2' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AlertCircle size={24} color={performance.overdue > 0 ? COLORS.Vencido : COLORS.Cerrado} />
+                <div style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: performance.overdue > 0 ? '#fef2f2' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AlertCircle size={20} color={performance.overdue > 0 ? COLORS.Vencido : COLORS.Cerrado} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: performance.overdue > 0 ? COLORS.Vencido : COLORS.Cerrado }}>{performance.overdue}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Tickets vencidos (&gt;48h)</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: performance.overdue > 0 ? COLORS.Vencido : COLORS.Cerrado }}>{performance.overdue}</div>
+                  <div style={{ fontSize: 10, color: '#6b7280' }}>Tickets vencidos</div>
                 </div>
               </div>
             </div>
@@ -924,27 +1036,27 @@ function Dashboard() {
 
         {/* Tarjetas de estadísticas generales */}
         {!loading && stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 20, marginBottom: 28 }}>
+          <div style={gridStyle}>
             {getStatCards()}
           </div>
         )}
 
         {/* GRÁFICOS */}
         {!loading && stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 20, marginBottom: 28 }}>
+          <div style={chartGridStyle}>
 
             {/* Gráfico de Barras - Tickets por mes */}
             <div style={cardStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                <BarChart3 size={18} color={COLORS.Primario} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Tickets por mes</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                <BarChart3 size={16} color={COLORS.Primario} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Tickets por mes</span>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={getBarChartData()}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
-                  <YAxis stroke="#6b7280" fontSize={12} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <XAxis dataKey="name" stroke="#6b7280" fontSize={10} tick={{ fontSize: 10 }} />
+                  <YAxis stroke="#6b7280" fontSize={10} />
+                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                   <Bar dataKey="tickets" fill={COLORS.Primario} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -953,29 +1065,29 @@ function Dashboard() {
             {/* Gráfico de Pastel - Distribución por estado */}
             {getPieChartData().length > 0 && (
               <div style={cardStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                  <PieChartIcon size={18} color={COLORS.Primario} />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Distribución por estado</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <PieChartIcon size={16} color={COLORS.Primario} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Distribución por estado</span>
                 </div>
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie
                       data={getPieChartData()}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
+                      innerRadius={isMobile ? 40 : 60}
+                      outerRadius={isMobile ? 60 : 90}
                       paddingAngle={3}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={false}
+                      label={({ name, percent }) => isMobile ? `${(percent * 100).toFixed(0)}%` : `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={!isMobile}
                     >
                       {getPieChartData().map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip />
-                    <Legend verticalAlign="bottom" height={36} />
+                    {!isMobile && <Legend verticalAlign="bottom" height={36} />}
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -985,19 +1097,17 @@ function Dashboard() {
 
         {/* Gráficos específicos para técnico */}
         {isTech && !loading && stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 20, marginBottom: 28 }}>
-
-            {/* Tendencia de cierres semanal */}
+          <div style={chartGridStyle}>
             <div style={cardStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                <Activity size={18} color={COLORS.Primario} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Tendencia semanal</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <Activity size={16} color={COLORS.Primario} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Tendencia semanal</span>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={weeklyTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="day" stroke="#6b7280" fontSize={12} />
-                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <XAxis dataKey="day" stroke="#6b7280" fontSize={10} />
+                  <YAxis stroke="#6b7280" fontSize={10} />
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="creados" fill={COLORS.Primario} radius={[4, 4, 0, 0]} name="Creados" />
@@ -1006,32 +1116,30 @@ function Dashboard() {
               </ResponsiveContainer>
             </div>
 
-            {/* Distribución por prioridad */}
             {ticketsByPriority.length > 0 && (
               <div style={cardStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                  <ListChecks size={18} color={COLORS.Primario} />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Distribución por prioridad</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <ListChecks size={16} color={COLORS.Primario} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Distribución por prioridad</span>
                 </div>
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie
                       data={ticketsByPriority}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
+                      innerRadius={isMobile ? 40 : 60}
+                      outerRadius={isMobile ? 60 : 90}
                       paddingAngle={3}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={false}
+                      label={({ name, percent }) => isMobile ? `${(percent * 100).toFixed(0)}%` : `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={!isMobile}
                     >
                       {ticketsByPriority.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip />
-                    <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -1041,20 +1149,18 @@ function Dashboard() {
 
         {/* Gráficos específicos para admin */}
         {isAdmin && !loading && stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 20, marginBottom: 28 }}>
-
-            {/* Tickets por técnico */}
+          <div style={chartGridStyle}>
             {ticketsByTechnician.length > 0 && (
               <div style={cardStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                  <Users size={18} color={COLORS.Primario} />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Tickets por técnico (Top 5)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <Users size={16} color={COLORS.Primario} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Tickets por técnico</span>
                 </div>
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={ticketsByTechnician} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" stroke="#6b7280" fontSize={12} />
-                    <YAxis type="category" dataKey="name" stroke="#6b7280" fontSize={11} width={80} />
+                    <XAxis type="number" stroke="#6b7280" fontSize={10} />
+                    <YAxis type="category" dataKey="name" stroke="#6b7280" fontSize={10} width={isMobile ? 60 : 80} />
                     <Tooltip />
                     <Bar dataKey="tickets" fill={COLORS.Primario} radius={[0, 4, 4, 0]} />
                   </BarChart>
@@ -1062,17 +1168,16 @@ function Dashboard() {
               </div>
             )}
 
-            {/* Tendencia de resolución mensual */}
             <div style={cardStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                <AreaChart size={18} color={COLORS.Primario} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Tendencia de resolución (últimos 6 meses)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <AreaChart size={16} color={COLORS.Primario} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Tendencia de resolución</span>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={getMonthlyTrendData()}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <XAxis dataKey="month" stroke="#6b7280" fontSize={10} />
+                  <YAxis stroke="#6b7280" fontSize={10} />
                   <Tooltip />
                   <Legend />
                   <Area type="monotone" dataKey="creados" stackId="1" stroke={COLORS.Primario} fill={COLORS.PrimarioLight} name="Creados" />
@@ -1083,18 +1188,18 @@ function Dashboard() {
           </div>
         )}
 
-        {/* Tendencia mensual (solo técnico) */}
+        {/* Tendencia mensual (técnico) */}
         {isTech && !loading && (
           <div style={{ ...cardStyle, marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <AreaChart size={18} color={COLORS.Primario} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Tendencia mensual (últimos 6 meses)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <AreaChart size={16} color={COLORS.Primario} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Tendencia mensual</span>
             </div>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={getMonthlyTrendData()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                <YAxis stroke="#6b7280" fontSize={12} />
+                <XAxis dataKey="month" stroke="#6b7280" fontSize={10} />
+                <YAxis stroke="#6b7280" fontSize={10} />
                 <Tooltip />
                 <Legend />
                 <Area type="monotone" dataKey="creados" stackId="1" stroke={COLORS.Primario} fill={COLORS.PrimarioLight} name="Creados" />
@@ -1105,9 +1210,9 @@ function Dashboard() {
         )}
 
         {/* Buscador */}
-        <div style={{ ...cardStyle, marginBottom: 28, padding: '16px 24px' }}>
-          <div style={{ position: 'relative', width: '100%', maxWidth: 450 }}>
-            <Search size={18} color="#9ca3af" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <div style={{ ...cardStyle, marginBottom: 28, padding: isMobile ? '12px 16px' : '16px 24px' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: isMobile ? '100%' : 450 }}>
+            <Search size={16} color="#9ca3af" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             <input
               type="text"
               placeholder="Buscar por número, título o estado..."
@@ -1115,15 +1220,13 @@ function Dashboard() {
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 width: '100%',
-                padding: '12px 20px 12px 44px',
+                padding: isMobile ? '10px 16px 10px 40px' : '12px 20px 12px 44px',
                 fontSize: 13,
                 border: '1px solid #e4e7eb',
                 borderRadius: 40,
                 outline: 'none',
                 backgroundColor: '#f9fafb',
               }}
-              onFocus={(e) => e.target.style.borderColor = COLORS.Primario}
-              onBlur={(e) => e.target.style.borderColor = '#e4e7eb'}
             />
           </div>
         </div>
@@ -1131,28 +1234,28 @@ function Dashboard() {
         {/* Tabla de tickets recientes */}
         {!loading && filteredTickets.length > 0 && (
           <div style={{ ...cardStyle, marginBottom: 28, padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e4e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <LayoutDashboard size={20} color={COLORS.Primario} />
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>
-                  {isTech ? 'Mis tickets asignados' : isAdmin ? 'Tickets recientes del sistema' : 'Mis tickets recientes'}
+            <div style={{ padding: isMobile ? '12px 16px' : '20px 24px', borderBottom: '1px solid #e4e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <LayoutDashboard size={isMobile ? 16 : 20} color={COLORS.Primario} />
+                <h3 style={{ fontSize: isMobile ? 14 : 16, fontWeight: 600, color: '#1a1a2e', margin: 0 }}>
+                  {isTech ? 'Mis tickets asignados' : isAdmin ? 'Tickets recientes' : 'Mis tickets recientes'}
                 </h3>
               </div>
-              <button style={{ background: 'none', border: 'none', color: COLORS.Primario, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+              <button style={{ background: 'none', border: 'none', color: COLORS.Primario, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
                 onClick={() => navigate(isTech ? '/tecnico/panel' : isAdmin ? '/admin/tickets' : '/tickets')}>
-                Ver todos <ChevronRight size={14} />
+                Ver todos <ChevronRight size={12} />
               </button>
             </div>
 
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 500 : 'auto' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #edf2f7', background: '#f9fafb' }}>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>N° Ticket</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Título</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Estado</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Prioridad</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Fecha</th>
+                    <th style={{ padding: isMobile ? '8px 12px' : '14px 20px', textAlign: 'left', fontSize: 10, fontWeight: 600, color: '#6b7280' }}>N° Ticket</th>
+                    <th style={{ padding: isMobile ? '8px 12px' : '14px 20px', textAlign: 'left', fontSize: 10, fontWeight: 600, color: '#6b7280' }}>Título</th>
+                    <th style={{ padding: isMobile ? '8px 12px' : '14px 20px', textAlign: 'left', fontSize: 10, fontWeight: 600, color: '#6b7280' }}>Estado</th>
+                    <th style={{ padding: isMobile ? '8px 12px' : '14px 20px', textAlign: 'left', fontSize: 10, fontWeight: 600, color: '#6b7280' }}>Prioridad</th>
+                    <th style={{ padding: isMobile ? '8px 12px' : '14px 20px', textAlign: 'left', fontSize: 10, fontWeight: 600, color: '#6b7280' }}>Fecha</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1161,20 +1264,20 @@ function Dashboard() {
                       onClick={() => navigate(isTech ? `/tecnico/ticket/${t.id}` : `/tickets/${t.id}`)}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                      <td style={{ padding: '14px 20px', fontSize: 13 }}><span style={{ fontWeight: 700, color: COLORS.Primario, fontFamily: 'monospace' }}>{t.ticketNumber}</span></td>
-                      <td style={{ padding: '14px 20px', fontSize: 13 }}>{t.title}</td>
-                      <td style={{ padding: '14px 20px', fontSize: 13 }}>
+                      <td style={{ padding: isMobile ? '8px 12px' : '14px 20px', fontSize: 11 }}><span style={{ fontWeight: 700, color: COLORS.Primario, fontFamily: 'monospace' }}>{t.ticketNumber}</span></td>
+                      <td style={{ padding: isMobile ? '8px 12px' : '14px 20px', fontSize: 12, maxWidth: isMobile ? 150 : 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</td>
+                      <td style={{ padding: isMobile ? '8px 12px' : '14px 20px', fontSize: 11 }}>
                         <span style={{
-                          padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                          padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600,
                           backgroundColor: getStatusBgColor(t.status),
                           color: getStatusColor(t.status)
                         }}>{t.status}</span>
                       </td>
-                      <td style={{ padding: '14px 20px', fontSize: 13 }}>
+                      <td style={{ padding: isMobile ? '8px 12px' : '14px 20px', fontSize: 11 }}>
                         <span style={getPriorityStyle(t.priority)}>{t.priority}</span>
                       </td>
-                      <td style={{ padding: '14px 20px', fontSize: 12, color: '#6b7280' }}>
-                        <Calendar size={12} style={{ marginRight: 4, opacity: 0.6, display: 'inline' }} />
+                      <td style={{ padding: isMobile ? '8px 12px' : '14px 20px', fontSize: 11, color: '#6b7280' }}>
+                        <Calendar size={10} style={{ marginRight: 2, opacity: 0.6, display: 'inline' }} />
                         {formatDate(t.createdAt)}
                       </td>
                     </tr>
@@ -1187,29 +1290,29 @@ function Dashboard() {
 
         {/* Accesos rápidos según rol */}
         <div>
-          <h4 style={{ fontSize: 14, fontWeight: 600, color: '#6b7280', marginBottom: 16, letterSpacing: 0.5 }}>Accesos rápidos</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 16, letterSpacing: 0.5 }}>Accesos rápidos</h4>
+          <div style={quickLinksGridStyle}>
             {!isAdmin && !isTech && (
               <>
-                <QuickCard icon={<Ticket size={28} />} title="Mis Tickets" desc="Ver estado de tus solicitudes" onClick={() => navigate('/tickets')} />
-                <QuickCard icon={<Plus size={28} />} title="Nuevo Ticket" desc="Reportar un nuevo problema" onClick={() => navigate('/crear-ticket')} />
-                <QuickCard icon={<BookOpen size={28} />} title="Base de Conocimiento" desc="Buscar soluciones documentadas" onClick={() => navigate('/conocimiento')} />
+                <QuickCard icon={<Ticket size={isMobile ? 24 : 28} />} title="Mis Tickets" desc="Ver estado de tus solicitudes" onClick={() => navigate('/tickets')} isMobile={isMobile} />
+                <QuickCard icon={<Plus size={isMobile ? 24 : 28} />} title="Nuevo Ticket" desc="Reportar un nuevo problema" onClick={() => navigate('/crear-ticket')} isMobile={isMobile} />
+                <QuickCard icon={<BookOpen size={isMobile ? 24 : 28} />} title="Base de Conocimiento" desc="Buscar soluciones documentadas" onClick={() => navigate('/conocimiento')} isMobile={isMobile} />
               </>
             )}
             {isTech && (
               <>
-                <QuickCard icon={<Inbox size={28} />} title="Bandeja" desc="Ver tickets disponibles" onClick={() => navigate('/tecnico/panel')} />
-                <QuickCard icon={<BookOpen size={28} />} title="Conocimiento" desc="Consultar soluciones" onClick={() => navigate('/conocimiento')} />
-                <QuickCard icon={<BarChart3 size={28} />} title="Mi Rendimiento" desc="Ver métricas detalladas" onClick={() => navigate('/tecnico/rendimiento')} />
+                <QuickCard icon={<Inbox size={isMobile ? 24 : 28} />} title="Bandeja" desc="Ver tickets disponibles" onClick={() => navigate('/tecnico/panel')} isMobile={isMobile} />
+                <QuickCard icon={<BookOpen size={isMobile ? 24 : 28} />} title="Conocimiento" desc="Consultar soluciones" onClick={() => navigate('/conocimiento')} isMobile={isMobile} />
+                <QuickCard icon={<BarChart3 size={isMobile ? 24 : 28} />} title="Mi Rendimiento" desc="Ver métricas detalladas" onClick={() => navigate('/tecnico/rendimiento')} isMobile={isMobile} />
               </>
             )}
             {isAdmin && (
               <>
-                <QuickCard icon={<Users size={28} />} title="Usuarios" desc="Gestionar usuarios" onClick={() => navigate('/admin/usuarios')} />
-                <QuickCard icon={<FolderKanban size={28} />} title="Tickets" desc="Ver todos los tickets" onClick={() => navigate('/admin/tickets')} />
-                <QuickCard icon={<UserCheck size={28} />} title="Asignaciones" desc="Asignar técnicos" onClick={() => navigate('/admin/asignaciones')} />
-                <QuickCard icon={<BookOpen size={28} />} title="Conocimiento" desc="Buscar soluciones" onClick={() => navigate('/conocimiento')} />
-                <QuickCard icon={<BarChart3 size={28} />} title="Reportes" desc="Ver reportes detallados" onClick={() => navigate('/admin/reportes')} />
+                <QuickCard icon={<Users size={isMobile ? 24 : 28} />} title="Usuarios" desc="Gestionar usuarios" onClick={() => navigate('/admin/usuarios')} isMobile={isMobile} />
+                <QuickCard icon={<FolderKanban size={isMobile ? 24 : 28} />} title="Tickets" desc="Ver todos los tickets" onClick={() => navigate('/admin/tickets')} isMobile={isMobile} />
+                <QuickCard icon={<UserCheck size={isMobile ? 24 : 28} />} title="Asignaciones" desc="Asignar técnicos" onClick={() => navigate('/admin/asignaciones')} isMobile={isMobile} />
+                <QuickCard icon={<BookOpen size={isMobile ? 24 : 28} />} title="Conocimiento" desc="Buscar soluciones" onClick={() => navigate('/conocimiento')} isMobile={isMobile} />
+                <QuickCard icon={<BarChart3 size={isMobile ? 24 : 28} />} title="Reportes" desc="Ver reportes detallados" onClick={() => navigate('/admin/reportes')} isMobile={isMobile} />
               </>
             )}
           </div>
@@ -1220,13 +1323,13 @@ function Dashboard() {
 }
 
 // Componente QuickCard
-function QuickCard({ icon, title, desc, onClick }) {
+function QuickCard({ icon, title, desc, onClick, isMobile }) {
   return (
     <button style={{
       background: '#fff',
       border: '1px solid #e4e7eb',
       borderRadius: 20,
-      padding: '24px 20px',
+      padding: isMobile ? '16px 12px' : '24px 20px',
       textAlign: 'center',
       cursor: 'pointer',
       transition: 'all 0.2s ease',
@@ -1235,54 +1338,11 @@ function QuickCard({ icon, title, desc, onClick }) {
       onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
       onClick={onClick}>
-      <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2d6a9f' }}>{icon}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a2e', marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 12, color: '#9ca3af' }}>{desc}</div>
+      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2d6a9f' }}>{icon}</div>
+      <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 600, color: '#1a1a2e', marginBottom: 4 }}>{title}</div>
+      <div style={{ fontSize: 10, color: '#9ca3af' }}>{desc}</div>
     </button>
   );
 }
-
-// Estilos para botones de exportación
-const styles = {
-  exportBtnExcel: {
-    background: '#fff',
-    border: '1px solid #10b981',
-    color: '#10b981',
-    padding: '10px 18px',
-    borderRadius: 12,
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'all 0.2s',
-  },
-  exportBtnPDF: {
-    background: '#fff',
-    border: '1px solid #ef4444',
-    color: '#ef4444',
-    padding: '10px 18px',
-    borderRadius: 12,
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'all 0.2s',
-  },
-  exportBtnStats: {
-    background: '#fff',
-    border: '1px solid #f59e0b',
-    color: '#f59e0b',
-    padding: '10px 18px',
-    borderRadius: 12,
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'all 0.2s',
-  },
-};
 
 export default Dashboard;

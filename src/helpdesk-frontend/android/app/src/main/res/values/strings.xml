@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HelpDesk</string>
+    <string name="title_activity_main">HelpDesk</string>
+    <string name="package_name">com.fisei.helpdesk</string>
+    <string name="custom_url_scheme">com.fisei.helpdesk</string>
+</resources>

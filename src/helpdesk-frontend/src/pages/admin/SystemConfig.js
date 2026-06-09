@@ -14,6 +14,7 @@ function SystemConfig() {
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('tiempos');
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
     // Estados por sección
     const [timeConfigs, setTimeConfigs] = useState([]);
@@ -35,6 +36,12 @@ function SystemConfig() {
         includeMonth: false,
         digits: 6
     });
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Cargar toda la configuración
     useEffect(() => {
@@ -86,7 +93,6 @@ function SystemConfig() {
     const loadDamageCatalog = async () => {
         try {
             const res = await catalogAPI.get('/damagecatalog');
-            // Filtrar solo los activos
             const activeDamages = res.data.filter(d => d.isActive === true);
             setDamageTypes(activeDamages);
         } catch (err) {
@@ -98,7 +104,6 @@ function SystemConfig() {
     const loadServiceCatalog = async () => {
         try {
             const res = await catalogAPI.get('/servicecatalog');
-            // Filtrar solo los activos
             const activeServices = res.data.filter(s => s.isActive === true);
             setServiceTypes(activeServices);
         } catch (err) {
@@ -116,19 +121,16 @@ function SystemConfig() {
         }
     };
 
-    // Handlers para tiempos
     const updateTimeConfig = (level, field, value) => {
         setTimeConfigs(prev => prev.map(c =>
             c.level === level ? { ...c, [field]: parseInt(value) || 0 } : c
         ));
     };
 
-    // Handlers para configuración general
     const toggleGeneralConfig = (key) => {
         setGeneralConfig(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
-    // Agregar tipo de daño
     const addDamageType = async () => {
         if (!newDamage.trim()) return;
         try {
@@ -137,9 +139,8 @@ function SystemConfig() {
                 code: newDamage.substring(0, 3).toUpperCase(),
                 description: `Tipo de daño: ${newDamage.trim()}`
             };
-
             await catalogAPI.post('/damagecatalog', damageData);
-            await loadDamageCatalog(); // Recargar la lista
+            await loadDamageCatalog();
             setNewDamage('');
             showSuccess('Tipo de daño agregado correctamente');
         } catch (err) {
@@ -148,12 +149,11 @@ function SystemConfig() {
         }
     };
 
-    // Eliminar tipo de daño
     const deleteDamageType = async (id) => {
         if (!window.confirm('¿Eliminar este tipo de daño?')) return;
         try {
             await catalogAPI.delete(`/damagecatalog/${id}`);
-            await loadDamageCatalog(); // Recargar la lista
+            await loadDamageCatalog();
             showSuccess('Tipo de daño eliminado');
         } catch (err) {
             console.error('Error al eliminar:', err);
@@ -161,16 +161,13 @@ function SystemConfig() {
         }
     };
 
-    // Agregar tipo de servicio
     const addServiceType = async () => {
         if (!newService.trim()) return;
         try {
-            // Obtener el primer ID de daño disponible
             let defaultDamageId = 1;
             if (damageTypes.length > 0) {
                 defaultDamageId = damageTypes[0].id;
             }
-
             const serviceData = {
                 name: newService.trim(),
                 description: `Tipo de servicio: ${newService.trim()}`,
@@ -180,9 +177,8 @@ function SystemConfig() {
                 damageCatalogId: defaultDamageId,
                 isActive: true
             };
-
             await catalogAPI.post('/servicecatalog', serviceData);
-            await loadServiceCatalog(); // Recargar la lista
+            await loadServiceCatalog();
             setNewService('');
             showSuccess('Tipo de servicio agregado correctamente');
         } catch (err) {
@@ -191,12 +187,11 @@ function SystemConfig() {
         }
     };
 
-    // Eliminar tipo de servicio
     const deleteServiceType = async (id) => {
         if (!window.confirm('¿Eliminar este tipo de servicio?')) return;
         try {
             await catalogAPI.delete(`/servicecatalog/${id}`);
-            await loadServiceCatalog(); // Recargar la lista
+            await loadServiceCatalog();
             showSuccess('Tipo de servicio eliminado');
         } catch (err) {
             console.error('Error al eliminar servicio:', err);
@@ -204,22 +199,15 @@ function SystemConfig() {
         }
     };
 
-    // Guardar todo
     const handleSaveAll = async () => {
         setSaving(true);
         setError('');
         setSuccess('');
 
         try {
-            // Guardar tiempos por nivel
             await authAPI.put('/configuration/levels', { configs: timeConfigs });
-
-            // Guardar configuración general
             await authAPI.put('/configuration/general', generalConfig);
-
-            // Guardar formato de ticket
             await authAPI.put('/configuration/ticket-format', ticketFormat);
-
             showSuccess('Toda la configuración ha sido guardada correctamente');
         } catch (err) {
             console.error('Error guardando:', err);
@@ -234,115 +222,82 @@ function SystemConfig() {
         setTimeout(() => setSuccess(''), 3000);
     };
 
-    // Estilos
-    const cardStyle = {
-        background: '#fff',
-        borderRadius: 20,
-        border: '1px solid #e4e7eb',
-        padding: '24px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        marginBottom: 24
-    };
-
     const tabs = [
-        { id: 'tiempos', label: ' Tiempos SLA', icon: Clock },
-        { id: 'general', label: ' General', icon: Settings },
-        { id: 'catalogos', label: ' Catálogos', icon: BookOpen },
-        { id: 'ticket', label: 'Formato Ticket', icon: Tag }
+        { id: 'tiempos', label: isMobile ? 'SLA' : ' Tiempos SLA', icon: Clock },
+        { id: 'general', label: isMobile ? 'General' : 'General', icon: Settings },
+        { id: 'catalogos', label: isMobile ? 'Catálogos' : 'Catálogos', icon: BookOpen },
+        { id: 'ticket', label: isMobile ? 'Formato' : 'Formato Ticket', icon: Tag }
     ];
 
     return (
         <Layout>
-            <div className="config-container" style={{ backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
-
+            <div className="system-config-page">
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <div className="system-config-header">
                     <div>
-                        <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: 0, display: 'flex', alignItems: 'center' }}>
-                            <Settings size={28} style={{ marginRight: 12, color: '#2d6a9f' }} />
-                            Configuración General del Sistema
+                        <h1 className="system-config-title">
+                            <Settings size={isMobile ? 24 : 28} />
+                            Configuración General
                         </h1>
-                        <p style={{ fontSize: 13, color: '#6b7280', marginTop: 8 }}>
+                        <p className="system-config-subtitle">
                             Gestiona parámetros globales: tiempos SLA, catálogos, formatos y más
                         </p>
                     </div>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                        <button
-                            onClick={loadAllConfigs}
-                            style={{ background: '#fff', border: '1px solid #d1d5db', borderRadius: 12, padding: '10px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                        >
-                            <RefreshCw size={16} />
-                            Actualizar todo
-                        </button>
-                    </div>
+                    <button className="system-config-refresh-btn" onClick={loadAllConfigs}>
+                        <RefreshCw size={16} />
+                        Actualizar
+                    </button>
                 </div>
 
                 {/* Alertas */}
                 {success && (
-                    <div style={{ backgroundColor: '#ecfdf5', color: '#10b981', padding: 14, borderRadius: 12, marginBottom: 20, display: 'flex', alignItems: 'center' }}>
-                        <CheckCircle size={18} style={{ marginRight: 10 }} />
+                    <div className="system-config-success">
+                        <CheckCircle size={18} />
                         {success}
                     </div>
                 )}
                 {error && (
-                    <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: 14, borderRadius: 12, marginBottom: 20, display: 'flex', alignItems: 'center' }}>
-                        <AlertCircle size={18} style={{ marginRight: 10 }} />
+                    <div className="system-config-error">
+                        <AlertCircle size={18} />
                         {error}
                     </div>
                 )}
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e4e7eb', paddingBottom: 0 }}>
+                <div className="system-config-tabs">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
+                            className={`system-config-tab ${activeTab === tab.id ? 'system-config-tab-active' : ''}`}
                             onClick={() => setActiveTab(tab.id)}
-                            style={{
-                                padding: '12px 24px',
-                                background: activeTab === tab.id ? '#2d6a9f' : 'transparent',
-                                color: activeTab === tab.id ? '#fff' : '#6b7280',
-                                border: 'none',
-                                borderRadius: '12px 12px 0 0',
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                fontWeight: 500,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                transition: 'all 0.2s'
-                            }}
                         >
-                            <tab.icon size={16} />
+                            <tab.icon size={isMobile ? 14 : 16} />
                             {tab.label}
                         </button>
                     ))}
                 </div>
 
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: 60 }}>Cargando configuración del sistema...</div>
+                    <div className="system-config-loading">Cargando configuración del sistema...</div>
                 ) : (
                     <>
                         {/* TAB: Tiempos SLA */}
                         {activeTab === 'tiempos' && (
-                            <div className="responsive-grid">
+                            <div className="system-config-grid">
                                 {timeConfigs.map(config => (
-                                    <div key={config.level} style={cardStyle}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                                            <div style={{
-                                                width: 48, height: 48, borderRadius: 16,
-                                                background: config.level === 1 ? '#eef2ff' : config.level === 2 ? '#ecfdf5' : '#fffbeb',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}>
-                                                <span style={{ fontSize: 20, fontWeight: 700, color: '#2d6a9f' }}>N{config.level}</span>
+                                    <div key={config.level} className="system-config-card">
+                                        <div className="system-config-card-header">
+                                            <div className={`system-config-level-icon system-config-level-${config.level}`}>
+                                                <span>N{config.level}</span>
                                             </div>
                                             <div>
-                                                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1a1a2e', margin: 0 }}>{config.levelName}</h3>
-                                                <p style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Nivel {config.level} de soporte</p>
+                                                <h3 className="system-config-card-title">{config.levelName}</h3>
+                                                <p className="system-config-card-subtitle">Nivel {config.level}</p>
                                             </div>
                                         </div>
 
-                                        <div style={{ marginBottom: 16 }}>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                                        <div className="system-config-field">
+                                            <label className="system-config-label">
                                                 <Clock size={14} />
                                                 Tiempo de respuesta (horas)
                                             </label>
@@ -350,14 +305,14 @@ function SystemConfig() {
                                                 type="number"
                                                 min={1}
                                                 max={168}
+                                                className="system-config-input"
                                                 value={config.responseHours}
                                                 onChange={(e) => updateTimeConfig(config.level, 'responseHours', e.target.value)}
-                                                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }}
                                             />
                                         </div>
 
-                                        <div>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                                        <div className="system-config-field">
+                                            <label className="system-config-label">
                                                 <Target size={14} />
                                                 Tiempo de resolución (horas)
                                             </label>
@@ -365,9 +320,9 @@ function SystemConfig() {
                                                 type="number"
                                                 min={1}
                                                 max={720}
+                                                className="system-config-input"
                                                 value={config.resolutionHours}
                                                 onChange={(e) => updateTimeConfig(config.level, 'resolutionHours', e.target.value)}
-                                                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }}
                                             />
                                         </div>
                                     </div>
@@ -377,47 +332,47 @@ function SystemConfig() {
 
                         {/* TAB: Configuración General */}
                         {activeTab === 'general' && (
-                            <div style={cardStyle}>
-                                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Parámetros del sistema</h3>
-                                <div className="responsive-grid">
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: '#f9fafb', borderRadius: 12 }}>
+                            <div className="system-config-card">
+                                <h3 className="system-config-section-title">Parámetros del sistema</h3>
+                                <div className="system-config-checkbox-grid">
+                                    <div className="system-config-checkbox-item">
                                         <Bell size={20} color="#2d6a9f" />
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                                        <label>
                                             <input type="checkbox" checked={generalConfig.notificacionesRealtime} onChange={() => toggleGeneralConfig('notificacionesRealtime')} />
                                             Notificaciones en tiempo real
                                         </label>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: '#f9fafb', borderRadius: 12 }}>
+                                    <div className="system-config-checkbox-item">
                                         <Zap size={20} color="#2d6a9f" />
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                                        <label>
                                             <input type="checkbox" checked={generalConfig.asignacionAutomatica} onChange={() => toggleGeneralConfig('asignacionAutomatica')} />
                                             Asignación automática
                                         </label>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: '#f9fafb', borderRadius: 12 }}>
+                                    <div className="system-config-checkbox-item">
                                         <Mail size={20} color="#2d6a9f" />
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                                        <label>
                                             <input type="checkbox" checked={generalConfig.alertasCorreo} onChange={() => toggleGeneralConfig('alertasCorreo')} />
                                             Alertas por correo
                                         </label>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: '#f9fafb', borderRadius: 12 }}>
+                                    <div className="system-config-checkbox-item">
                                         <Server size={20} color="#2d6a9f" />
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                                        <label>
                                             <input type="checkbox" checked={generalConfig.controlSLA} onChange={() => toggleGeneralConfig('controlSLA')} />
                                             Control de SLA
                                         </label>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: '#f9fafb', borderRadius: 12 }}>
+                                    <div className="system-config-checkbox-item">
                                         <Shield size={20} color="#2d6a9f" />
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                                        <label>
                                             <input type="checkbox" checked={generalConfig.twoFactorAuth} onChange={() => toggleGeneralConfig('twoFactorAuth')} />
                                             Autenticación de dos factores (2FA)
                                         </label>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: '#f9fafb', borderRadius: 12 }}>
+                                    <div className="system-config-checkbox-item">
                                         <Database size={20} color="#2d6a9f" />
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                                        <label>
                                             <input type="checkbox" checked={generalConfig.modoMantenimiento} onChange={() => toggleGeneralConfig('modoMantenimiento')} />
                                             Modo mantenimiento
                                         </label>
@@ -426,37 +381,38 @@ function SystemConfig() {
                             </div>
                         )}
 
+                        {/* TAB: Catálogos */}
                         {activeTab === 'catalogos' && (
-                            <div className="responsive-grid">
+                            <div className="system-config-catalog-grid">
                                 {/* Catálogo de Daños */}
-                                <div style={cardStyle}>
-                                    <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div className="system-config-card">
+                                    <h3 className="system-config-section-title">
                                         <Wrench size={20} /> Tipos de Daño
                                     </h3>
-                                    <div style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+                                    <div className="system-config-add-form">
                                         <input
                                             type="text"
                                             value={newDamage}
                                             onChange={(e) => setNewDamage(e.target.value)}
                                             placeholder="Nuevo tipo de daño..."
-                                            style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}
+                                            className="system-config-input"
                                         />
-                                        <button onClick={addDamageType} style={{ background: '#2d6a9f', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer' }}>
+                                        <button onClick={addDamageType} className="system-config-add-btn">
                                             <Plus size={16} />
                                         </button>
                                     </div>
                                     {damageTypes.length === 0 ? (
-                                        <p style={{ textAlign: 'center', color: '#6b7280', padding: 20 }}>No hay tipos de daño registrados</p>
+                                        <p className="system-config-empty">No hay tipos de daño registrados</p>
                                     ) : (
-                                        <ul style={{ listStyle: 'none', padding: 0 }}>
+                                        <ul className="system-config-list">
                                             {damageTypes.map(damage => (
-                                                <li key={damage.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e4e7eb' }}>
+                                                <li key={damage.id} className="system-config-list-item">
                                                     <span>
                                                         <strong>{damage.name}</strong>
-                                                        {damage.code && <small style={{ color: '#6b7280', marginLeft: 8 }}>({damage.code})</small>}
-                                                        {damage.description && <small style={{ color: '#9ca3af', marginLeft: 8, fontSize: 11 }}>{damage.description}</small>}
+                                                        {damage.code && <small>({damage.code})</small>}
+                                                        {damage.description && <small className="system-config-desc">{damage.description}</small>}
                                                     </span>
-                                                    <button onClick={() => deleteDamageType(damage.id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>
+                                                    <button onClick={() => deleteDamageType(damage.id)} className="system-config-delete-btn">
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </li>
@@ -466,34 +422,34 @@ function SystemConfig() {
                                 </div>
 
                                 {/* Catálogo de Servicios */}
-                                <div style={cardStyle}>
-                                    <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div className="system-config-card">
+                                    <h3 className="system-config-section-title">
                                         <FileText size={20} /> Tipos de Servicio
                                     </h3>
-                                    <div style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+                                    <div className="system-config-add-form">
                                         <input
                                             type="text"
                                             value={newService}
                                             onChange={(e) => setNewService(e.target.value)}
                                             placeholder="Nuevo tipo de servicio..."
-                                            style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}
+                                            className="system-config-input"
                                         />
-                                        <button onClick={addServiceType} style={{ background: '#2d6a9f', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer' }}>
+                                        <button onClick={addServiceType} className="system-config-add-btn">
                                             <Plus size={16} />
                                         </button>
                                     </div>
                                     {serviceTypes.length === 0 ? (
-                                        <p style={{ textAlign: 'center', color: '#6b7280', padding: 20 }}>No hay tipos de servicio registrados</p>
+                                        <p className="system-config-empty">No hay tipos de servicio registrados</p>
                                     ) : (
-                                        <ul style={{ listStyle: 'none', padding: 0 }}>
+                                        <ul className="system-config-list">
                                             {serviceTypes.map(service => (
-                                                <li key={service.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e4e7eb' }}>
+                                                <li key={service.id} className="system-config-list-item">
                                                     <span>
                                                         <strong>{service.name}</strong>
-                                                        {service.category && <small style={{ color: '#6b7280', marginLeft: 8 }}>({service.category})</small>}
-                                                        {service.description && <small style={{ color: '#9ca3af', marginLeft: 8, fontSize: 11 }}>{service.description}</small>}
+                                                        {service.category && <small>({service.category})</small>}
+                                                        {service.description && <small className="system-config-desc">{service.description}</small>}
                                                     </span>
-                                                    <button onClick={() => deleteServiceType(service.id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>
+                                                    <button onClick={() => deleteServiceType(service.id)} className="system-config-delete-btn">
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </li>
@@ -506,85 +462,495 @@ function SystemConfig() {
 
                         {/* TAB: Formato Ticket */}
                         {activeTab === 'ticket' && (
-                            <div style={cardStyle}>
-                                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Formato automático de tickets</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Prefijo</label>
+                            <div className="system-config-card">
+                                <h3 className="system-config-section-title">Formato automático de tickets</h3>
+                                <div className="system-config-ticket-form">
+                                    <div className="system-config-field">
+                                        <label className="system-config-label">Prefijo</label>
                                         <input
                                             type="text"
                                             value={ticketFormat.prefix}
                                             onChange={(e) => setTicketFormat({ ...ticketFormat, prefix: e.target.value })}
                                             placeholder="Ej: UTA-, INC-, TKT-"
-                                            style={{ width: '200px', padding: '10px 14px', borderRadius: 10, border: '1px solid #d1d5db' }}
+                                            className="system-config-input"
                                         />
                                     </div>
-                                    <div style={{ display: 'flex', gap: 20 }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div className="system-config-checkbox-row">
+                                        <label>
                                             <input type="checkbox" checked={ticketFormat.includeYear} onChange={(e) => setTicketFormat({ ...ticketFormat, includeYear: e.target.checked })} />
                                             Incluir año (YYYY)
                                         </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <label>
                                             <input type="checkbox" checked={ticketFormat.includeMonth} onChange={(e) => setTicketFormat({ ...ticketFormat, includeMonth: e.target.checked })} />
                                             Incluir mes (MM)
                                         </label>
                                     </div>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Número de dígitos secuencial</label>
+                                    <div className="system-config-field">
+                                        <label className="system-config-label">Número de dígitos secuencial</label>
                                         <select
                                             value={ticketFormat.digits}
                                             onChange={(e) => setTicketFormat({ ...ticketFormat, digits: parseInt(e.target.value) })}
-                                            style={{ width: '150px', padding: '10px 14px', borderRadius: 10, border: '1px solid #d1d5db' }}
+                                            className="system-config-select"
                                         >
                                             <option value={4}>4 (0001)</option>
                                             <option value={5}>5 (00001)</option>
                                             <option value={6}>6 (000001)</option>
                                         </select>
                                     </div>
-                                    <div style={{ background: '#f3f4f6', padding: 16, borderRadius: 12 }}>
+                                    <div className="system-config-example">
                                         <strong>Ejemplo:</strong> {ticketFormat.prefix}
                                         {ticketFormat.includeYear && new Date().getFullYear()}
                                         {ticketFormat.includeMonth && String(new Date().getMonth() + 1).padStart(2, '0')}
                                         {String(1).padStart(ticketFormat.digits, '0')}
-                                        <small style={{ display: 'block', color: '#6b7280', marginTop: 8 }}>
-                                            Formato aplicado automáticamente al crear tickets
-                                        </small>
+                                        <small>Formato aplicado automáticamente al crear tickets</small>
                                     </div>
                                 </div>
                             </div>
                         )}
 
                         {/* Botón Guardar Global */}
-                        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e4e7eb', paddingTop: 24 }}>
-                            <button
-                                onClick={handleSaveAll}
-                                disabled={saving}
-                                style={{
-                                    background: '#2d6a9f',
-                                    color: '#fff',
-                                    border: 'none',
-                                    padding: '12px 32px',
-                                    borderRadius: 12,
-                                    fontSize: 14,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                    opacity: saving ? 0.7 : 1
-                                }}
-                            >
-                                {saving ? <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />}
-                                {saving ? 'Guardando configuración...' : 'Guardar todos los cambios'}
+                        <div className="system-config-footer">
+                            <button onClick={handleSaveAll} disabled={saving} className="system-config-save-btn">
+                                {saving ? <RefreshCw size={16} className="system-config-spinner" /> : <Save size={16} />}
+                                {saving ? 'Guardando...' : 'Guardar todos los cambios'}
                             </button>
                         </div>
                     </>
                 )}
             </div>
+
             <style>{`
+                .system-config-page {
+                    padding: 28px 32px;
+                    background-color: #f5f7fa;
+                    min-height: 100vh;
+                }
+
+                .system-config-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 24px;
+                    flex-wrap: wrap;
+                    gap: 16px;
+                }
+
+                .system-config-title {
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #1a1a2e;
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .system-config-subtitle {
+                    font-size: 13px;
+                    color: #6b7280;
+                    margin-top: 8px;
+                }
+
+                .system-config-refresh-btn {
+                    background: #fff;
+                    border: 1px solid #d1d5db;
+                    border-radius: 12px;
+                    padding: 10px 18px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 13px;
+                    font-weight: 600;
+                }
+
+                .system-config-success {
+                    background-color: #ecfdf5;
+                    color: #10b981;
+                    padding: 14px;
+                    border-radius: 12px;
+                    margin-bottom: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+
+                .system-config-error {
+                    background-color: #fef2f2;
+                    color: #dc2626;
+                    padding: 14px;
+                    border-radius: 12px;
+                    margin-bottom: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+
+                .system-config-tabs {
+                    display: flex;
+                    gap: 8px;
+                    margin-bottom: 24px;
+                    border-bottom: 1px solid #e4e7eb;
+                    flex-wrap: wrap;
+                }
+
+                .system-config-tab {
+                    padding: 12px 24px;
+                    background: transparent;
+                    color: #6b7280;
+                    border: none;
+                    border-radius: 12px 12px 0 0;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: all 0.2s;
+                }
+
+                .system-config-tab-active {
+                    background: #2d6a9f;
+                    color: #fff;
+                }
+
+                .system-config-loading {
+                    text-align: center;
+                    padding: 60px;
+                }
+
+                .system-config-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 20px;
+                }
+
+                .system-config-card {
+                    background: #fff;
+                    border-radius: 20px;
+                    border: 1px solid #e4e7eb;
+                    padding: 24px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+                    margin-bottom: 24px;
+                }
+
+                .system-config-card-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 20px;
+                }
+
+                .system-config-level-icon {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 16px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: #2d6a9f;
+                }
+
+                .system-config-level-1 { background: #eef2ff; }
+                .system-config-level-2 { background: #ecfdf5; }
+                .system-config-level-3 { background: #fffbeb; }
+
+                .system-config-card-title {
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: #1a1a2e;
+                    margin: 0;
+                }
+
+                .system-config-card-subtitle {
+                    font-size: 12px;
+                    color: #6b7280;
+                    margin-top: 2px;
+                }
+
+                .system-config-field {
+                    margin-bottom: 16px;
+                }
+
+                .system-config-field:last-child {
+                    margin-bottom: 0;
+                }
+
+                .system-config-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #374151;
+                    margin-bottom: 8px;
+                }
+
+                .system-config-input {
+                    width: 100%;
+                    padding: 10px 14px;
+                    border-radius: 10px;
+                    border: 1px solid #d1d5db;
+                    font-size: 14px;
+                    box-sizing: border-box;
+                }
+
+                .system-config-input:focus {
+                    border-color: #2d6a9f;
+                    outline: none;
+                    box-shadow: 0 0 0 3px rgba(45, 106, 159, 0.1);
+                }
+
+                .system-config-select {
+                    width: 100%;
+                    padding: 10px 14px;
+                    border-radius: 10px;
+                    border: 1px solid #d1d5db;
+                    font-size: 14px;
+                    background: #fff;
+                }
+
+                .system-config-section-title {
+                    font-size: 18px;
+                    font-weight: 600;
+                    margin-bottom: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .system-config-checkbox-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 16px;
+                }
+
+                .system-config-checkbox-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px;
+                    background: #f9fafb;
+                    border-radius: 12px;
+                    flex-wrap: wrap;
+                }
+
+                .system-config-checkbox-item label {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    cursor: pointer;
+                }
+
+                .system-config-checkbox-row {
+                    display: flex;
+                    gap: 20px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                }
+
+                .system-config-catalog-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 24px;
+                }
+
+                .system-config-add-form {
+                    display: flex;
+                    gap: 8px;
+                    margin-bottom: 16px;
+                    flex-wrap: wrap;
+                }
+
+                .system-config-add-btn {
+                    background: #2d6a9f;
+                    color: #fff;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 8px 16px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .system-config-add-btn:hover {
+                    background: #1e4a76;
+                }
+
+                .system-config-list {
+                    list-style: none;
+                    padding: 0;
+                    margin: 0;
+                }
+
+                .system-config-list-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 10px 0;
+                    border-bottom: 1px solid #e4e7eb;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                }
+
+                .system-config-desc {
+                    color: #9ca3af;
+                    margin-left: 8px;
+                    font-size: 11px;
+                }
+
+                .system-config-delete-btn {
+                    background: none;
+                    border: none;
+                    color: #dc2626;
+                    cursor: pointer;
+                    padding: 4px;
+                }
+
+                .system-config-delete-btn:hover {
+                    background: #fee2e2;
+                    border-radius: 6px;
+                }
+
+                .system-config-empty {
+                    text-align: center;
+                    color: #6b7280;
+                    padding: 20px;
+                }
+
+                .system-config-ticket-form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                }
+
+                .system-config-example {
+                    background: #f3f4f6;
+                    padding: 16px;
+                    border-radius: 12px;
+                }
+
+                .system-config-example small {
+                    display: block;
+                    color: #6b7280;
+                    margin-top: 8px;
+                }
+
+                .system-config-footer {
+                    margin-top: 24px;
+                    display: flex;
+                    justify-content: flex-end;
+                    border-top: 1px solid #e4e7eb;
+                    padding-top: 24px;
+                }
+
+                .system-config-save-btn {
+                    background: #2d6a9f;
+                    color: #fff;
+                    border: none;
+                    padding: 12px 32px;
+                    border-radius: 12px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: all 0.2s;
+                }
+
+                .system-config-save-btn:hover {
+                    background: #1e4a76;
+                    transform: translateY(-1px);
+                }
+
+                .system-config-save-btn:disabled {
+                    opacity: 0.7;
+                    cursor: not-allowed;
+                    transform: none;
+                }
+
+                .system-config-spinner {
+                    animation: spin 1s linear infinite;
+                }
+
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
+                }
+
+                @media (max-width: 768px) {
+                    .system-config-page {
+                        padding: 70px 12px 20px 12px;
+                    }
+
+                    .system-config-title {
+                        font-size: 22px;
+                    }
+
+                    .system-config-subtitle {
+                        font-size: 11px;
+                    }
+
+                    .system-config-tab {
+                        padding: 8px 12px;
+                        font-size: 12px;
+                    }
+
+                    .system-config-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .system-config-checkbox-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .system-config-catalog-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .system-config-footer {
+                        justify-content: center;
+                    }
+
+                    .system-config-save-btn {
+                        width: 100%;
+                        justify-content: center;
+                        padding: 12px 20px;
+                    }
+
+                    .system-config-card {
+                        padding: 16px;
+                    }
+
+                    .system-config-card-header {
+                        flex-direction: column;
+                        text-align: center;
+                    }
+
+                    .system-config-section-title {
+                        font-size: 16px;
+                    }
+
+                    .system-config-checkbox-item {
+                        flex-direction: column;
+                        text-align: center;
+                    }
+
+                    .system-config-checkbox-row {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .system-config-add-form {
+                        flex-direction: column;
+                    }
+
+                    .system-config-add-btn {
+                        width: 100%;
+                        justify-content: center;
+                    }
                 }
             `}</style>
         </Layout>

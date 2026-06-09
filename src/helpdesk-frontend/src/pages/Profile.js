@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Lock, 
-  Key, 
-  Shield, 
-  CheckCircle, 
+import {
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Key,
+  Shield,
+  CheckCircle,
   AlertCircle,
   Save,
   RefreshCw,
@@ -18,7 +18,6 @@ import {
 import { authAPI } from '../services/api';
 import Layout from '../components/Layout';
 
-// Colores unificados con el Dashboard
 const COLORS = {
   Primario: '#2d6a9f',
   PrimarioOscuro: '#1e3a5f',
@@ -39,7 +38,7 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -86,9 +85,9 @@ function Profile() {
         email: formData.email,
         phone: formData.phone,
       });
-      
+
       localStorage.setItem('fullName', formData.fullName);
-      
+
       setMessage({ type: 'success', text: 'Perfil actualizado correctamente' });
       setTimeout(() => loadUserData(), 1000);
     } catch (err) {
@@ -101,12 +100,12 @@ function Profile() {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    
+
     if (formData.newPassword !== formData.confirmPassword) {
       setMessage({ type: 'error', text: 'Las contraseñas nuevas no coinciden' });
       return;
     }
-    
+
     if (formData.newPassword.length < 6) {
       setMessage({ type: 'error', text: 'La contraseña debe tener al menos 6 caracteres' });
       return;
@@ -125,9 +124,9 @@ function Profile() {
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
       });
-      
+
       setMessage({ type: 'success', text: 'Contraseña actualizada correctamente' });
-      
+
       setFormData({
         ...formData,
         currentPassword: '',
@@ -143,7 +142,7 @@ function Profile() {
   };
 
   const getRoleName = () => {
-    switch(role) {
+    switch (role) {
       case 'Admin': return 'Administrador';
       case 'TecnicoN1': return 'Técnico Nivel 1';
       case 'TecnicoN2': return 'Técnico Nivel 2';
@@ -154,7 +153,7 @@ function Profile() {
   };
 
   const getRoleIcon = () => {
-    switch(role) {
+    switch (role) {
       case 'Admin': return <Shield size={20} color={COLORS.Primario} />;
       default: return <Briefcase size={20} color={COLORS.Primario} />;
     }
@@ -174,8 +173,8 @@ function Profile() {
   if (loading) {
     return (
       <Layout>
-        <div style={styles.loading}>
-          <RefreshCw size={24} style={styles.spinner} color={COLORS.Primario} />
+        <div className="profile-loading">
+          <RefreshCw size={24} className="profile-spinner" color={COLORS.Primario} />
           <span>Cargando perfil...</span>
         </div>
       </Layout>
@@ -184,89 +183,84 @@ function Profile() {
 
   return (
     <Layout>
-      <main style={styles.content}>
-        <div style={styles.container}>
+      <main className="profile-content">
+        <div className="profile-container">
           {/* Header */}
-          <div style={styles.header}>
-            <div style={styles.headerIcon}>
+          <div className="profile-header">
+            <div className="profile-header-icon">
               <User size={32} color={COLORS.Primario} />
             </div>
             <div>
-              <h1 style={styles.title}>Mi Perfil</h1>
-              <p style={styles.subtitle}>Gestiona tu información personal y contraseña</p>
+              <h1 className="profile-title">Mi Perfil</h1>
+              <p className="profile-subtitle">Gestiona tu información personal y contraseña</p>
             </div>
           </div>
 
           {/* Mensaje de éxito/error */}
           {message.text && (
-            <div style={{ 
-              ...styles.message, 
-              backgroundColor: message.type === 'success' ? '#ecfdf5' : '#fef2f2', 
-              borderColor: message.type === 'success' ? '#10b981' : '#ef4444',
-              color: message.type === 'success' ? '#065f46' : '#991b1b'
-            }}>
+            <div className={`profile-message profile-message-${message.type}`}>
               {message.type === 'success' ? (
-                <CheckCircle size={18} style={styles.messageIcon} color="#10b981" />
+                <CheckCircle size={18} className="profile-message-icon" />
               ) : (
-                <AlertCircle size={18} style={styles.messageIcon} color="#ef4444" />
+                <AlertCircle size={18} className="profile-message-icon" />
               )}
               {message.text}
             </div>
           )}
 
           {/* Grid de tarjetas */}
-          <div style={styles.grid}>
+          <div className="profile-grid">
             {/* Tarjeta de Información Personal */}
             <div style={cardStyle}>
-              <div style={styles.cardHeader}>
+              <div className="profile-card-header">
                 <User size={20} color={COLORS.Primario} />
-                <h2 style={styles.cardTitle}>Información Personal</h2>
+                <h2 className="profile-card-title">Información Personal</h2>
               </div>
-              <form onSubmit={handleUpdateProfile} style={styles.form}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>ROL</label>
-                  <div style={styles.roleBadge}>
+              <form onSubmit={handleUpdateProfile} className="profile-form">
+                <div className="profile-form-group">
+                  <label className="profile-label">ROL</label>
+                  <div className="profile-role-badge">
                     {getRoleIcon()}
                     <span>{getRoleName()}</span>
                   </div>
                 </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>NOMBRE COMPLETO</label>
+                <div className="profile-form-group">
+                  <label className="profile-label">NOMBRE COMPLETO</label>
                   <input
                     type="text"
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleChange}
                     required
-                    style={styles.input}
+                    className="profile-input"
                     placeholder="Tu nombre completo"
                   />
                 </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>CORREO ELECTRÓNICO</label>
+                <div className="profile-form-group">
+                  <label className="profile-label">CORREO ELECTRÓNICO</label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    style={styles.input}
+                    className="profile-input"
                     placeholder="usuario@ejemplo.com"
                   />
                 </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>TELÉFONO</label>
+                <div className="profile-form-group">
+                  <label className="profile-label">TELÉFONO</label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
                     placeholder="Opcional"
-                    style={styles.input}
+                    className="profile-input"
                   />
                 </div>
-                <button type="submit" disabled={saving} style={styles.button}>
-                  <Save size={16} style={{ marginRight: 8 }} />
+                <button type="submit" disabled={saving} className="profile-btn profile-btn-primary">
+                  <Save size={16} className="profile-btn-icon" />
                   {saving ? 'Guardando...' : 'Actualizar Perfil'}
                 </button>
               </form>
@@ -274,50 +268,50 @@ function Profile() {
 
             {/* Tarjeta de Cambiar Contraseña */}
             <div style={cardStyle}>
-              <div style={styles.cardHeader}>
+              <div className="profile-card-header">
                 <Lock size={20} color={COLORS.Primario} />
-                <h2 style={styles.cardTitle}>Cambiar Contraseña</h2>
+                <h2 className="profile-card-title">Cambiar Contraseña</h2>
               </div>
-              <form onSubmit={handleChangePassword} style={styles.form}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>CONTRASEÑA ACTUAL</label>
+              <form onSubmit={handleChangePassword} className="profile-form">
+                <div className="profile-form-group">
+                  <label className="profile-label">CONTRASEÑA ACTUAL</label>
                   <input
                     type="password"
                     name="currentPassword"
                     value={formData.currentPassword}
                     onChange={handleChange}
                     required
-                    style={styles.input}
+                    className="profile-input"
                     placeholder="••••••••"
                   />
                 </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>NUEVA CONTRASEÑA</label>
+                <div className="profile-form-group">
+                  <label className="profile-label">NUEVA CONTRASEÑA</label>
                   <input
                     type="password"
                     name="newPassword"
                     value={formData.newPassword}
                     onChange={handleChange}
                     required
-                    style={styles.input}
+                    className="profile-input"
                     placeholder="••••••••"
                   />
-                  <small style={styles.hint}>Mínimo 6 caracteres</small>
+                  <small className="profile-hint">Mínimo 6 caracteres</small>
                 </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>CONFIRMAR NUEVA CONTRASEÑA</label>
+                <div className="profile-form-group">
+                  <label className="profile-label">CONFIRMAR NUEVA CONTRASEÑA</label>
                   <input
                     type="password"
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
-                    style={styles.input}
+                    className="profile-input"
                     placeholder="••••••••"
                   />
                 </div>
-                <button type="submit" disabled={saving} style={styles.button}>
-                  <RefreshCw size={16} style={{ marginRight: 8 }} />
+                <button type="submit" disabled={saving} className="profile-btn profile-btn-primary">
+                  <RefreshCw size={16} className="profile-btn-icon profile-spinner-animation" />
                   {saving ? 'Guardando...' : 'Cambiar Contraseña'}
                 </button>
               </form>
@@ -325,202 +319,304 @@ function Profile() {
           </div>
 
           {/* Footer */}
-          <div style={{ ...cardStyle, marginTop: 24, textAlign: 'center', padding: '16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="profile-footer">
+            <div className="profile-footer-content">
               <Building2 size={14} color={COLORS.TextoSecundario} />
-              <span style={{ fontSize: 12, color: COLORS.TextoSecundario }}>Departamento de Service Desk</span>
-              <span style={{ color: COLORS.TextoSecundario }}>•</span>
+              <span>Departamento de Service Desk</span>
+              <span>•</span>
               <Calendar size={14} color={COLORS.TextoSecundario} />
-              <span style={{ fontSize: 12, color: COLORS.TextoSecundario }}>EISEI</span>
+              <span>FISEI</span>
             </div>
           </div>
         </div>
       </main>
+
+      <style>{`
+        .profile-content {
+          padding: 28px 32px;
+          flex: 1;
+          background-color: ${COLORS.Fondo};
+          min-height: 100vh;
+        }
+
+        .profile-container {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .profile-header {
+          margin-bottom: 28px;
+          display: flex;
+          align-items: center;
+          gap: 16;
+        }
+
+        .profile-header-icon {
+          width: 56px;
+          height: 56px;
+          border-radius: 16px;
+          background-color: ${COLORS.PrimarioLight};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .profile-title {
+          font-size: 26px;
+          font-weight: 700;
+          color: ${COLORS.Texto};
+          margin-bottom: 4px;
+        }
+
+        .profile-subtitle {
+          font-size: 13px;
+          color: ${COLORS.TextoSecundario};
+        }
+
+        .profile-loading {
+          text-align: center;
+          padding: 60px;
+          font-size: 14px;
+          color: ${COLORS.TextoSecundario};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+        }
+
+        .profile-spinner {
+          animation: spin 1s linear infinite;
+        }
+
+        .profile-message {
+          padding: 14px 18px;
+          border-radius: 12px;
+          margin-bottom: 24px;
+          font-size: 13px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          border: 1px solid;
+        }
+
+        .profile-message-success {
+          background-color: #ecfdf5;
+          border-color: #10b981;
+          color: #065f46;
+        }
+
+        .profile-message-error {
+          background-color: #fef2f2;
+          border-color: #ef4444;
+          color: #991b1b;
+        }
+
+        .profile-message-icon {
+          margin-right: 4px;
+        }
+
+        .profile-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+          gap: 28px;
+        }
+
+        .profile-card-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 24px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid ${COLORS.Borde};
+        }
+
+        .profile-card-title {
+          font-size: 18px;
+          font-weight: 700;
+          margin: 0;
+          color: ${COLORS.Texto};
+        }
+
+        .profile-form {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .profile-form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .profile-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: ${COLORS.TextoSecundario};
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .profile-input {
+          width: 100%;
+          padding: 12px 14px;
+          border: 1px solid ${COLORS.Borde};
+          border-radius: 10px;
+          font-size: 14px;
+          outline: none;
+          transition: all 0.2s ease;
+          background-color: #fff;
+          color: ${COLORS.Texto};
+          box-sizing: border-box;
+        }
+
+        .profile-input:focus {
+          border-color: ${COLORS.Primario};
+          box-shadow: 0 0 0 3px rgba(45, 106, 159, 0.1);
+          outline: none;
+        }
+
+        .profile-role-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          background-color: ${COLORS.PrimarioLight};
+          border-radius: 10px;
+          color: ${COLORS.Primario};
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .profile-hint {
+          font-size: 11px;
+          color: ${COLORS.TextoSecundario};
+          margin-top: 4px;
+          display: block;
+        }
+
+        .profile-btn {
+          border: none;
+          padding: 12px 20px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          margin-top: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+
+        .profile-btn-primary {
+          background-color: ${COLORS.Primario};
+          color: #fff;
+        }
+
+        .profile-btn-primary:hover {
+          transform: translateY(-1px);
+        }
+
+        .profile-btn-primary:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .profile-btn-icon {
+          margin-right: 8px;
+        }
+
+        .profile-footer {
+          margin-top: 24px;
+          background: #fff;
+          border-radius: 20px;
+          border: 1px solid ${COLORS.Borde};
+          text-align: center;
+          padding: 16px 20px;
+        }
+
+        .profile-footer-content {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          font-size: 12px;
+          color: ${COLORS.TextoSecundario};
+        }
+
+        .profile-spinner-animation {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+          .profile-content {
+            padding: 70px 12px 20px 12px;
+          }
+
+          .profile-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 12px;
+          }
+
+          .profile-header-icon {
+            width: 48px;
+            height: 48px;
+          }
+
+          .profile-title {
+            font-size: 22px;
+          }
+
+          .profile-subtitle {
+            font-size: 12px;
+          }
+
+          .profile-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
+          }
+
+          .profile-card-header {
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+          }
+
+          .profile-card-title {
+            font-size: 16px;
+          }
+
+          .profile-input {
+            padding: 12px;
+            font-size: 16px;
+          }
+
+          .profile-btn {
+            padding: 12px;
+          }
+
+          .profile-footer {
+            margin-top: 20px;
+            padding: 12px 16px;
+          }
+
+          .profile-footer-content {
+            font-size: 10px;
+            gap: 6px;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
-
-const styles = {
-  content: {
-    padding: '28px 32px',
-    flex: 1,
-    backgroundColor: COLORS.Fondo,
-    minHeight: '100vh',
-  },
-
-  container: {
-    maxWidth: 1200,
-    margin: '0 auto',
-  },
-
-  header: {
-    marginBottom: 28,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-  },
-
-  headerIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: COLORS.PrimarioLight,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: 700,
-    color: COLORS.Texto,
-    marginBottom: 4,
-  },
-
-  subtitle: {
-    fontSize: 13,
-    color: COLORS.TextoSecundario,
-  },
-
-  loading: {
-    textAlign: 'center',
-    padding: 60,
-    fontSize: 14,
-    color: COLORS.TextoSecundario,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-
-  spinner: {
-    animation: 'spin 1s linear infinite',
-  },
-
-  message: {
-    padding: '14px 18px',
-    borderRadius: 12,
-    marginBottom: 24,
-    fontSize: 13,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    border: '1px solid',
-  },
-
-  messageIcon: {
-    marginRight: 4,
-  },
-
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-    gap: 28,
-  },
-
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottom: `1px solid ${COLORS.Borde}`,
-  },
-
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    margin: 0,
-    color: COLORS.Texto,
-  },
-
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 20,
-  },
-
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-
-  label: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: COLORS.TextoSecundario,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  input: {
-    width: '100%',
-    padding: '12px 14px',
-    border: `1px solid ${COLORS.Borde}`,
-    borderRadius: 10,
-    fontSize: 14,
-    outline: 'none',
-    transition: 'all 0.2s ease',
-    backgroundColor: '#fff',
-    color: COLORS.Texto,
-    boxSizing: 'border-box',
-  },
-
-  roleBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '10px 14px',
-    backgroundColor: COLORS.PrimarioLight,
-    borderRadius: 10,
-    color: COLORS.Primario,
-    fontSize: 14,
-    fontWeight: 500,
-  },
-
-  hint: {
-    fontSize: 11,
-    color: COLORS.TextoSecundario,
-    marginTop: 4,
-    display: 'block',
-  },
-
-  button: {
-    backgroundColor: COLORS.Primario,
-    color: '#fff',
-    border: 'none',
-    padding: '12px 20px',
-    borderRadius: 10,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    marginTop: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease',
-  },
-};
-
-// Añadir animaciones y efectos focus
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  
-  input:focus {
-    border-color: ${COLORS.Primario} !important;
-    box-shadow: 0 0 0 3px rgba(45, 106, 159, 0.1) !important;
-    outline: none !important;
-  }
-  
-  button:hover {
-    transform: translateY(-1px);
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default Profile;
